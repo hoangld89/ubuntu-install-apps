@@ -41,6 +41,8 @@ APPS=(
     "docker|Docker + Docker Compose|1"
 
     # ── Database Tools ──
+    "mysqlclient|MySQL Client (mysqldump)|1"
+    "pgclient|PostgreSQL Client (pg_dump)|1"
     "dbeaver|DBeaver Community|1"
     "navicat|Navicat Premium Lite|1"
 
@@ -80,7 +82,7 @@ print_menu() {
             nvm|dotnet)         group="Languages & Runtime" ;;
             terminal)           group="Terminal Utilities" ;;
             terraform|azcli|docker) group="DevOps & Infrastructure" ;;
-            dbeaver|navicat)    group="Database Tools" ;;
+            mysqlclient|pgclient|dbeaver|navicat) group="Database Tools" ;;
             fcitx5|vlc|claude)  group="Productivity" ;;
         esac
         if [[ "$group" != "$last_group" ]]; then
@@ -434,6 +436,18 @@ do_azcli() {
     apt install -y azure-cli
 
     success "Azure CLI $(az version --output tsv 2>/dev/null | head -1) installed"
+}
+
+do_mysqlclient() {
+    info "Installing MySQL Client..."
+    apt install -y mysql-client
+    success "MySQL Client installed (mysqldump $(mysqldump --version 2>/dev/null | grep -oP 'Distrib \K[^,]+' || echo 'ready'))"
+}
+
+do_pgclient() {
+    info "Installing PostgreSQL Client..."
+    apt install -y postgresql-client
+    success "PostgreSQL Client installed (pg_dump $(pg_dump --version 2>/dev/null | grep -oP '\d+\.\d+' || echo 'ready'))"
 }
 
 do_dbeaver() {

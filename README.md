@@ -35,51 +35,54 @@ Running `sudo bash install.sh` displays a grouped, toggleable menu:
 ╚══════════════════════════════════════════════════╝
 
        ── System ──
-  [x]  1) System Update & Upgrade
-  [x]  2) Swap 8GB + swappiness 10
+ ▸ [x] System Update & Upgrade
+   [x] Swap 8GB + swappiness 10
 
        ── Browser & Communication ──
-  [x]  3) Google Chrome
-  [x]  4) Microsoft Teams
+   [x] Google Chrome
+   [x] Microsoft Teams
 
        ── IDE & Editor ──
-  [x]  5) Visual Studio Code
-  [x]  6) Trae IDE
+   [x] Visual Studio Code
+   [x] Trae IDE
 
        ── Languages & Runtime ──
-  [x]  7) NVM + Node.js 24
-  [x]  8) .NET SDK (select version)          [versions: 10]
+   [x] NVM + Node.js 24
+   [x] .NET SDK (chọn version)          [versions: 10]
 
        ── Terminal Utilities ──
-  [x]  9) Terminal tools (zsh, tmux, htop, jq, yq, rg, fzf, bat)
+   [x] Terminal tools (zsh, tmux, htop, jq, yq, rg, fzf, bat)
 
        ── DevOps & Infrastructure ──
-  [x] 10) Terraform
-  [x] 11) Azure CLI
-  [x] 12) Docker + Docker Compose
+   [x] Terraform
+   [x] Azure CLI
+   [x] Docker + Docker Compose
 
        ── Database Tools ──
-  [x] 13) DBeaver Community
-  [x] 14) Navicat Premium Lite
+   [x] MySQL Client (mysqldump)
+   [x] PostgreSQL Client (pg_dump)
+   [x] DBeaver Community
+   [x] Navicat Premium Lite
 
        ── Productivity ──
-  [x] 15) Fcitx5 (Vietnamese input)
-  [x] 16) VLC Media Player
-  [x] 17) Claude CLI
+   [x] Fcitx5 (Vietnamese input)
+   [x] VLC Media Player
+   [x] Claude CLI
 
-  a) Select all    n) Deselect all    d) .NET versions
-  s) Start install  q) Quit
+  ↑↓ Di chuyển  Space Chọn/bỏ  a Tất cả  n Bỏ tất cả
+  d  .NET ver   Enter Cài đặt  q Thoát
 ```
 
 ### Controls
 
 | Key | Action |
 |-----|--------|
-| `1` &ndash; `17` | Toggle individual items on/off |
+| `↑` `↓` | Navigate up/down between items |
+| `Space` | Toggle selected item on/off |
 | `a` | Select all |
 | `n` | Deselect all |
 | `d` | Configure .NET SDK versions (e.g. type `8 9 10`) |
-| `s` | Start installation |
+| `Enter` | Start installation |
 | `q` | Quit without installing |
 
 ---
@@ -151,16 +154,18 @@ Running `sudo bash install.sh` displays a grouped, toggleable menu:
 
 | # | Component | Source | Details |
 |---|-----------|--------|---------|
-| 13 | **DBeaver Community** | `.deb` latest | Universal database GUI client |
-| 14 | **Navicat Premium Lite** | AppImage | Installed to `/opt`, available as `navicat` command and in app menu |
+| 13 | **MySQL Client** | apt | `mysql-client` package — includes `mysqldump`, `mysql` CLI |
+| 14 | **PostgreSQL Client** | apt | `postgresql-client` package — includes `pg_dump`, `pg_restore`, `psql` CLI |
+| 15 | **DBeaver Community** | `.deb` latest | Universal database GUI client |
+| 16 | **Navicat Premium Lite** | AppImage | Installed to `/opt`, available as `navicat` command and in app menu |
 
 ### Productivity
 
 | # | Component | Source | Details |
 |---|-----------|--------|---------|
-| 15 | **Fcitx5 + Unikey** | apt | Vietnamese input method. Auto-configures environment variables and autostart |
-| 16 | **VLC** | apt | Media player |
-| 17 | **Claude CLI** | npm (global) | AI assistant in terminal. Requires NVM/Node (#7) to be installed first |
+| 17 | **Fcitx5 + Unikey** | apt | Vietnamese input method. Auto-configures environment variables and autostart |
+| 18 | **VLC** | apt | Media player |
+| 19 | **Claude CLI** | npm (global) | AI assistant in terminal. Requires NVM/Node (#7) to be installed first |
 
 ---
 
@@ -169,7 +174,7 @@ Running `sudo bash install.sh` displays a grouped, toggleable menu:
 The script installs items in menu order. One dependency to note:
 
 ```
-NVM + Node.js (#7)  ──>  Claude CLI (#17)
+NVM + Node.js (#7)  ──>  Claude CLI (#19)
 ```
 
 > If Claude CLI is selected without NVM, the script will warn and skip it.
@@ -195,6 +200,8 @@ node -v                         # Node version?
 dotnet --list-sdks              # .NET SDKs?
 terraform -v                    # Terraform?
 az version                      # Azure CLI?
+mysqldump --version             # MySQL client?
+pg_dump --version               # PostgreSQL client?
 echo $SHELL                     # Switched to zsh?
 ```
 
