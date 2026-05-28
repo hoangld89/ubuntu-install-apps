@@ -4,9 +4,16 @@
   <img src="https://img.shields.io/badge/Shell-Bash-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white" />
 </p>
 
-# Ubuntu / Linux Mint &mdash; Post-install Setup Script
+<h1 align="center">Ubuntu / Linux Mint &mdash; Post-install Setup Script</h1>
 
-An interactive post-install script that sets up a fresh Ubuntu or Linux Mint machine with developer tools, system tuning, and productivity apps. Pick what you need from a TUI menu before anything gets installed.
+<p align="center">
+  Interactive post-install script for fresh Ubuntu / Linux Mint machines.<br/>
+  Pick what you need from a TUI menu &mdash; everything else is automatic.
+</p>
+
+<p align="center">
+  <b>20 apps</b> &nbsp;·&nbsp; <b>Idempotent</b> (safe to re-run) &nbsp;·&nbsp; <b>Mint-compatible</b> (auto-detects Ubuntu codename)
+</p>
 
 ---
 
@@ -16,74 +23,54 @@ An interactive post-install script that sets up a fresh Ubuntu or Linux Mint mac
 git clone https://github.com/hoangld89/ubuntu-install-apps.git
 cd ubuntu-install-apps
 
-# Interactive mode — pick and choose
-sudo bash install.sh
+# Interactive — pick and choose
+./install-app.sh
 
 # Or install everything at once
-sudo bash install.sh --all
+./install-app.sh --all
 ```
 
 ---
 
 ## Interactive Menu
 
-Running `sudo bash install.sh` displays a grouped, toggleable menu:
-
 ```
-╔══════════════════════════════════════════════════╗
-║   Ubuntu / Linux Mint — App Installer            ║
-╚══════════════════════════════════════════════════╝
+  ╭─────────────────────────────────────────────────────╮
+  │                                                     │
+  │     Ubuntu / Linux Mint                             │
+  │     Post-install Setup                              │
+  │                                                     │
+  ╰─────────────────────────────────────────────────────╯
 
-       ── System ──
- ▸ [x] System Update & Upgrade
-   [x] Swap 8GB + swappiness 10
+ ▶▶ ▸ ⚙ System                              ● 2/2
+     ▸ ⌨ Shell & Terminal                    ● 1/1
+     ▸ ◆ Languages & Runtime                 ● 2/2
+     ▾ ◎ Browser                             ◐ 1/2
+        ▶▶ ● Google Chrome
+            ○ Microsoft Edge
+     ▸ ✉ Communication                       ● 1/1
+     ▸ ✎ IDE & Editor                        ● 2/2
+     ▸ ▲ DevOps & Infrastructure             ● 3/3
+     ▸ ⬡ Database Tools                      ● 4/4
+     ▸ ★ Productivity                        ● 2/2
+     ▸ ◈ AI Tools                            ● 1/1
 
-       ── Browser & Communication ──
-   [x] Google Chrome
-   [x] Microsoft Teams
+  ─────────────────────────────────────────────────────
+  19/20 selected
 
-       ── IDE & Editor ──
-   [x] Visual Studio Code
-   [x] Trae IDE
-
-       ── Languages & Runtime ──
-   [x] NVM + Node.js 24
-   [x] .NET SDK (chọn version)          [versions: 10]
-
-       ── Terminal Utilities ──
-   [x] Terminal tools (zsh, tmux, htop, jq, yq, rg, fzf, bat)
-
-       ── DevOps & Infrastructure ──
-   [x] Terraform
-   [x] Azure CLI
-   [x] Docker + Docker Compose
-
-       ── Database Tools ──
-   [x] MySQL Client (mysqldump)
-   [x] PostgreSQL Client (pg_dump)
-   [x] DBeaver Community
-   [x] Navicat Premium Lite
-
-       ── Productivity ──
-   [x] Fcitx5 (Vietnamese input)
-   [x] VLC Media Player
-   [x] Claude CLI
-
-  ↑↓ Di chuyển  Space Chọn/bỏ  a Tất cả  n Bỏ tất cả
-  d  .NET ver   Enter Cài đặt  q Thoát
+  ↑↓ Move  Space Toggle  Enter Expand/Collapse  d .NET ver
+  a All  n None  q Quit  i → Install
 ```
-
-### Controls
 
 | Key | Action |
-|-----|--------|
-| `↑` `↓` | Navigate up/down between items |
-| `Space` | Toggle selected item on/off |
-| `a` | Select all |
-| `n` | Deselect all |
-| `d` | Configure .NET SDK versions (e.g. type `8 9 10`) |
-| `Enter` | Start installation |
-| `q` | Quit without installing |
+|:---:|--------|
+| `↑` `↓` | Navigate groups / items |
+| `Space` | Toggle group (all items) or single item |
+| `Enter` | Expand / collapse group |
+| `a` / `n` | Select all / Deselect all |
+| `d` | Configure .NET versions (e.g. `8 9 10`) |
+| `i` | Start installation |
+| `q` | Quit |
 
 ---
 
@@ -91,128 +78,192 @@ Running `sudo bash install.sh` displays a grouped, toggleable menu:
 
 ### System
 
-| # | Component | Details |
-|---|-----------|---------|
-| 1 | **System Update** | `apt update && upgrade && autoremove` |
-| 2 | **Swap 8GB** | Creates `/swapfile` (8GB), sets `swappiness=10`, persists via `/etc/fstab` and `/etc/sysctl.conf` |
+| Component | Details |
+|-----------|---------|
+| **System Update** | `apt update && upgrade && autoremove` |
+| **Swap 8GB** | Creates `/swapfile` (8GB), `swappiness=10`, persists in `/etc/fstab` + `/etc/sysctl.conf` |
 
-### Browser & Communication
+### Shell & Terminal
 
-| # | Component | Source | Details |
-|---|-----------|--------|---------|
-| 3 | **Google Chrome** | `.deb` direct download | Stable channel |
-| 4 | **Microsoft Teams** | Microsoft apt repo | Falls back to `.deb` if repo unavailable |
+ZSH is installed **before** languages/runtimes so that NVM, .NET, etc. automatically write their config into `.zshrc`.
 
-### IDE & Editor
-
-| # | Component | Source |
-|---|-----------|--------|
-| 5 | **Visual Studio Code** | Microsoft apt repo |
-| 6 | **Trae IDE** | `.deb` from CDN |
-
-### Languages & Runtime
-
-| # | Component | Details |
-|---|-----------|---------|
-| 7 | **NVM + Node.js 24** | Installs NVM v0.40.3 for the current user, sets Node 24 as default |
-| 8 | **.NET SDK** | Default: version 10. Press `d` in menu to select multiple versions (e.g. `8 9 10`). Auto-falls back to Microsoft install script if version is unavailable in apt |
-
-### Terminal Utilities
-
-| # | Component |
-|---|-----------|
-| 9 | **Terminal tools** |
+| Component | Details |
+|-----------|---------|
+| **zsh + Oh My Zsh** | New default shell with 14 plugins (see below) |
+| **tmux** | Terminal multiplexer |
+| **htop** | Interactive process monitor |
+| **jq** / **yq** | JSON / YAML processors |
+| **ripgrep** (`rg`) | Fast file search |
+| **fzf** | Fuzzy finder |
+| **bat** | `cat` with syntax highlighting |
 
 <details>
-<summary><b>Included tools (click to expand)</b></summary>
+<summary><b>ZSH Plugins (14)</b></summary>
 
-| Tool | Description |
-|------|-------------|
-| **zsh** | New default shell (replaces bash) |
-| **Oh My Zsh** | Zsh configuration framework with plugins |
-| **zsh-autosuggestions** | Fish-like command suggestions |
-| **zsh-syntax-highlighting** | Real-time syntax coloring |
-| **tmux** | Terminal multiplexer, persists sessions over SSH |
-| **htop** | Interactive process/resource monitor |
-| **jq** | JSON processor for the command line |
-| **yq** | YAML processor (similar to jq) |
-| **ripgrep (`rg`)** | Blazing fast file content search |
-| **fzf** | Fuzzy finder for files, history, and pipes |
-| **bat** | `cat` with syntax highlighting and line numbers |
+| Plugin | Type | Description |
+|--------|------|-------------|
+| git | built-in | Git aliases & status in prompt |
+| zsh-autosuggestions | external | Fish-like command suggestions |
+| zsh-syntax-highlighting | external | Real-time syntax coloring |
+| zsh-completions | external | Extra completion definitions |
+| zsh-history-substring-search | external | Type partial command + `↑` to search history |
+| z | built-in | Jump to frequently used directories |
+| fzf | built-in | Fuzzy search integration |
+| sudo | built-in | Press `Esc` twice to prepend `sudo` |
+| aliases | built-in | Alias management utilities |
+| docker | built-in | Docker completions & aliases |
+| docker-compose | built-in | Docker Compose completions |
+| kubectl | built-in | Kubernetes completions & aliases |
+| terraform | built-in | Terraform completions |
 
 </details>
 
+<details>
+<summary><b>ZSH Tool Integrations</b></summary>
+
+`.zshrc` includes conditional blocks for tools that may write config to `.bashrc` on install. These are auto-loaded if the tool is present, and silently skipped if not:
+
+- **NVM** &mdash; `$NVM_DIR/nvm.sh`
+- **.NET** &mdash; `DOTNET_ROOT` + `$HOME/.dotnet/tools` PATH
+- **Azure CLI** &mdash; bash completions via `bashcompinit`
+- **Claude Code** &mdash; `$HOME/.claude/bin` PATH
+- **Cargo / Rust** &mdash; `$HOME/.cargo/env`
+
+This ensures switching from bash to zsh doesn't break any previously installed tools.
+
+</details>
+
+### Languages & Runtime
+
+| Component | Details |
+|-----------|---------|
+| **NVM + Node.js 24** | NVM v0.40.3 for current user, Node 24 as default |
+| **.NET SDK** | Default: v10. Press `d` to select multiple (e.g. `8 9 10`). Falls back to Microsoft install script if unavailable in apt |
+
+### Browser
+
+| Component | Source |
+|-----------|--------|
+| **Google Chrome** | `.deb` direct download |
+| **Microsoft Edge** | Microsoft apt repo |
+
+### Communication
+
+| Component | Source | Details |
+|-----------|--------|---------|
+| **Teams for Linux** | [GitHub releases](https://github.com/IsmaelMartinez/teams-for-linux) | Unofficial Electron wrapper (Microsoft discontinued native Teams for Linux in 2022) |
+
+### IDE & Editor
+
+| Component | Source |
+|-----------|--------|
+| **Visual Studio Code** | Microsoft apt repo |
+| **Trae IDE** | `.deb` from CDN |
+
 ### DevOps & Infrastructure
 
-| # | Component | Source | Details |
-|---|-----------|--------|---------|
-| 10 | **Terraform** | HashiCorp apt repo | Infrastructure as Code |
-| 11 | **Azure CLI** | Microsoft apt repo | Manage Azure resources |
-| 12 | **Docker + Compose** | Docker apt repo | Docker CE, Compose plugin, buildx. Adds current user to `docker` group |
+| Component | Source | Details |
+|-----------|--------|---------|
+| **Terraform** | HashiCorp apt repo | Infrastructure as Code |
+| **Azure CLI** | Microsoft apt repo | Azure resource management |
+| **Docker + Compose** | Docker apt repo | Docker CE, Compose plugin, buildx. Adds user to `docker` group |
 
 ### Database Tools
 
-| # | Component | Source | Details |
-|---|-----------|--------|---------|
-| 13 | **MySQL Client** | apt | `mysql-client` package — includes `mysqldump`, `mysql` CLI |
-| 14 | **PostgreSQL Client** | apt | `postgresql-client` package — includes `pg_dump`, `pg_restore`, `psql` CLI |
-| 15 | **DBeaver Community** | `.deb` latest | Universal database GUI client |
-| 16 | **Navicat Premium Lite** | AppImage | Installed to `/opt`, available as `navicat` command and in app menu |
+| Component | Source | Details |
+|-----------|--------|---------|
+| **MySQL Client** | apt | `mysqldump`, `mysql` CLI |
+| **PostgreSQL Client** | apt | `pg_dump`, `pg_restore`, `psql` |
+| **DBeaver Community** | `.deb` latest | Universal database GUI |
+| **Navicat Premium Lite** | AppImage | Installed to `/opt`, available as `navicat` command |
 
-### Productivity
+### Productivity & AI
 
-| # | Component | Source | Details |
-|---|-----------|--------|---------|
-| 17 | **Fcitx5 + Unikey** | apt | Vietnamese input method. Auto-configures environment variables and autostart |
-| 18 | **VLC** | apt | Media player |
-| 19 | **Claude CLI** | npm (global) | AI assistant in terminal. Requires NVM/Node (#7) to be installed first |
+| Component | Source | Details |
+|-----------|--------|---------|
+| **Fcitx5 + Unikey** | apt | Vietnamese input. Auto-configures env vars & autostart |
+| **VLC** | apt | Media player |
+| **Claude Code** | Official installer (`claude.ai/install.sh`) | AI coding assistant. No Node.js dependency |
 
 ---
 
-## Dependencies
+## Idempotent &mdash; Safe to Re-run
 
-The script installs items in menu order. One dependency to note:
+The script detects already-installed tools and skips them:
 
 ```
-NVM + Node.js (#7)  ──>  Claude CLI (#19)
+[OK] Google Chrome already installed, skipping
+[OK] Docker already installed, skipping
+[OK] NVM already installed, skipping
+[INFO] Installing Terraform...          ← only installs what's missing
 ```
 
-> If Claude CLI is selected without NVM, the script will warn and skip it.
+| Install method | Skip behavior |
+|----------------|---------------|
+| `.deb` / AppImage / curl downloads | Checks binary or install path before downloading |
+| apt packages | `apt install` is natively idempotent |
+| Oh My Zsh + plugins | Checks `~/.oh-my-zsh` directory |
+| `.zshrc` config blocks | Checks for marker before appending |
+| Swap | Checks existing size matches 8GB |
+
+---
+
+## Linux Mint Compatibility
+
+Linux Mint codenames (`wilma`, `victoria`, etc.) don't match Ubuntu repo codenames. The script auto-detects the underlying Ubuntu codename:
+
+```
+Mint 22 (Wilma) → Ubuntu 24.04 (noble)
+Mint 21 (Victoria) → Ubuntu 22.04 (jammy)
+```
+
+This fix applies to: .NET SDK, Azure CLI, Terraform, Docker, VS Code, and Edge repos.
+
+---
+
+## Install Order
+
+The install order is deliberate:
+
+```
+1. System Update      ─── apt cache fresh
+2. Swap               ─── memory ready
+3. Terminal + ZSH     ─── .zshrc exists BEFORE anything writes to it
+4. NVM + Node.js      ─── config goes into .zshrc (not just .bashrc)
+5. .NET SDK           ─── DOTNET_ROOT picked up by .zshrc
+6-7. Chrome, Edge     ─── browsers
+8. Teams              ─── communication
+9-10. VS Code, Trae   ─── editors
+11-13. TF, AZ, Docker ─── infra tools
+14-17. DB tools       ─── database clients
+18-19. Fcitx5, VLC    ─── productivity
+20. Claude Code       ─── AI tools (no longer needs Node.js)
+```
 
 ---
 
 ## Post-install
 
-Some changes require a **re-login** or **reboot** to take effect:
+Some changes require a **re-login** or **reboot**:
 
 | Component | Requires |
 |-----------|----------|
+| Zsh (default shell) | Re-login |
 | Docker group | Re-login |
 | Fcitx5 | Re-login |
-| Zsh (default shell) | Re-login |
 | Swap | Active immediately |
 
-Quick verification after re-login:
+Quick verification:
 
 ```bash
-docker run hello-world          # Docker working?
-node -v                         # Node version?
-dotnet --list-sdks              # .NET SDKs?
-terraform -v                    # Terraform?
-az version                      # Azure CLI?
-mysqldump --version             # MySQL client?
-pg_dump --version               # PostgreSQL client?
-echo $SHELL                     # Switched to zsh?
+echo $SHELL                     # → /usr/bin/zsh
+node -v                         # → v24.x.x
+dotnet --list-sdks              # → 10.0.xxx
+terraform -v                    # → Terraform vX.X.X
+az version                      # → X.X.X
+docker run hello-world          # → Hello from Docker!
+claude --version                # → claude X.X.X
 ```
-
----
-
-## System Requirements
-
-- **OS**: Ubuntu 22.04+ or Linux Mint 21+
-- **Arch**: amd64 (x86_64)
-- **Privileges**: Root (`sudo`)
-- **Network**: Internet connection required
 
 ---
 
@@ -220,29 +271,44 @@ echo $SHELL                     # Switched to zsh?
 
 ### Adding a new app
 
-1. Add an entry to the `APPS` array in `install.sh`:
+1. Add to `APPS` array:
    ```bash
-   APPS=(
-       ...
-       "myapp|My Application|1"    # 1 = selected by default, 0 = off
-   )
+   "myapp|My Application|1"    # 1 = on by default
    ```
 
-2. Add a matching `do_myapp()` function:
+2. Add matching function + skip check:
    ```bash
    do_myapp() {
+       if command -v myapp &>/dev/null; then
+           success "My Application already installed, skipping"
+           return
+       fi
        info "Installing My Application..."
-       # install commands here
+       # install commands
        success "My Application installed"
    }
    ```
 
+3. Add `myapp` to the `case` block in `print_menu()` for group assignment.
+
 ### Changing swap size
 
-Edit the `fallocate` line in `do_swap()`:
+Edit the size and check in `do_swap()`:
 ```bash
-fallocate -l 16G /swapfile    # change from 8G to 16G
+fallocate -l 16G /swapfile
+# Also update the size check: $((16 * 1024 * 1024 * 1024))
 ```
+
+---
+
+## System Requirements
+
+| | |
+|---|---|
+| **OS** | Ubuntu 22.04+ / Linux Mint 21+ |
+| **Arch** | amd64 (x86_64) |
+| **Privileges** | Root (`sudo`) |
+| **Network** | Internet connection required |
 
 ---
 
