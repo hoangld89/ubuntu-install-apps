@@ -6,29 +6,28 @@
 
 # Ubuntu / Linux Mint &mdash; Post-install Setup Script
 
-Script cai dat tu dong cac ung dung va cau hinh he thong sau khi cai moi Ubuntu hoac Linux Mint.
-Co menu tuong tac de chon/bo tung thanh phan truoc khi cai.
+An interactive post-install script that sets up a fresh Ubuntu or Linux Mint machine with developer tools, system tuning, and productivity apps. Pick what you need from a TUI menu before anything gets installed.
 
 ---
 
-## Khoi chay nhanh
+## Quick Start
 
 ```bash
-# Clone repo
-git clone <repo-url> && cd ubuntu-install-script
+git clone https://github.com/hoangld89/ubuntu-install-apps.git
+cd ubuntu-install-apps
 
-# Chay voi menu tuong tac
+# Interactive mode — pick and choose
 sudo bash install.sh
 
-# Hoac cai tat ca khong hoi
+# Or install everything at once
 sudo bash install.sh --all
 ```
 
 ---
 
-## Menu tuong tac
+## Interactive Menu
 
-Khi chay `sudo bash install.sh`, script se hien menu nhu sau:
+Running `sudo bash install.sh` displays a grouped, toggleable menu:
 
 ```
 ╔══════════════════════════════════════════════════╗
@@ -49,7 +48,7 @@ Khi chay `sudo bash install.sh`, script se hien menu nhu sau:
 
        ── Languages & Runtime ──
   [x]  7) NVM + Node.js 24
-  [x]  8) .NET SDK (chon version)            [versions: 10]
+  [x]  8) .NET SDK (select version)          [versions: 10]
 
        ── Terminal Utilities ──
   [x]  9) Terminal tools (zsh, tmux, htop, jq, yq, rg, fzf, bat)
@@ -72,173 +71,174 @@ Khi chay `sudo bash install.sh`, script se hien menu nhu sau:
   s) Start install  q) Quit
 ```
 
-### Thao tac
+### Controls
 
-| Phim | Tac dung |
-|------|----------|
-| `1` &ndash; `17` | Bat/tat tung thanh phan |
-| `a` | Chon tat ca |
-| `n` | Bo chon tat ca |
-| `d` | Cau hinh .NET SDK versions (vd: nhap `8 9 10`) |
-| `s` | Bat dau cai dat |
-| `q` | Thoat |
+| Key | Action |
+|-----|--------|
+| `1` &ndash; `17` | Toggle individual items on/off |
+| `a` | Select all |
+| `n` | Deselect all |
+| `d` | Configure .NET SDK versions (e.g. type `8 9 10`) |
+| `s` | Start installation |
+| `q` | Quit without installing |
 
 ---
 
-## Chi tiet tung thanh phan
+## What Gets Installed
 
 ### System
 
-| # | Thanh phan | Mo ta |
-|---|------------|-------|
+| # | Component | Details |
+|---|-----------|---------|
 | 1 | **System Update** | `apt update && upgrade && autoremove` |
-| 2 | **Swap 8GB** | Tao `/swapfile` 8GB, `swappiness=10`, persistent qua `/etc/fstab` va `/etc/sysctl.conf` |
+| 2 | **Swap 8GB** | Creates `/swapfile` (8GB), sets `swappiness=10`, persists via `/etc/fstab` and `/etc/sysctl.conf` |
 
 ### Browser & Communication
 
-| # | Thanh phan | Nguon cai | Mo ta |
-|---|------------|-----------|-------|
-| 3 | **Google Chrome** | `.deb` truc tiep | Trinh duyet chinh |
-| 4 | **Microsoft Teams** | Microsoft repo | Ung dung lam viec nhom |
+| # | Component | Source | Details |
+|---|-----------|--------|---------|
+| 3 | **Google Chrome** | `.deb` direct download | Stable channel |
+| 4 | **Microsoft Teams** | Microsoft apt repo | Falls back to `.deb` if repo unavailable |
 
 ### IDE & Editor
 
-| # | Thanh phan | Nguon cai |
-|---|------------|-----------|
-| 5 | **VS Code** | Microsoft apt repo |
-| 6 | **Trae IDE** | `.deb` tu CDN |
+| # | Component | Source |
+|---|-----------|--------|
+| 5 | **Visual Studio Code** | Microsoft apt repo |
+| 6 | **Trae IDE** | `.deb` from CDN |
 
 ### Languages & Runtime
 
-| # | Thanh phan | Mo ta |
-|---|------------|-------|
-| 7 | **NVM + Node.js 24** | Cai NVM v0.40.3 cho user hien tai, tu dong cai Node 24 va set default |
-| 8 | **.NET SDK** | Mac dinh version 10. Nhan `d` trong menu de chon nhieu version (vd: `8 9 10`). Tu dong fallback sang install script neu version chua co trong apt |
+| # | Component | Details |
+|---|-----------|---------|
+| 7 | **NVM + Node.js 24** | Installs NVM v0.40.3 for the current user, sets Node 24 as default |
+| 8 | **.NET SDK** | Default: version 10. Press `d` in menu to select multiple versions (e.g. `8 9 10`). Auto-falls back to Microsoft install script if version is unavailable in apt |
 
 ### Terminal Utilities
 
-| # | Thanh phan | Bao gom |
-|---|------------|---------|
-| 9 | **Terminal tools** | Xem chi tiet ben duoi |
+| # | Component |
+|---|-----------|
+| 9 | **Terminal tools** |
 
 <details>
-<summary><b>Chi tiet cac tool trong Terminal tools</b></summary>
+<summary><b>Included tools (click to expand)</b></summary>
 
-| Tool | Mo ta |
-|------|-------|
-| **zsh** | Shell mac dinh moi (thay the bash) |
-| **Oh My Zsh** | Framework cau hinh zsh voi plugins |
-| **zsh-autosuggestions** | Goi y lenh khi go |
-| **zsh-syntax-highlighting** | To mau cau lenh |
-| **tmux** | Terminal multiplexer, giu session khi SSH |
-| **htop** | Monitor CPU/RAM truc quan |
-| **jq** | Parse va xu ly JSON trong terminal |
-| **yq** | Parse va xu ly YAML (tuong tu jq) |
-| **ripgrep (`rg`)** | Tim kiem noi dung file cuc nhanh |
-| **fzf** | Fuzzy finder cho file, history, pipe |
-| **bat** | `cat` voi syntax highlighting va line numbers |
+| Tool | Description |
+|------|-------------|
+| **zsh** | New default shell (replaces bash) |
+| **Oh My Zsh** | Zsh configuration framework with plugins |
+| **zsh-autosuggestions** | Fish-like command suggestions |
+| **zsh-syntax-highlighting** | Real-time syntax coloring |
+| **tmux** | Terminal multiplexer, persists sessions over SSH |
+| **htop** | Interactive process/resource monitor |
+| **jq** | JSON processor for the command line |
+| **yq** | YAML processor (similar to jq) |
+| **ripgrep (`rg`)** | Blazing fast file content search |
+| **fzf** | Fuzzy finder for files, history, and pipes |
+| **bat** | `cat` with syntax highlighting and line numbers |
 
 </details>
 
 ### DevOps & Infrastructure
 
-| # | Thanh phan | Nguon cai | Mo ta |
-|---|------------|-----------|-------|
+| # | Component | Source | Details |
+|---|-----------|--------|---------|
 | 10 | **Terraform** | HashiCorp apt repo | Infrastructure as Code |
-| 11 | **Azure CLI** | Microsoft apt repo | Quan ly Azure resources |
-| 12 | **Docker + Compose** | Docker apt repo | Docker CE + Compose plugin + buildx. Tu dong them user vao group `docker` |
+| 11 | **Azure CLI** | Microsoft apt repo | Manage Azure resources |
+| 12 | **Docker + Compose** | Docker apt repo | Docker CE, Compose plugin, buildx. Adds current user to `docker` group |
 
 ### Database Tools
 
-| # | Thanh phan | Nguon cai | Mo ta |
-|---|------------|-----------|-------|
-| 13 | **DBeaver Community** | `.deb` latest | GUI client ho tro nhieu loai DB |
-| 14 | **Navicat Premium Lite** | AppImage | DB management, chay bang lenh `navicat` hoac tu app menu |
+| # | Component | Source | Details |
+|---|-----------|--------|---------|
+| 13 | **DBeaver Community** | `.deb` latest | Universal database GUI client |
+| 14 | **Navicat Premium Lite** | AppImage | Installed to `/opt`, available as `navicat` command and in app menu |
 
 ### Productivity
 
-| # | Thanh phan | Nguon cai | Mo ta |
-|---|------------|-----------|-------|
-| 15 | **Fcitx5 + Unikey** | apt | Go tieng Viet. Tu dong cau hinh bien moi truong va autostart. Re-login de kich hoat |
+| # | Component | Source | Details |
+|---|-----------|--------|---------|
+| 15 | **Fcitx5 + Unikey** | apt | Vietnamese input method. Auto-configures environment variables and autostart |
 | 16 | **VLC** | apt | Media player |
-| 17 | **Claude CLI** | npm (global) | AI assistant trong terminal. Can NVM/Node (muc 7) cai truoc |
+| 17 | **Claude CLI** | npm (global) | AI assistant in terminal. Requires NVM/Node (#7) to be installed first |
 
 ---
 
-## Dependency
+## Dependencies
 
-Script cai theo dung thu tu trong menu. Luu y:
+The script installs items in menu order. One dependency to note:
 
 ```
-NVM + Node.js (7)  ──>  Claude CLI (17)     Claude can npm tu NVM
+NVM + Node.js (#7)  ──>  Claude CLI (#17)
 ```
 
-> Neu chon Claude CLI ma khong chon NVM, script se canh bao va bo qua.
+> If Claude CLI is selected without NVM, the script will warn and skip it.
 
 ---
 
-## Sau khi cai dat
+## Post-install
 
-Mot so thay doi can **re-login** hoac **reboot** de co hieu luc:
+Some changes require a **re-login** or **reboot** to take effect:
 
-| Thanh phan | Can |
-|------------|-----|
+| Component | Requires |
+|-----------|----------|
 | Docker group | Re-login |
 | Fcitx5 | Re-login |
 | Zsh (default shell) | Re-login |
-| Swap | Co hieu luc ngay |
+| Swap | Active immediately |
+
+Quick verification after re-login:
 
 ```bash
-# Kiem tra nhanh sau khi re-login
-docker run hello-world          # Docker hoat dong?
+docker run hello-world          # Docker working?
 node -v                         # Node version?
-dotnet --list-sdks              # .NET SDK?
+dotnet --list-sdks              # .NET SDKs?
 terraform -v                    # Terraform?
 az version                      # Azure CLI?
-echo $SHELL                     # Da chuyen sang zsh?
+echo $SHELL                     # Switched to zsh?
 ```
 
 ---
 
-## Yeu cau he thong
+## System Requirements
 
-- **OS**: Ubuntu 22.04+ hoac Linux Mint 21+
+- **OS**: Ubuntu 22.04+ or Linux Mint 21+
 - **Arch**: amd64 (x86_64)
-- **Quyen**: Root (chay bang `sudo`)
-- **Mang**: Can ket noi internet de tai packages
+- **Privileges**: Root (`sudo`)
+- **Network**: Internet connection required
 
 ---
 
-## Tuy chinh
+## Customization
 
-### Them app moi
+### Adding a new app
 
-1. Them entry vao mang `APPS` trong `install.sh`:
+1. Add an entry to the `APPS` array in `install.sh`:
    ```bash
    APPS=(
        ...
-       "myapp|My Application|1"    # 1 = mac dinh chon, 0 = mac dinh bo
+       "myapp|My Application|1"    # 1 = selected by default, 0 = off
    )
    ```
 
-2. Them ham `do_myapp()`:
+2. Add a matching `do_myapp()` function:
    ```bash
    do_myapp() {
        info "Installing My Application..."
-       # cac lenh cai dat
+       # install commands here
        success "My Application installed"
    }
    ```
 
-### Thay doi swap size
+### Changing swap size
 
-Sua dong `fallocate` trong ham `do_swap()`:
+Edit the `fallocate` line in `do_swap()`:
 ```bash
-fallocate -l 16G /swapfile    # doi tu 8G sang 16G
+fallocate -l 16G /swapfile    # change from 8G to 16G
 ```
 
 ---
 
 ## License
 
-Internal use.
+MIT
