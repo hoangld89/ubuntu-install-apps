@@ -52,6 +52,7 @@ APPS=(
 
 declare -A SELECTED
 DOTNET_VERSIONS=(10)
+CURSOR=0
 
 init_defaults() {
     for entry in "${APPS[@]}"; do
@@ -66,7 +67,7 @@ print_menu() {
     echo -e "${BOLD}${CYAN}║   Ubuntu / Linux Mint — App Installer            ║${NC}"
     echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════╝${NC}"
     echo ""
-    local i=1
+    local i=0
     local last_group=""
     for entry in "${APPS[@]}"; do
         IFS='|' read -r key label _ <<< "$entry"
@@ -91,21 +92,27 @@ print_menu() {
         if [[ "$key" == "dotnet" ]]; then
             extra=" ${CYAN}[versions: ${DOTNET_VERSIONS[*]}]${NC}"
         fi
-        if [[ "${SELECTED[$key]}" == "1" ]]; then
-            printf "  ${GREEN}[x]${NC} ${BOLD}%2d)${NC} %s%s\n" "$i" "$label" "$extra"
-        else
-            printf "  ${RED}[ ]${NC} ${BOLD}%2d)${NC} %s%s\n" "$i" "$label" "$extra"
+
+        local pointer="  "
+        if [[ $i -eq $CURSOR ]]; then
+            pointer="${BOLD}${CYAN}▸ ${NC}"
         fi
-        ((i++))
+
+        if [[ "${SELECTED[$key]}" == "1" ]]; then
+            printf " %b${GREEN}[x]${NC} %s%b\n" "$pointer" "$label" "$extra"
+        else
+            printf " %b${RED}[ ]${NC} %s%b\n" "$pointer" "$label" "$extra"
+        fi
+        i=$((i + 1))
     done
     echo ""
-    echo -e "  ${YELLOW}a)${NC} Select all    ${YELLOW}n)${NC} Deselect all    ${YELLOW}d)${NC} .NET versions"
-    echo -e "  ${YELLOW}s)${NC} Start install  ${YELLOW}q)${NC} Quit"
+    echo -e "  ${YELLOW}↑↓${NC} Di chuyển  ${YELLOW}Space${NC} Chọn/bỏ  ${YELLOW}a${NC} Tất cả  ${YELLOW}n${NC} Bỏ tất cả"
+    echo -e "  ${YELLOW}d${NC}  .NET ver   ${YELLOW}Enter${NC} Cài đặt  ${YELLOW}q${NC} Thoát"
     echo ""
 }
 
 toggle() {
-    local idx=$(( $1 - 1 ))
+    local idx=$1
     IFS='|' read -r key _ _ <<< "${APPS[$idx]}"
     if [[ "${SELECTED[$key]}" == "1" ]]; then
         SELECTED[$key]=0
@@ -129,20 +136,45 @@ configure_dotnet() {
     fi
 }
 
+read_key() {
+    local key
+    IFS= read -rsn1 key
+    if [[ "$key" == $'\x1b' ]]; then
+        read -rsn2 -t 0.1 key
+        case "$key" in
+            '[A') echo "UP" ;;
+            '[B') echo "DOWN" ;;
+            *)    echo "ESC" ;;
+        esac
+    elif [[ "$key" == "" ]]; then
+        echo "ENTER"
+    elif [[ "$key" == " " ]]; then
+        echo "SPACE"
+    else
+        echo "$key"
+    fi
+}
+
 interactive_menu() {
+    local total=${#APPS[@]}
     while true; do
         print_menu
-        read -rp "  Toggle (1-${#APPS[@]}), a/n/s/q: " choice
-        case "$choice" in
-            [1-9]|1[0-9])
-                if (( choice >= 1 && choice <= ${#APPS[@]} )); then
-                    toggle "$choice"
-                fi
+        local key
+        key=$(read_key)
+        case "$key" in
+            UP)
+                [[ $CURSOR -gt 0 ]] && CURSOR=$((CURSOR - 1))
+                ;;
+            DOWN)
+                [[ $CURSOR -lt $((total - 1)) ]] && CURSOR=$((CURSOR + 1))
+                ;;
+            SPACE)
+                toggle "$CURSOR"
                 ;;
             a) select_all ;;
             n) deselect_all ;;
             d) configure_dotnet ;;
-            s) break ;;
+            ENTER) break ;;
             q) echo "Cancelled."; exit 0 ;;
         esac
     done
