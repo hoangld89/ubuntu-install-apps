@@ -37,6 +37,7 @@ APPS=(
 
     # ── Shell & Terminal ──
     "terminal|Terminal tools (zsh, oh-my-zsh, tmux, htop, jq, yq, rg, fzf, bat)|1"
+    "p10k|Powerlevel10k + Nerd Font + eza (zsh màu mè)|1"
 
     # ── Languages & Runtime ──
     "nvm|NVM + Node.js 24|1"
@@ -90,7 +91,7 @@ MIRRORS=(
 )
 
 APP_GROUPS=(
-    "system|System & Shell|⚙|mirror,update,swap,terminal"
+    "system|System & Shell|⚙|mirror,update,swap,terminal,p10k"
     "dev|Dev & IDE|◆|nvm,dotnet,vscode,trae,claude"
     "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker"
     "database|Database|⬡|mysqlclient,pgclient,dbeaver,navicat"
@@ -642,7 +643,7 @@ fi
 TOOLEOF
 fi
 SETUP_EOF
-    chmod +x "$setup_script"
+    chmod a+rx "$setup_script"
     su - "$REAL_USER" -c "bash $setup_script"
     rm -f "$setup_script"
 
@@ -663,6 +664,89 @@ SETUP_EOF
     fi
 
     success "Terminal tools installed: zsh + oh-my-zsh (14 plugins), tmux, htop, jq, yq, rg, fzf, bat"
+}
+
+do_p10k() {
+    info "Installing Powerlevel10k + Nerd Font + eza..."
+
+    # ── MesloLGS Nerd Font ──
+    local font_dir="/usr/local/share/fonts/MesloLGS-NF"
+    if [[ ! -d "$font_dir" ]]; then
+        info "Installing MesloLGS Nerd Font..."
+        mkdir -p "$font_dir"
+        local base_url="https://github.com/romkatv/powerlevel10k-media/raw/master"
+        local font
+        for font in "MesloLGS NF Regular.ttf" "MesloLGS NF Bold.ttf" \
+                    "MesloLGS NF Italic.ttf" "MesloLGS NF Bold Italic.ttf"; do
+            wget -q -O "$font_dir/$font" "$base_url/${font// /%20}"
+        done
+        fc-cache -f "$font_dir"
+        success "MesloLGS Nerd Font installed"
+    else
+        success "MesloLGS Nerd Font already installed, skipping"
+    fi
+
+    # ── Powerlevel10k theme ──
+    info "Configuring Powerlevel10k for '$REAL_USER'..."
+    local p10k_script
+    p10k_script=$(mktemp /tmp/p10k-setup-XXXXXX.sh)
+    cat > "$p10k_script" << 'P10K_EOF'
+ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+
+if [ ! -d "$ZSH_CUSTOM/themes/powerlevel10k" ]; then
+    git clone --depth=1 https://github.com/romkatv/powerlevel10k.git \
+        "$ZSH_CUSTOM/themes/powerlevel10k"
+fi
+
+sed -i 's|^ZSH_THEME=.*|ZSH_THEME="powerlevel10k/powerlevel10k"|' "$HOME/.zshrc"
+P10K_EOF
+    chmod a+rx "$p10k_script"
+    su - "$REAL_USER" -c "bash $p10k_script"
+    rm -f "$p10k_script"
+    success "Powerlevel10k theme configured"
+
+    # ── eza (modern ls replacement) ──
+    if ! command -v eza &>/dev/null; then
+        info "Installing eza..."
+        if apt install -y eza 2>/dev/null; then
+            success "eza installed via apt"
+        else
+            apt install -y gpg
+            mkdir -p /etc/apt/keyrings
+            wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc \
+                | gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
+            chmod 644 /etc/apt/keyrings/gierens.gpg
+            echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" \
+                > /etc/apt/sources.list.d/gierens.list
+            chmod 644 /etc/apt/sources.list.d/gierens.list
+            apt update
+            apt install -y eza
+            success "eza installed via deb repo"
+        fi
+    else
+        success "eza already installed, skipping"
+    fi
+
+    # ── eza aliases in .zshrc ──
+    local alias_script
+    alias_script=$(mktemp /tmp/eza-alias-XXXXXX.sh)
+    cat > "$alias_script" << 'ALIAS_EOF'
+if ! grep -q '# --- eza aliases ---' "$HOME/.zshrc" 2>/dev/null; then
+    cat >> "$HOME/.zshrc" << 'EZAEOF'
+
+# --- eza aliases ---
+alias ls='eza --icons --group-directories-first'
+alias ll='eza -l --icons --group-directories-first --git'
+alias la='eza -la --icons --group-directories-first --git'
+alias lt='eza --tree --icons --level=2'
+EZAEOF
+fi
+ALIAS_EOF
+    chmod a+rx "$alias_script"
+    su - "$REAL_USER" -c "bash $alias_script"
+    rm -f "$alias_script"
+
+    success "Powerlevel10k + MesloLGS NF + eza installed (chạy 'p10k configure' để tuỳ chỉnh prompt)"
 }
 
 do_nvm() {
