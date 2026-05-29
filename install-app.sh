@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
+# Re-exec under bash if launched with `sh`/dash — avoids bash array-syntax errors
+# (e.g. `sh: Syntax error: "(" unexpected`). dash reads line-by-line, so this
+# guard runs before any bash-only syntax further down is ever parsed.
+if [ -z "${BASH_VERSION:-}" ]; then exec bash "$0" "$@"; fi
 set -euo pipefail
 
 # ============================================================
-# Ubuntu / Linux Mint — Post-install Setup Script
-# Interactive app selector with swap configuration
+# MINT — Post-install Setup
+# Interactive app selector for Ubuntu / Linux Mint
 # ============================================================
 
 RED='\033[0;31m'
@@ -17,10 +21,17 @@ DIM='\033[2m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+# Linux Mint palette — leaf green accent on neutral chrome
+MINT='\033[38;5;113m'        # Mint green (≈ #87CF3E)
+MINTB='\033[1;38;5;113m'     # bold Mint green
+MINTD='\033[38;5;108m'       # muted sage green
+LEAF='\033[38;5;71m'         # darker leaf green
+
 # --- App registry -----------------------------------------------------------
 # Format: "key|label|default_on"
 APPS=(
     # ── System ──
+    "mirror|APT mirror → Vietnam (faster downloads)|1"
     "update|System Update & Upgrade|1"
     "swap|Swap 8GB + swappiness 10|1"
 
@@ -45,6 +56,7 @@ APPS=(
     # ── DevOps & Infrastructure ──
     "terraform|Terraform|1"
     "azcli|Azure CLI|1"
+    "azcopy|AzCopy (Azure Storage transfer)|1"
     "docker|Docker + Docker Compose|1"
 
     # ── Database Tools ──
@@ -65,17 +77,24 @@ declare -A SELECTED
 DOTNET_VERSIONS=(10)
 CURSOR=0
 
+# APT mirror — default to the official Ubuntu Vietnam mirror. Press 'm' in the
+# menu to pick another nearby mirror.
+MIRROR_HOST="mirror.bizflycloud.vn"
+MIRRORS=(
+    "mirror.bizflycloud.vn|BizFly Cloud — VCCorp (1 Gbps)"
+    "vn.archive.ubuntu.com|Ubuntu VN Official — XTDV CDN"
+    "mirror.viettelcloud.vn|Viettel Cloud (1 Gbps, HTTP only)"
+    "mirrors.gofiber.vn|GoFiber (1 Gbps)"
+    "mirrors.tino.org|Tino Group — HCM"
+    "mirror.clearsky.vn|ClearSky"
+)
+
 APP_GROUPS=(
-    "system|System|⚙|update,swap"
-    "terminal|Shell & Terminal|⌨|terminal"
-    "languages|Languages & Runtime|◆|nvm,dotnet"
-    "browser|Browser|◎|chrome,edge"
-    "communication|Communication|✉|teams"
-    "ide|IDE & Editor|✎|vscode,trae"
-    "devops|DevOps & Infrastructure|▲|terraform,azcli,docker"
-    "database|Database Tools|⬡|mysqlclient,pgclient,dbeaver,navicat"
-    "productivity|Productivity|★|fcitx5,vlc"
-    "ai|AI Tools|◈|claude"
+    "system|System & Shell|⚙|mirror,update,swap,terminal"
+    "dev|Dev & IDE|◆|nvm,dotnet,vscode,trae,claude"
+    "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker"
+    "database|Database|⬡|mysqlclient,pgclient,dbeaver,navicat"
+    "desktop|Desktop & Apps|◎|chrome,edge,teams,fcitx5,vlc"
 )
 
 declare -A GROUP_EXPANDED
@@ -179,26 +198,93 @@ toggle_item() {
 select_all()   { for entry in "${APPS[@]}"; do IFS='|' read -r key _ _ <<< "$entry"; SELECTED[$key]=1; done; }
 deselect_all() { for entry in "${APPS[@]}"; do IFS='|' read -r key _ _ <<< "$entry"; SELECTED[$key]=0; done; }
 
+# --- Flicker-free rendering -------------------------------------------------
+# Lines are buffered, then painted in one pass from the home position. Each
+# line is cleared to EOL (\033[K) and the area below is cleared (\033[J) so
+# nothing ever blanks-then-fills — no flicker, no full `clear`.
+
+MENU_LINES=()
+
+ui_rep() {  # repeat char $2, $1 times → stdout
+    local n=$1 ch=$2 out
+    printf -v out '%*s' "$n" ''
+    printf '%s' "${out// /$ch}"
+}
+
+ui_add()  { MENU_LINES+=("$1"); }            # push a literal line
+ui_addf() { local _l; printf -v _l "$@"; MENU_LINES+=("$_l"); }  # push formatted
+
+render_menu() {
+    local _l
+    printf '\033[H'
+    for _l in "${MENU_LINES[@]}"; do
+        printf '%s\033[K\n' "$_l"
+    done
+    printf '\033[J'
+}
+
+ui_progress_bar() {  # $1 selected $2 total → colored "██████░░░░"
+    local sel=$1 total=$2 width=18 filled
+    (( total == 0 )) && total=1
+    filled=$(( sel * width / total ))
+    (( filled > width )) && filled=width
+    printf '%b%s%b%s%b' "$MINT" "$(ui_rep "$filled" '█')" \
+        "$DIM" "$(ui_rep $((width - filled)) '░')" "$NC"
+}
+
+ui_gradient_rule() {  # $1 width, $2 char → dark→light green gradient rule
+    local width=${1:-55} ch=${2:-━}
+    local ramp=(23 29 35 71 77 83 84 120 84 83 77 71 35 29)
+    local n=${#ramp[@]} out="" i seg
+    for (( i=0; i<width; i++ )); do
+        seg=$(( i * n / width ))
+        out+="\033[38;5;${ramp[$seg]}m${ch}"
+    done
+    out+="$NC"
+    printf '%b' "$out"
+}
+
+print_banner() {
+    local G1='\033[1;38;5;157m'  # brightest mint
+    local G2='\033[1;38;5;120m'  # bright mint
+    local G3='\033[38;5;113m'    # mint green
+    local G4='\033[38;5;71m'     # leaf green
+    local G5='\033[38;5;34m'     # dark green
+    local G6='\033[38;5;22m'     # deep forest (shadow)
+
+    ui_add  ""
+    ui_addf "   ${G1}███╗   ███╗ ██╗ ███╗   ██╗ ████████╗${NC}"
+    ui_addf "   ${G2}████╗ ████║ ██║ ████╗  ██║ ╚══██╔══╝${NC}"
+    ui_addf "   ${G3}██╔████╔██║ ██║ ██╔██╗ ██║    ██║${NC}"
+    ui_addf "   ${G4}██║╚██╔╝██║ ██║ ██║╚██╗██║    ██║${NC}"
+    ui_addf "   ${G5}██║ ╚═╝ ██║ ██║ ██║ ╚████║    ██║${NC}"
+    ui_addf "   ${G6}╚═╝     ╚═╝ ╚═╝ ╚═╝  ╚═══╝    ╚═╝${NC}"
+    ui_add  ""
+    ui_addf "      ${MINTB}mint setup${NC} ${DIM}· post-install toolkit${NC}"
+    ui_addf "      ${MINTD}fresh machine · fresh start${NC}"
+    ui_add  ""
+    ui_add  "  $(ui_gradient_rule 55 ━)"
+    ui_add  ""
+}
+
 print_menu() {
     build_visible
-    clear
+    MENU_LINES=()
     local total=${#APPS[@]}
     local sel
     sel=$(count_selected)
+    local rule; rule=$(ui_rep 55 '─')
 
-    echo ""
-    echo -e "  ${DIM}╭─────────────────────────────────────────────────────╮${NC}"
-    echo -e "  ${DIM}│${NC}                                                     ${DIM}│${NC}"
-    echo -e "  ${DIM}│${NC}   ${BOLD}${CYAN}  Ubuntu / Linux Mint${NC}                              ${DIM}│${NC}"
-    echo -e "  ${DIM}│${NC}   ${DIM}  Post-install Setup${NC}                               ${DIM}│${NC}"
-    echo -e "  ${DIM}│${NC}                                                     ${DIM}│${NC}"
-    echo -e "  ${DIM}╰─────────────────────────────────────────────────────╯${NC}"
-    echo ""
+    # ── Banner ──
+    print_banner
 
+    # ── List ──
     local i=0
     for (( i=0; i<${#VIS_TYPES[@]}; i++ )); do
         local vtype="${VIS_TYPES[$i]}"
         local vkey="${VIS_KEYS[$i]}"
+        local on_cursor=0
+        [[ $i -eq $CURSOR ]] && on_cursor=1
 
         if [[ "$vtype" == "group" ]]; then
             local glabel="" gicon="" gapps=""
@@ -214,60 +300,57 @@ print_menu() {
             gsel=$(group_sel_count "$gapps")
             gtotal=$(group_app_count "$gapps")
 
-            local expanded="${GROUP_EXPANDED[$vkey]}"
             local arrow="▸"
-            if [[ "$expanded" == "1" ]]; then
-                arrow="▾"
-            fi
+            [[ "${GROUP_EXPANDED[$vkey]}" == "1" ]] && arrow="▾"
 
-            local status_color="${GREEN}"
-            local status_dot="●"
+            local status_color="${MINT}" status_dot="●"
             if [[ "$gsel" -eq 0 ]]; then
-                status_color="${DIM}"
-                status_dot="○"
+                status_color="${DIM}"; status_dot="○"
             elif [[ "$gsel" -lt "$gtotal" ]]; then
-                status_color="${YELLOW}"
-                status_dot="◐"
+                status_color="${YELLOW}"; status_dot="◐"
             fi
 
-            if [[ $i -eq $CURSOR ]]; then
-                printf " ${BOLD}${CYAN}▶▶${NC} ${DIM}${arrow}${NC} ${MAGENTA}${gicon}${NC} ${BOLD}${WHITE}%-32s${NC} %b%s %s/%s${NC}\n" \
+            if [[ $on_cursor -eq 1 ]]; then
+                ui_addf "  ${MINTB}▌${NC} ${MINTB}${arrow}${NC} ${MINTD}${gicon}${NC} ${BOLD}${WHITE}%-30s${NC} %b%s %s/%s${NC}" \
                     "$glabel" "$status_color" "$status_dot" "$gsel" "$gtotal"
             else
-                printf "     ${DIM}${arrow}${NC} ${MAGENTA}${gicon}${NC} ${BOLD}${WHITE}%-32s${NC} %b%s %s/%s${NC}\n" \
+                ui_addf "    ${DIM}${arrow}${NC} ${MINTD}${gicon}${NC} ${BOLD}${WHITE}%-30s${NC} %b%s %s/%s${NC}" \
                     "$glabel" "$status_color" "$status_dot" "$gsel" "$gtotal"
             fi
 
         else
             local label="${APP_LABELS[$vkey]}"
             local extra=""
-            if [[ "$vkey" == "dotnet" ]]; then
-                extra=" ${DIM}[${DOTNET_VERSIONS[*]}]${NC}"
-            fi
+            [[ "$vkey" == "dotnet" ]] && extra=" ${DIM}[${DOTNET_VERSIONS[*]}]${NC}"
+            [[ "$vkey" == "mirror" ]] && extra=" ${DIM}[${MIRROR_HOST}]${NC}"
+
+            local marker="  " mdot mtext
+            [[ $on_cursor -eq 1 ]] && marker="${MINTB}▌${NC} "
 
             if [[ "${SELECTED[$vkey]}" == "1" ]]; then
-                if [[ $i -eq $CURSOR ]]; then
-                    printf "   ${BOLD}${CYAN}▶▶${NC} ${GREEN}●${NC} ${BOLD}%s${NC}%b\n" "$label" "$extra"
-                else
-                    printf "       ${GREEN}●${NC} %s%b\n" "$label" "$extra"
-                fi
+                mdot="${MINT}●${NC}"; mtext="${WHITE}${label}${NC}"
             else
-                if [[ $i -eq $CURSOR ]]; then
-                    printf "   ${BOLD}${CYAN}▶▶${NC} ${DIM}○${NC} ${DIM}%s${NC}%b\n" "$label" "$extra"
-                else
-                    printf "       ${DIM}○ %s${NC}%b\n" "$label" "$extra"
-                fi
+                mdot="${DIM}○${NC}"; mtext="${DIM}${label}${NC}"
             fi
+            ui_addf "  %b      %b %b%b" "$marker" "$mdot" "$mtext" "$extra"
         fi
     done
 
-    echo ""
-    echo -e "  ${DIM}─────────────────────────────────────────────────────${NC}"
-    printf "  ${CYAN}%s${NC}${DIM}/${NC}${WHITE}%s${NC} selected\n" "$sel" "$total"
-    echo ""
-    echo -e "  ${DIM}↑↓${NC} Move  ${DIM}Space${NC} Toggle  ${DIM}Enter${NC} Expand/Collapse  ${DIM}d${NC} .NET ver"
-    echo -e "  ${DIM}a${NC} All   ${DIM}n${NC} None   ${DIM}q${NC} Quit   ${BOLD}${CYAN}i${NC} ${DIM}→${NC} Install"
-    echo ""
+    # ── Footer ──
+    ui_add  ""
+    ui_addf "  ${DIM}%s${NC}" "$rule"
+    ui_addf "  ${MINTB}%s${NC}${DIM}/%s selected${NC}   %s" \
+        "$sel" "$total" "$(ui_progress_bar "$sel" "$total")"
+    ui_add  ""
+    ui_addf "  ${DIM}┌─${NC} ${MINTD}Navigate${NC} ${DIM}─────┬─${NC} ${MINTD}Select${NC} ${DIM}───────┬─${NC} ${MINTD}Actions${NC} ${DIM}─────────┐${NC}"
+    ui_addf "  ${DIM}│${NC}  ${BOLD}${WHITE}↑ ↓${NC}  ${DIM}Move${NC}     ${DIM}│${NC}  ${BOLD}${WHITE}Space${NC}  ${DIM}Toggle${NC} ${DIM}│${NC}  ${BOLD}${WHITE}d${NC}  ${DIM}.NET version${NC}  ${DIM}│${NC}"
+    ui_addf "  ${DIM}│${NC}  ${BOLD}${WHITE}↵${NC}    ${DIM}Expand${NC}   ${DIM}│${NC}  ${BOLD}${WHITE}a${NC}      ${DIM}All${NC}    ${DIM}│${NC}  ${BOLD}${WHITE}m${NC}  ${DIM}APT mirror${NC}    ${DIM}│${NC}"
+    ui_addf "  ${DIM}│${NC}                ${DIM}│${NC}  ${BOLD}${WHITE}n${NC}      ${DIM}None${NC}   ${DIM}│${NC}  ${MINTB}i${NC}  ${MINTB}Install${NC}    ${MINT}▸${NC}  ${DIM}│${NC}"
+    ui_addf "  ${DIM}│${NC}                ${DIM}│${NC}                ${DIM}│${NC}  ${BOLD}${WHITE}q${NC}  ${DIM}Quit${NC}          ${DIM}│${NC}"
+    ui_addf "  ${DIM}└────────────────┴────────────────┴───────────────────┘${NC}"
+    ui_add  ""
+
+    render_menu
 }
 
 configure_dotnet() {
@@ -279,6 +362,26 @@ configure_dotnet() {
     if [[ -n "$input" ]]; then
         DOTNET_VERSIONS=($input)
         SELECTED[dotnet]=1
+    fi
+}
+
+configure_mirror() {
+    echo ""
+    echo -e "  ${DIM}Pick the APT mirror closest to you (Vietnam):${NC}"
+    echo ""
+    local i=1 host label
+    for m in "${MIRRORS[@]}"; do
+        IFS='|' read -r host label <<< "$m"
+        local mark="  "
+        [[ "$host" == "$MIRROR_HOST" ]] && mark="${MINT}●${NC}"
+        echo -e "    ${mark} ${BOLD}${WHITE}${i}${NC}) ${label} ${DIM}(${host})${NC}"
+        i=$((i + 1))
+    done
+    echo ""
+    read -rp "  Choice [1-${#MIRRORS[@]}]: " input
+    if [[ "$input" =~ ^[0-9]+$ ]] && (( input >= 1 && input <= ${#MIRRORS[@]} )); then
+        IFS='|' read -r MIRROR_HOST _ <<< "${MIRRORS[$((input - 1))]}"
+        SELECTED[mirror]=1
     fi
 }
 
@@ -301,7 +404,13 @@ read_key() {
     fi
 }
 
+menu_ui_start() { printf '\033[?1049h\033[H'; tput civis 2>/dev/null || true; }
+menu_ui_stop()  { tput cnorm 2>/dev/null || true; printf '\033[?1049l'; }
+
 interactive_menu() {
+    menu_ui_start
+    trap 'menu_ui_stop' EXIT
+    trap 'menu_ui_stop; trap - EXIT; exit 130' INT TERM
     while true; do
         print_menu
         local key
@@ -340,9 +449,10 @@ interactive_menu() {
                 ;;
             a) select_all ;;
             n) deselect_all ;;
-            d) configure_dotnet ;;
-            i) return ;;
-            q) echo "Cancelled."; exit 0 ;;
+            d) tput cnorm 2>/dev/null || true; configure_dotnet; tput civis 2>/dev/null || true ;;
+            m) tput cnorm 2>/dev/null || true; configure_mirror; tput civis 2>/dev/null || true ;;
+            i) menu_ui_stop; trap - EXIT INT TERM; return ;;
+            q) menu_ui_stop; trap - EXIT INT TERM; echo "Cancelled."; exit 0 ;;
         esac
     done
 }
@@ -352,8 +462,8 @@ interactive_menu() {
 STEP_CURRENT=0
 STEP_TOTAL=0
 
-info()    { echo -e "\n  ${CYAN}▸${NC} $*"; }
-success() { echo -e "  ${GREEN}✓${NC} $*"; }
+info()    { echo -e "\n  ${MINT}▸${NC} $*"; }
+success() { echo -e "  ${MINT}✓${NC} $*"; }
 warn()    { echo -e "  ${YELLOW}!${NC} $*"; }
 fail()    { echo -e "  ${RED}✗${NC} $*"; }
 
@@ -361,7 +471,7 @@ print_step_header() {
     local label="$1"
     STEP_CURRENT=$((STEP_CURRENT + 1))
     echo ""
-    echo -e "  ${DIM}[${STEP_CURRENT}/${STEP_TOTAL}]${NC} ${BOLD}${WHITE}${label}${NC}"
+    echo -e "  ${MINTB}[${STEP_CURRENT}/${STEP_TOTAL}]${NC} ${BOLD}${WHITE}${label}${NC}"
     echo -e "  ${DIM}$(printf '%.0s─' {1..50})${NC}"
 }
 
@@ -397,6 +507,34 @@ ensure_microsoft_gpg() {
 }
 
 # --- Install functions -------------------------------------------------------
+
+do_mirror() {
+    info "Switching APT mirror to ${MIRROR_HOST}..."
+
+    local changed=0 f
+    local targets=(
+        /etc/apt/sources.list                                       # legacy
+        /etc/apt/sources.list.d/ubuntu.sources                      # deb822 (24.04+)
+        /etc/apt/sources.list.d/official-package-repositories.list  # Linux Mint
+    )
+
+    for f in "${targets[@]}"; do
+        if [[ -f "$f" ]] && grep -vE 'security\.ubuntu\.com' "$f" | grep -qE 'https?://[a-zA-Z0-9._-]+/ubuntu'; then
+            cp -n "$f" "$f.bak"
+            sed -i -E '/security\.ubuntu\.com/!s#https?://[a-zA-Z0-9._-]+/ubuntu#http://'"${MIRROR_HOST}"'/ubuntu#g' "$f"
+            success "Updated $(basename "$f") (backup: ${f##*/}.bak)"
+            changed=1
+        fi
+    done
+
+    if [[ $changed -eq 0 ]]; then
+        warn "No Ubuntu archive entries found — mirror left unchanged"
+        return
+    fi
+
+    apt update
+    success "APT mirror switched to ${MIRROR_HOST}"
+}
 
 do_update() {
     info "Updating system packages..."
@@ -508,7 +646,21 @@ SETUP_EOF
     su - "$REAL_USER" -c "bash $setup_script"
     rm -f "$setup_script"
 
-    chsh -s "$(which zsh)" "$REAL_USER"
+    local cur_shell
+    cur_shell=$(getent passwd "$REAL_USER" | cut -d: -f7)
+    if [[ "$cur_shell" == "$(which zsh)" ]]; then
+        success "zsh is already the default shell for '$REAL_USER'"
+    else
+        local set_default="n"
+        printf "  ${CYAN}?${NC} Set zsh as the default shell for '%s'? [y/N] " "$REAL_USER"
+        read -r set_default </dev/tty || set_default="n"
+        if [[ "$set_default" =~ ^[Yy]$ ]]; then
+            chsh -s "$(which zsh)" "$REAL_USER"
+            success "Default shell changed to zsh (re-login to apply)"
+        else
+            warn "Keeping current shell. zsh is installed — run 'zsh' anytime to use it"
+        fi
+    fi
 
     success "Terminal tools installed: zsh + oh-my-zsh (14 plugins), tmux, htop, jq, yq, rg, fzf, bat"
 }
@@ -542,8 +694,17 @@ do_dotnet() {
     local ubuntu_ver
     ubuntu_ver=$(get_ubuntu_version)
 
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/$ubuntu_ver/prod $codename main" \
-        > /etc/apt/sources.list.d/dotnet.list
+    # Nếu repo prod đã được khai báo ở file khác (vd: microsoft-prod.list từ
+    # gói packages-microsoft-prod.deb), không ghi thêm dotnet.list để tránh
+    # xung đột "Conflicting values set for option Signed-By".
+    if grep -rqsl "packages.microsoft.com/ubuntu/$ubuntu_ver/prod" \
+        /etc/apt/sources.list.d/ --include='*.list' --exclude='dotnet.list'; then
+        info "Microsoft prod repo already configured, skipping dotnet.list"
+        rm -f /etc/apt/sources.list.d/dotnet.list
+    else
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/$ubuntu_ver/prod $codename main" \
+            > /etc/apt/sources.list.d/dotnet.list
+    fi
     apt update
 
     local installed=()
@@ -712,6 +873,27 @@ do_azcli() {
     apt install -y azure-cli
 
     success "Azure CLI $(az version --output tsv 2>/dev/null | head -1) installed"
+}
+
+do_azcopy() {
+    if command -v azcopy &>/dev/null; then
+        success "AzCopy already installed, skipping"
+        return
+    fi
+
+    info "Installing AzCopy..."
+    apt install -y wget tar
+
+    local tmp_dir
+    tmp_dir=$(mktemp -d /tmp/azcopy-XXXXXX)
+    # aka.ms link always redirects to the latest v10 linux tarball
+    wget -q -O "$tmp_dir/azcopy.tar.gz" "https://aka.ms/downloadazcopy-v10-linux"
+    # tarball nests the binary in azcopy_linux_amd64_x.y.z/ — flatten with --strip-components
+    tar -xzf "$tmp_dir/azcopy.tar.gz" -C "$tmp_dir" --strip-components=1
+    install -m 755 "$tmp_dir/azcopy" /usr/local/bin/azcopy
+    rm -rf "$tmp_dir"
+
+    success "AzCopy $(azcopy --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1 || echo 'ready') installed"
 }
 
 do_docker() {
@@ -895,7 +1077,7 @@ main() {
 
     echo ""
     echo -e "  ${DIM}╭─────────────────────────────────────────────────────╮${NC}"
-    echo -e "  ${DIM}│${NC}  ${BOLD}${CYAN}Installing ${STEP_TOTAL} packages...${NC}$(printf '%*s' $((34 - ${#STEP_TOTAL})) '')${DIM}│${NC}"
+    echo -e "  ${DIM}│${NC}  ${MINTB}◈${NC}  ${BOLD}${WHITE}Installing ${STEP_TOTAL} packages...${NC}$(printf '%*s' $((31 - ${#STEP_TOTAL})) '')${DIM}│${NC}"
     echo -e "  ${DIM}╰─────────────────────────────────────────────────────╯${NC}"
 
     local failed=()
@@ -924,7 +1106,7 @@ main() {
     echo -e "  ${DIM}╭─────────────────────────────────────────────────────╮${NC}"
     echo -e "  ${DIM}│${NC}                                                     ${DIM}│${NC}"
     if [[ ${#failed[@]} -eq 0 ]]; then
-        echo -e "  ${DIM}│${NC}   ${GREEN}✓${NC}  ${BOLD}All done!${NC}                                      ${DIM}│${NC}"
+        echo -e "  ${DIM}│${NC}   ${MINT}✓${NC}  ${BOLD}${WHITE}All done!${NC}                                      ${DIM}│${NC}"
     else
         echo -e "  ${DIM}│${NC}   ${YELLOW}!${NC}  ${BOLD}Completed with errors${NC}                           ${DIM}│${NC}"
     fi
@@ -932,7 +1114,7 @@ main() {
     local stats="${succeeded} installed"
     [[ ${#failed[@]} -gt 0 ]] && stats="${stats}  ${#failed[@]} failed"
     local time_str="${mins}m ${secs}s"
-    printf "  ${DIM}│${NC}   ${GREEN}●${NC} %-44s${DIM}│${NC}\n" "$stats"
+    printf "  ${DIM}│${NC}   ${MINT}●${NC} %-44s${DIM}│${NC}\n" "$stats"
     printf "  ${DIM}│${NC}   ${DIM}⏱  %-44s${NC}${DIM}│${NC}\n" "$time_str"
     echo -e "  ${DIM}│${NC}                                                     ${DIM}│${NC}"
     echo -e "  ${DIM}╰─────────────────────────────────────────────────────╯${NC}"

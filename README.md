@@ -4,15 +4,15 @@
   <img src="https://img.shields.io/badge/Shell-Bash-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white" />
 </p>
 
-<h1 align="center">Ubuntu / Linux Mint &mdash; Post-install Setup Script</h1>
+<h1 align="center">MINT &mdash; Post-install Setup</h1>
 
 <p align="center">
-  Interactive post-install script for fresh Ubuntu / Linux Mint machines.<br/>
+  MINT is an interactive post-install setup for fresh Ubuntu / Linux Mint machines.<br/>
   Pick what you need from a TUI menu &mdash; everything else is automatic.
 </p>
 
 <p align="center">
-  <b>20 apps</b> &nbsp;·&nbsp; <b>Idempotent</b> (safe to re-run) &nbsp;·&nbsp; <b>Mint-compatible</b> (auto-detects Ubuntu codename)
+  <b>22 apps</b> &nbsp;·&nbsp; <b>Idempotent</b> (safe to re-run) &nbsp;·&nbsp; <b>Mint-compatible</b> (auto-detects Ubuntu codename)
 </p>
 
 ---
@@ -30,47 +30,75 @@ cd ubuntu-install-apps
 ./install-app.sh --all
 ```
 
+> The script needs **bash** (it uses bash arrays). Run it with `./install-app.sh`
+> or `bash install-app.sh` — **not** `sh install-app.sh`. If you do launch it with
+> `sh`/dash, it now auto re-execs under bash, so the old
+> `sh: Syntax error: "(" unexpected` no longer happens.
+
 ---
 
 ## Interactive Menu
 
+A flicker-free, Linux Mint-themed TUI (leaf-green accents + gradient rule)
+rendered on the alternate screen. 22 apps live under **5 collapsible groups**;
+the cursor row is marked with a green bar `▌`. A 3D MINT wordmark in
+leaf-green gradient greets you on launch.
+
 ```
-  ╭─────────────────────────────────────────────────────╮
-  │                                                     │
-  │     Ubuntu / Linux Mint                             │
-  │     Post-install Setup                              │
-  │                                                     │
-  ╰─────────────────────────────────────────────────────╯
+   ███╗   ███╗ ██╗ ███╗   ██╗ ████████╗
+   ████╗ ████║ ██║ ████╗  ██║ ╚══██╔══╝
+   ██╔████╔██║ ██║ ██╔██╗ ██║    ██║
+   ██║╚██╔╝██║ ██║ ██║╚██╗██║    ██║
+   ██║ ╚═╝ ██║ ██║ ██║ ╚████║    ██║
+   ╚═╝     ╚═╝ ╚═╝ ╚═╝  ╚═══╝    ╚═╝
 
- ▶▶ ▸ ⚙ System                              ● 2/2
-     ▸ ⌨ Shell & Terminal                    ● 1/1
-     ▸ ◆ Languages & Runtime                 ● 2/2
-     ▾ ◎ Browser                             ◐ 1/2
-        ▶▶ ● Google Chrome
-            ○ Microsoft Edge
-     ▸ ✉ Communication                       ● 1/1
-     ▸ ✎ IDE & Editor                        ● 2/2
-     ▸ ▲ DevOps & Infrastructure             ● 3/3
-     ▸ ⬡ Database Tools                      ● 4/4
-     ▸ ★ Productivity                        ● 2/2
-     ▸ ◈ AI Tools                            ● 1/1
+      mint setup · post-install toolkit
+      fresh machine · fresh start
 
-  ─────────────────────────────────────────────────────
-  19/20 selected
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  ↑↓ Move  Space Toggle  Enter Expand/Collapse  d .NET ver
-  a All  n None  q Quit  i → Install
+    ▾ ⚙ System & Shell                 ● 4/4
+          ● APT mirror → Vietnam (faster downloads) [vn.archive.ubuntu.com]
+          ● System Update & Upgrade
+          ● Swap 8GB + swappiness 10
+          ● Terminal tools (zsh, tmux, fzf…)
+    ▾ ◆ Dev & IDE                      ◐ 4/5
+          ● NVM + Node.js 24
+  ▌       ○ .NET SDK (chọn version) [10]
+          ● Visual Studio Code
+          ● Trae IDE
+          ● Claude Code
+    ▸ ▲ DevOps & Cloud                 ● 4/4
+    ▸ ⬡ Database                       ● 4/4
+    ▸ ◎ Desktop & Apps                 ● 5/5
+
+  ───────────────────────────────────────────────────────
+  21/22 selected   ████████████████░░
+
+  ┌─ Navigate ─────┬─ Select ───────┬─ Actions ─────────┐
+  │  ↑ ↓  Move     │  Space  Toggle │  d  .NET version  │
+  │  ↵    Expand   │  a      All    │  m  APT mirror    │
+  │                │  n      None   │  i  Install    ▸  │
+  │                │                │  q  Quit          │
+  └────────────────┴────────────────┴───────────────────┘
 ```
 
-| Key | Action |
-|:---:|--------|
-| `↑` `↓` | Navigate groups / items |
-| `Space` | Toggle group (all items) or single item |
-| `Enter` | Expand / collapse group |
-| `a` / `n` | Select all / Deselect all |
-| `d` | Configure .NET versions (e.g. `8 9 10`) |
-| `i` | Start installation |
-| `q` | Quit |
+### Groups
+
+| # | Group | Apps |
+|:-:|-------|------|
+| 1 | **System & Shell** | APT mirror (Vietnam) · System update · Swap 8GB · Terminal tools (zsh, tmux, fzf…) |
+| 2 | **Dev & IDE** | NVM/Node · .NET SDK · VS Code · Trae · Claude Code |
+| 3 | **DevOps & Cloud** | Terraform · Azure CLI · AzCopy · Docker |
+| 4 | **Database** | MySQL client · PostgreSQL client · DBeaver · Navicat |
+| 5 | **Desktop & Apps** | Chrome · Edge · Teams · Fcitx5 · VLC |
+
+| Navigate | Select | Actions |
+|----------|--------|---------|
+| `↑` `↓` Move cursor | `Space` Toggle selection | `d` Configure .NET versions |
+| `↵` Expand / collapse group | `a` Select all | `m` Change APT mirror |
+| | `n` Deselect all | **`i` Start install** |
+| | | `q` Quit |
 
 ---
 
@@ -80,6 +108,7 @@ cd ubuntu-install-apps
 
 | Component | Details |
 |-----------|---------|
+| **APT mirror (Vietnam)** | Switches the Ubuntu archive mirror to a nearby Vietnam host (default `vn.archive.ubuntu.com`; press `m` to pick BizFly Cloud / ClearSky). Works from **any** previous mirror, not just the default. Leaves `security.ubuntu.com` untouched and backs up each sources file (`*.bak`). Works on Ubuntu (`sources.list`, deb822 `ubuntu.sources`) **and Linux Mint** (`official-package-repositories.list`). Runs first so later steps download from the fast mirror |
 | **System Update** | `apt update && upgrade && autoremove` |
 | **Swap 8GB** | Creates `/swapfile` (8GB), `swappiness=10`, persists in `/etc/fstab` + `/etc/sysctl.conf` |
 
@@ -89,7 +118,7 @@ ZSH is installed **before** languages/runtimes so that NVM, .NET, etc. automatic
 
 | Component | Details |
 |-----------|---------|
-| **zsh + Oh My Zsh** | New default shell with 14 plugins (see below) |
+| **zsh + Oh My Zsh** | Oh My Zsh with 14 plugins (see below). The script **asks** whether to make zsh your default shell — answer `n` to keep bash and just run `zsh` when you want it |
 | **tmux** | Terminal multiplexer |
 | **htop** | Interactive process monitor |
 | **jq** / **yq** | JSON / YAML processors |
@@ -166,6 +195,7 @@ This ensures switching from bash to zsh doesn't break any previously installed t
 |-----------|--------|---------|
 | **Terraform** | HashiCorp apt repo | Infrastructure as Code |
 | **Azure CLI** | Microsoft apt repo | Azure resource management |
+| **AzCopy** | `aka.ms` v10 tarball | Azure Storage / Blob transfer CLI. Binary installed to `/usr/local/bin/azcopy` |
 | **Docker + Compose** | Docker apt repo | Docker CE, Compose plugin, buildx. Adds user to `docker` group |
 
 ### Database Tools
@@ -219,6 +249,11 @@ Mint 21 (Victoria) → Ubuntu 22.04 (jammy)
 
 This fix applies to: .NET SDK, Azure CLI, Terraform, Docker, VS Code, and Edge repos.
 
+The **APT mirror** step is also Mint-aware: it rewrites the `archive.ubuntu.com`
+host inside Mint's `/etc/apt/sources.list.d/official-package-repositories.list`
+(as well as Ubuntu's `sources.list` / deb822 `ubuntu.sources`), while leaving the
+Mint repos (`packages.linuxmint.com`) and `security.ubuntu.com` untouched.
+
 ---
 
 ## Install Order
@@ -226,18 +261,19 @@ This fix applies to: .NET SDK, Azure CLI, Terraform, Docker, VS Code, and Edge r
 The install order is deliberate:
 
 ```
-1. System Update      ─── apt cache fresh
-2. Swap               ─── memory ready
-3. Terminal + ZSH     ─── .zshrc exists BEFORE anything writes to it
-4. NVM + Node.js      ─── config goes into .zshrc (not just .bashrc)
-5. .NET SDK           ─── DOTNET_ROOT picked up by .zshrc
-6-7. Chrome, Edge     ─── browsers
-8. Teams              ─── communication
-9-10. VS Code, Trae   ─── editors
-11-13. TF, AZ, Docker ─── infra tools
-14-17. DB tools       ─── database clients
-18-19. Fcitx5, VLC    ─── productivity
-20. Claude Code       ─── AI tools (no longer needs Node.js)
+1. APT mirror         ─── switch to a nearby Vietnam mirror FIRST
+2. System Update      ─── apt cache fresh (now from the fast mirror)
+3. Swap               ─── memory ready
+4. Terminal + ZSH     ─── .zshrc exists BEFORE anything writes to it
+5. NVM + Node.js      ─── config goes into .zshrc (not just .bashrc)
+6. .NET SDK           ─── DOTNET_ROOT picked up by .zshrc
+7-8. Chrome, Edge     ─── browsers
+9. Teams              ─── communication
+10-11. VS Code, Trae  ─── editors
+12-15. TF, AZ, AzCopy, Docker ─── infra tools
+16-19. DB tools       ─── database clients
+20-21. Fcitx5, VLC    ─── productivity
+22. Claude Code       ─── AI tools (no longer needs Node.js)
 ```
 
 ---
