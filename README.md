@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <b>24 apps</b> &nbsp;·&nbsp; <b>Idempotent</b> (safe to re-run) &nbsp;·&nbsp; <b>Uninstall mode</b> &nbsp;·&nbsp; <b>Mint-compatible</b> (auto-detects Ubuntu codename)
+  <b>25 apps</b> &nbsp;·&nbsp; <b>Idempotent</b> (safe to re-run) &nbsp;·&nbsp; <b>Uninstall mode</b> &nbsp;·&nbsp; <b>Mint-compatible</b> (auto-detects Ubuntu codename)
 </p>
 
 ---
@@ -44,7 +44,7 @@ cd ubuntu-install-apps
 ## Interactive Menu
 
 A flicker-free, Linux Mint-themed TUI (leaf-green accents + gradient rule)
-rendered on the alternate screen. 24 apps live under **5 collapsible groups**;
+rendered on the alternate screen. 25 apps live under **5 collapsible groups**;
 the cursor row is marked with a green bar `▌`. A 3D MINT wordmark in
 leaf-green gradient greets you on launch.
 
@@ -100,7 +100,7 @@ leaf-green gradient greets you on launch.
 | # | Group | Apps |
 |:-:|-------|------|
 | 1 | **System & Shell** | APT mirror (Vietnam) · System update · Swap 8GB · Terminal tools (zsh, tmux, fzf…) |
-| 2 | **Dev & IDE** | NVM/Node · .NET SDK · VS Code · Trae · Claude Code |
+| 2 | **Dev & IDE** | NVM/Node · Bun · .NET SDK · VS Code · Trae · Claude Code |
 | 3 | **DevOps & Cloud** | Terraform · Azure CLI · AzCopy · Docker |
 | 4 | **Database** | MySQL client · PostgreSQL client · DBeaver · Navicat |
 | 5 | **Desktop & Apps** | Chrome · Edge · Teams · Fcitx5 · VLC |
@@ -173,6 +173,7 @@ This ensures switching from bash to zsh doesn't break any previously installed t
 | Component | Details |
 |-----------|---------|
 | **NVM + Node.js 24** | NVM v0.40.3 for current user, Node 24 as default |
+| **Bun** | Official `bun.sh/install` script, per-user (`~/.bun`); `bun`/`bunx` on PATH via the `.zshrc` Tool-integrations block |
 | **.NET SDK** | Default: v10. Press `d` to select multiple (e.g. `8 9 10`). Falls back to Microsoft install script if unavailable in apt |
 
 ### Browser

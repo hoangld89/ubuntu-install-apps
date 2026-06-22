@@ -94,6 +94,7 @@ APPS=(
 
     # ── Languages & Runtime ──
     "nvm|Node.js 24::managed by nvm, swap versions on the fly|1"
+    "bun|Bun::all-in-one JS runtime & toolkit, blazing fast|1"
     "dotnet|.NET SDK::build & run cross-platform .NET|1"
 
     # ── Browser ──
@@ -145,7 +146,7 @@ MIRRORS=(
 
 APP_GROUPS=(
     "system|System & Shell|⚙|mirror,update,swap,terminal,font,eza"
-    "dev|Languages & IDEs|◆|nvm,dotnet,vscode,trae,claude"
+    "dev|Languages & IDEs|◆|nvm,bun,dotnet,vscode,trae,claude"
     "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker"
     "database|Databases|⬡|mysqlclient,pgclient,dbeaver,navicat"
     "desktop|Apps & Desktop|◎|chrome,edge,teams,fcitx5,vlc"
@@ -742,6 +743,9 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
+# Bun
+[ -d "$HOME/.bun" ] && export BUN_INSTALL="$HOME/.bun" && export PATH="$BUN_INSTALL/bin:$PATH"
+
 # .NET
 if [ -d "/usr/share/dotnet" ]; then
     export DOTNET_ROOT="/usr/share/dotnet"
@@ -915,6 +919,28 @@ do_nvm() {
     '
 
     success "NVM + Node.js 24 installed for '$REAL_USER'"
+}
+
+do_bun() {
+    if [[ -x "$REAL_HOME/.bun/bin/bun" ]]; then
+        success "Bun already installed, skipping"
+        return
+    fi
+
+    info "Installing Bun for user '$REAL_USER'..."
+    # The installer downloads a zip and needs unzip; curl to fetch install.sh.
+    apt install -y curl unzip
+
+    # Official per-user installer (into ~/.bun). PATH is wired up by the
+    # Bun block in the Tool-integrations section of .zshrc (added by do_terminal).
+    su - "$REAL_USER" -c 'curl -fsSL https://bun.sh/install | bash'
+
+    if [[ -x "$REAL_HOME/.bun/bin/bun" ]]; then
+        success "Bun $("$REAL_HOME/.bun/bin/bun" --version 2>/dev/null || echo 'ready') installed for '$REAL_USER'"
+    else
+        fail "Bun install did not produce ~/.bun/bin/bun"
+        return 1
+    fi
 }
 
 do_dotnet() {
@@ -1429,6 +1455,20 @@ undo_nvm() {
     info "Removing NVM + Node.js..."
     su - "$REAL_USER" -c 'rm -rf "$HOME/.nvm"' 2>/dev/null || true
     success "NVM removed (PATH cleared on next login; .zshrc NVM lines live in the Tool-integrations block)"
+}
+
+undo_bun() {
+    info "Removing Bun..."
+    su - "$REAL_USER" -c 'rm -rf "$HOME/.bun"' 2>/dev/null || true
+    # Strip the block the Bun installer appends to the user's rc files (our own
+    # Bun line lives in the Tool-integrations block and is conditional/harmless).
+    local rc
+    for rc in "$REAL_HOME/.bashrc" "$REAL_HOME/.zshrc"; do
+        [[ -f "$rc" ]] || continue
+        sed -i '/^# bun$/,/\.bun\/bin/d' "$rc"
+        chown "$REAL_USER:$REAL_USER" "$rc" 2>/dev/null || true
+    done
+    success "Bun removed (.bun dir & installer rc block cleaned)"
 }
 
 undo_dotnet() {
