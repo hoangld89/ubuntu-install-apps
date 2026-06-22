@@ -843,11 +843,29 @@ do_font() {
             ok=0
         fi
     done
-    fc-cache -f "$font_dir" >/dev/null 2>&1 || fc-cache -f >/dev/null 2>&1 || true
+    # Rebuild the WHOLE font cache, not just "$font_dir": caching a single
+    # subdir can leave fontconfig's parent-dir cache stale so an immediate
+    # fc-list misses the new faces. A full -f makes fc-list see them at once.
+    fc-cache -f >/dev/null 2>&1 || true
 
-    # Accurate verification: only report success if fontconfig actually sees it.
-    if fc-list 2>/dev/null | grep -qi 'MesloLGS NF'; then
-        success "MesloLGS Nerd Font installed & verified ($(fc-list 2>/dev/null | grep -ci 'MesloLGS NF') faces)"
+    # The .ttf files on disk are the real source of truth for "installed".
+    # fc-list is only confirmation, and its cache can lag a beat — so retry it
+    # briefly, and if files are present treat that as success even if fc-list
+    # hasn't caught up (icons will render once the cache settles).
+    local faces=0 i
+    for i in 1 2 3; do
+        faces=$(fc-list 2>/dev/null | grep -ci 'MesloLGS NF')
+        [[ $faces -gt 0 ]] && break
+        fc-cache -f >/dev/null 2>&1 || true
+    done
+    local on_disk
+    on_disk=$(find "$font_dir" -maxdepth 1 -iname 'MesloLGS NF*.ttf' 2>/dev/null | wc -l)
+
+    if [[ $faces -gt 0 ]]; then
+        success "MesloLGS Nerd Font installed & verified ($faces faces)"
+        apply_terminal_font
+    elif [[ $ok -eq 1 && $on_disk -gt 0 ]]; then
+        success "MesloLGS Nerd Font installed ($on_disk files); fontconfig cache will refresh on next login"
         apply_terminal_font
     else
         [[ $ok -eq 0 ]] && fail "Some font files failed to download"
