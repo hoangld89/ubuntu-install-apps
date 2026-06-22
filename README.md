@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <b>22 apps</b> &nbsp;·&nbsp; <b>Idempotent</b> (safe to re-run) &nbsp;·&nbsp; <b>Mint-compatible</b> (auto-detects Ubuntu codename)
+  <b>24 apps</b> &nbsp;·&nbsp; <b>Idempotent</b> (safe to re-run) &nbsp;·&nbsp; <b>Uninstall mode</b> &nbsp;·&nbsp; <b>Mint-compatible</b> (auto-detects Ubuntu codename)
 </p>
 
 ---
@@ -28,6 +28,10 @@ cd ubuntu-install-apps
 
 # Or install everything at once
 ./install-app.sh --all
+
+# Uninstall — same TUI, removes the apps you pick
+./install-app.sh --uninstall
+./install-app.sh --uninstall --all
 ```
 
 > The script needs **bash** (it uses bash arrays). Run it with `./install-app.sh`
@@ -40,7 +44,7 @@ cd ubuntu-install-apps
 ## Interactive Menu
 
 A flicker-free, Linux Mint-themed TUI (leaf-green accents + gradient rule)
-rendered on the alternate screen. 22 apps live under **5 collapsible groups**;
+rendered on the alternate screen. 24 apps live under **5 collapsible groups**;
 the cursor row is marked with a green bar `▌`. A 3D MINT wordmark in
 leaf-green gradient greets you on launch.
 
@@ -118,32 +122,26 @@ ZSH is installed **before** languages/runtimes so that NVM, .NET, etc. automatic
 
 | Component | Details |
 |-----------|---------|
-| **zsh + Oh My Zsh** | Oh My Zsh with 14 plugins (see below). The script **asks** whether to make zsh your default shell — answer `n` to keep bash and just run `zsh` when you want it |
+| **zsh + Oh My Zsh** | Oh My Zsh with a minimal set of 3 plugins (see below). The script **asks** whether to make zsh your default shell — answer `n` to keep bash and just run `zsh` when you want it |
 | **tmux** | Terminal multiplexer |
 | **htop** | Interactive process monitor |
 | **jq** / **yq** | JSON / YAML processors |
 | **ripgrep** (`rg`) | Fast file search |
 | **fzf** | Fuzzy finder |
 | **bat** | `cat` with syntax highlighting |
+| **eza** | Modern `ls` with icons & colors (`ls`/`ll`/`la`/`lt` aliases) |
+| **Nerd Font** | Installs **MesloLGS NF** to `/usr/local/share/fonts` and verifies it with `fc-list` so eza/terminal icons render. Set your terminal font to *MesloLGS NF* afterwards |
 
 <details>
-<summary><b>ZSH Plugins (14)</b></summary>
+<summary><b>ZSH Plugins (3)</b></summary>
+
+A deliberately minimal set — just the essentials. `zsh-syntax-highlighting` is loaded last (required by the plugin).
 
 | Plugin | Type | Description |
 |--------|------|-------------|
 | git | built-in | Git aliases & status in prompt |
 | zsh-autosuggestions | external | Fish-like command suggestions |
 | zsh-syntax-highlighting | external | Real-time syntax coloring |
-| zsh-completions | external | Extra completion definitions |
-| zsh-history-substring-search | external | Type partial command + `↑` to search history |
-| z | built-in | Jump to frequently used directories |
-| fzf | built-in | Fuzzy search integration |
-| sudo | built-in | Press `Esc` twice to prepend `sudo` |
-| aliases | built-in | Alias management utilities |
-| docker | built-in | Docker completions & aliases |
-| docker-compose | built-in | Docker Compose completions |
-| kubectl | built-in | Kubernetes completions & aliases |
-| terraform | built-in | Terraform completions |
 
 </details>
 
@@ -238,6 +236,32 @@ The script detects already-installed tools and skips them:
 
 ---
 
+## Uninstall
+
+```bash
+./install-app.sh --uninstall          # same TUI — pick what to remove
+./install-app.sh --uninstall --all    # remove everything
+```
+
+Uninstall opens the **same menu** as install, but every app starts **unselected**
+and the action becomes **Remove**. After you press `i`, a single confirmation
+gate (`y/N`) protects against accidental removal. Each app has a dedicated
+`undo_<app>` routine that reverses what its installer did:
+
+- **apt packages** are purged (`apt-get purge`), then `apt autoremove` sweeps orphans
+- **APT repos & GPG keys** added under `sources.list.d` / `keyrings` are deleted
+- **Downloaded binaries** (`azcopy`, `yq`, Navicat, etc.) are removed
+- **`.zshrc` blocks** are stripped by their `# --- … ---` / `# --- end … ---` markers
+- **Mirror** is restored from the `*.bak` backups created during install
+
+What it deliberately **leaves alone** (to avoid data loss), warning you instead:
+
+- `git` & `curl` (too many other things depend on them)
+- `/var/lib/docker` (your images, volumes, containers)
+- `~/.claude` config and a completed system `update`/`upgrade` (cannot be rolled back)
+
+---
+
 ## Linux Mint Compatibility
 
 Linux Mint codenames (`wilma`, `victoria`, etc.) don't match Ubuntu repo codenames. The script auto-detects the underlying Ubuntu codename:
@@ -325,7 +349,17 @@ claude --version                # → claude X.X.X
    }
    ```
 
-3. Add `myapp` to the `case` block in `print_menu()` for group assignment.
+3. Add a matching `undo_myapp()` so it can be uninstalled too:
+   ```bash
+   undo_myapp() {
+       info "Removing My Application..."
+       apt_purge myapp            # or rm the binary / repo it installed
+       success "My Application removed"
+   }
+   ```
+
+4. Add the `myapp` key to the relevant group's comma list in the `APP_GROUPS`
+   array so it shows up under that group in the menu.
 
 ### Changing swap size
 
@@ -336,6 +370,18 @@ fallocate -l 16G /swapfile
 ```
 
 ---
+
+## Testing
+
+Don't run an unverified version on your real machine. Test it inside a
+disposable Ubuntu container instead &mdash; see **[TESTING.md](./TESTING.md)** and
+the [`test-docker.sh`](./test-docker.sh) helper:
+
+```bash
+./test-docker.sh lint        # shellcheck
+./test-docker.sh             # interactive menu in a throwaway container
+./test-docker.sh all         # full non-interactive install
+```
 
 ## System Requirements
 

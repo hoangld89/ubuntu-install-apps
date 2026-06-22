@@ -8,6 +8,10 @@ set -euo pipefail
 # ============================================================
 # MINT — Post-install Setup
 # Interactive app selector for Ubuntu / Linux Mint
+#   ./install-app.sh              interactive install
+#   ./install-app.sh --all        install everything
+#   ./install-app.sh --uninstall  interactive uninstall
+#   ./install-app.sh --uninstall --all
 # ============================================================
 
 RED='\033[0;31m'
@@ -27,6 +31,15 @@ MINTB='\033[1;38;5;113m'     # bold Mint green
 MINTD='\033[38;5;108m'       # muted sage green
 LEAF='\033[38;5;71m'         # darker leaf green
 
+# --- Run mode ----------------------------------------------------------------
+# install | uninstall — set in main() from CLI flags. Drives menu labels,
+# default selection, and which dispatch prefix (do_ / undo_) main() calls.
+MODE="install"
+ALL=0
+ACTION_LABEL="Install"      # footer hint label
+ACTION_GERUND="Installing"  # progress box verb
+ACTION_PAST="installed"     # summary stat verb
+
 # --- App registry -----------------------------------------------------------
 # Format: "key|label|default_on"
 APPS=(
@@ -37,6 +50,7 @@ APPS=(
 
     # ── Shell & Terminal ──
     "terminal|Terminal tools (zsh, oh-my-zsh, tmux, htop, jq, yq, rg, fzf, bat)|1"
+    "font|Nerd Font (MesloLGS — icons for eza & terminal)|1"
     "eza|eza (modern ls with icons & colors)|1"
 
     # ── Languages & Runtime ──
@@ -91,7 +105,7 @@ MIRRORS=(
 )
 
 APP_GROUPS=(
-    "system|System & Shell|⚙|mirror,update,swap,terminal,eza"
+    "system|System & Shell|⚙|mirror,update,swap,terminal,font,eza"
     "dev|Dev & IDE|◆|nvm,dotnet,vscode,trae,claude"
     "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker"
     "database|Database|⬡|mysqlclient,pgclient,dbeaver,navicat"
@@ -111,9 +125,13 @@ for _entry in "${APPS[@]}"; do
 done
 
 init_defaults() {
+    # In uninstall mode start with everything OFF so nothing is removed by
+    # accident — the user explicitly opts each app in.
+    local def
     for entry in "${APPS[@]}"; do
         IFS='|' read -r key label default <<< "$entry"
-        SELECTED[$key]=$default
+        if [[ "$MODE" == "uninstall" ]]; then def=0; else def="$default"; fi
+        SELECTED[$key]=$def
     done
 }
 
@@ -144,6 +162,16 @@ build_visible() {
             done
         fi
     done
+}
+
+# Keep CURSOR inside the visible range. Collapsing a group shrinks VIS_*, and
+# without this an out-of-range index trips `set -u` (unbound variable) the next
+# time interactive_menu reads VIS_TYPES[$CURSOR].
+clamp_cursor() {
+    local n=${#VIS_TYPES[@]}
+    (( n == 0 )) && { CURSOR=0; return; }
+    (( CURSOR >= n )) && CURSOR=$((n - 1))
+    (( CURSOR < 0 )) && CURSOR=0
 }
 
 group_sel_count() {
@@ -261,8 +289,13 @@ print_banner() {
     ui_addf "   ${G5}██║ ╚═╝ ██║ ██║ ██║ ╚████║    ██║${NC}"
     ui_addf "   ${G6}╚═╝     ╚═╝ ╚═╝ ╚═╝  ╚═══╝    ╚═╝${NC}"
     ui_add  ""
-    ui_addf "      ${MINTB}mint setup${NC} ${DIM}· post-install toolkit${NC}"
-    ui_addf "      ${MINTD}fresh machine · fresh start${NC}"
+    if [[ "$MODE" == "uninstall" ]]; then
+        ui_addf "      ${MINTB}mint setup${NC} ${DIM}· uninstaller${NC}"
+        ui_addf "      ${YELLOW}uninstall mode — selected apps will be REMOVED${NC}"
+    else
+        ui_addf "      ${MINTB}mint setup${NC} ${DIM}· post-install toolkit${NC}"
+        ui_addf "      ${MINTD}fresh machine · fresh start${NC}"
+    fi
     ui_add  ""
     ui_add  "  $(ui_gradient_rule 55 ━)"
     ui_add  ""
@@ -270,6 +303,7 @@ print_banner() {
 
 print_menu() {
     build_visible
+    clamp_cursor
     MENU_LINES=()
     local total=${#APPS[@]}
     local sel
@@ -346,7 +380,7 @@ print_menu() {
     ui_addf "  ${DIM}┌─${NC} ${MINTD}Navigate${NC} ${DIM}─────┬─${NC} ${MINTD}Select${NC} ${DIM}───────┬─${NC} ${MINTD}Actions${NC} ${DIM}─────────┐${NC}"
     ui_addf "  ${DIM}│${NC}  ${BOLD}${WHITE}↑ ↓${NC}  ${DIM}Move${NC}     ${DIM}│${NC}  ${BOLD}${WHITE}Space${NC}  ${DIM}Toggle${NC} ${DIM}│${NC}  ${BOLD}${WHITE}d${NC}  ${DIM}.NET version${NC}  ${DIM}│${NC}"
     ui_addf "  ${DIM}│${NC}  ${BOLD}${WHITE}↵${NC}    ${DIM}Expand${NC}   ${DIM}│${NC}  ${BOLD}${WHITE}a${NC}      ${DIM}All${NC}    ${DIM}│${NC}  ${BOLD}${WHITE}m${NC}  ${DIM}APT mirror${NC}    ${DIM}│${NC}"
-    ui_addf "  ${DIM}│${NC}                ${DIM}│${NC}  ${BOLD}${WHITE}n${NC}      ${DIM}None${NC}   ${DIM}│${NC}  ${MINTB}i${NC}  ${MINTB}Install${NC}    ${MINT}▸${NC}  ${DIM}│${NC}"
+    ui_addf "  ${DIM}│${NC}                ${DIM}│${NC}  ${BOLD}${WHITE}n${NC}      ${DIM}None${NC}   ${DIM}│${NC}  ${MINTB}i${NC}  ${MINTB}%-7s${NC}    ${MINT}▸${NC}  ${DIM}│${NC}" "$ACTION_LABEL"
     ui_addf "  ${DIM}│${NC}                ${DIM}│${NC}                ${DIM}│${NC}  ${BOLD}${WHITE}q${NC}  ${DIM}Quit${NC}          ${DIM}│${NC}"
     ui_addf "  ${DIM}└────────────────┴────────────────┴───────────────────┘${NC}"
     ui_add  ""
@@ -361,7 +395,7 @@ configure_dotnet() {
     echo ""
     read -rp "  Versions (e.g. '8 9 10'): " input
     if [[ -n "$input" ]]; then
-        DOTNET_VERSIONS=($input)
+        read -ra DOTNET_VERSIONS <<< "$input"
         SELECTED[dotnet]=1
     fi
 }
@@ -387,11 +421,13 @@ configure_mirror() {
 }
 
 read_key() {
-    local key
-    IFS= read -rsn1 key
+    # `|| true` guards each read: a bare ESC press (or EOF) makes read return
+    # non-zero, which would otherwise abort the whole script under `set -e`.
+    local key rest=""
+    IFS= read -rsn1 key || true
     if [[ "$key" == $'\x1b' ]]; then
-        read -rsn2 -t 0.1 key
-        case "$key" in
+        read -rsn2 -t 0.1 rest || true
+        case "$rest" in
             '[A') echo "UP" ;;
             '[B') echo "DOWN" ;;
             *)    echo "ESC" ;;
@@ -446,6 +482,7 @@ interactive_menu() {
                         GROUP_EXPANDED[$vkey]=1
                     fi
                     build_visible
+                    clamp_cursor
                 fi
                 ;;
             a) select_all ;;
@@ -479,11 +516,13 @@ print_step_header() {
 need_root() {
     if [[ $EUID -ne 0 ]]; then
         echo -e "${YELLOW}Requesting sudo privileges...${NC}"
+        # Pass the original CLI args along — otherwise flags like --uninstall /
+        # --all are dropped on the sudo re-exec.
         exec sudo bash "$0" "$@"
     fi
 }
 
-REAL_USER="${SUDO_USER:-$USER}"
+REAL_USER="${SUDO_USER:-${USER:-$(id -un)}}"
 REAL_HOME=$(eval echo "~$REAL_USER")
 
 get_ubuntu_codename() {
@@ -494,8 +533,10 @@ get_ubuntu_codename() {
 get_ubuntu_version() {
     if [[ -f /etc/upstream-release/lsb-release ]]; then
         grep '^DISTRIB_RELEASE=' /etc/upstream-release/lsb-release | cut -d= -f2
-    else
+    elif command -v lsb_release &>/dev/null; then
         lsb_release -rs
+    else
+        ( . /etc/os-release && echo "${VERSION_ID:-}" )
     fi
 }
 
@@ -505,6 +546,22 @@ ensure_microsoft_gpg() {
         wget -qO- https://packages.microsoft.com/keys/microsoft.asc \
             | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
     fi
+}
+
+# Purge packages without ever aborting the run (missing packages are fine).
+apt_purge() {
+    DEBIAN_FRONTEND=noninteractive apt-get purge -y "$@" >/dev/null 2>&1 || true
+}
+
+# Remove a marked block from the user's .zshrc. Install steps wrap their
+# additions in `# --- <label> ---` … `# --- end <label> ---` so this can delete
+# them cleanly. Runs as root but rewrites REAL_USER's file and restores owner.
+strip_zshrc_block() {
+    local label="$1"
+    local rc="$REAL_HOME/.zshrc"
+    [[ -f "$rc" ]] || return 0
+    sed -i "/^# --- ${label} ---\$/,/^# --- end ${label} ---\$/d" "$rc"
+    chown "$REAL_USER:$REAL_USER" "$rc" 2>/dev/null || true
 }
 
 # --- Install functions -------------------------------------------------------
@@ -597,21 +654,16 @@ do_terminal() {
     cat > "$setup_script" << 'SETUP_EOF'
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     export RUNZSH=no CHSH=no
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+    bash -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 fi
 
 ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 
 git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions" 2>/dev/null || true
 git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" 2>/dev/null || true
-git clone https://github.com/zsh-users/zsh-completions "$ZSH_CUSTOM/plugins/zsh-completions" 2>/dev/null || true
-git clone https://github.com/zsh-users/zsh-history-substring-search "$ZSH_CUSTOM/plugins/zsh-history-substring-search" 2>/dev/null || true
 
-if ! grep -q 'zsh-completions/src' "$HOME/.zshrc" 2>/dev/null; then
-    sed -i '/^source \$ZSH\/oh-my-zsh.sh/i fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src' "$HOME/.zshrc"
-fi
-
-sed -i 's/^plugins=.*/plugins=(git zsh-autosuggestions zsh-syntax-highlighting zsh-history-substring-search z fzf sudo aliases docker docker-compose kubectl terraform)/' "$HOME/.zshrc"
+# Minimal, sane defaults. zsh-syntax-highlighting MUST be last.
+sed -i 's/^plugins=.*/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/' "$HOME/.zshrc"
 
 if ! grep -q '# --- Tool integrations ---' "$HOME/.zshrc" 2>/dev/null; then
     cat >> "$HOME/.zshrc" << 'TOOLEOF'
@@ -640,6 +692,7 @@ fi
 
 # Cargo / Rust
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+# --- end Tool integrations ---
 TOOLEOF
 fi
 SETUP_EOF
@@ -663,7 +716,42 @@ SETUP_EOF
         fi
     fi
 
-    success "Terminal tools installed: zsh + oh-my-zsh (14 plugins), tmux, htop, jq, yq, rg, fzf, bat"
+    success "Terminal tools installed: zsh + oh-my-zsh (3 plugins), tmux, htop, jq, yq, rg, fzf, bat"
+}
+
+do_font() {
+    info "Installing MesloLGS Nerd Font (icons for eza & terminal)..."
+
+    # fontconfig provides fc-list / fc-cache — required for an accurate check.
+    apt install -y fontconfig wget >/dev/null 2>&1 || apt install -y fontconfig wget
+
+    if fc-list 2>/dev/null | grep -qi 'MesloLGS NF'; then
+        success "MesloLGS Nerd Font already installed, skipping ($(fc-list 2>/dev/null | grep -ci 'MesloLGS NF') faces)"
+        return
+    fi
+
+    local font_dir="/usr/local/share/fonts/MesloLGS-NF"
+    mkdir -p "$font_dir"
+    local base_url="https://github.com/romkatv/powerlevel10k-media/raw/master"
+    local font ok=1
+    for font in "MesloLGS NF Regular.ttf" "MesloLGS NF Bold.ttf" \
+                "MesloLGS NF Italic.ttf" "MesloLGS NF Bold Italic.ttf"; do
+        if ! wget -q -O "$font_dir/$font" "$base_url/${font// /%20}"; then
+            warn "Failed to download: $font"
+            ok=0
+        fi
+    done
+    fc-cache -f "$font_dir" >/dev/null 2>&1 || fc-cache -f >/dev/null 2>&1 || true
+
+    # Accurate verification: only report success if fontconfig actually sees it.
+    if fc-list 2>/dev/null | grep -qi 'MesloLGS NF'; then
+        success "MesloLGS Nerd Font installed & verified ($(fc-list 2>/dev/null | grep -ci 'MesloLGS NF') faces)"
+        warn "Set your terminal font to 'MesloLGS NF' so icons render correctly"
+    else
+        [[ $ok -eq 0 ]] && fail "Some font files failed to download"
+        fail "Nerd Font not detected after install — eza/terminal icons may not render"
+        return 1
+    fi
 }
 
 do_eza() {
@@ -700,6 +788,7 @@ alias ls='eza --icons --group-directories-first'
 alias ll='eza -l --icons --group-directories-first --git'
 alias la='eza -la --icons --group-directories-first --git'
 alias lt='eza --tree --icons --level=2'
+# --- end eza aliases ---
 EZAEOF
 fi
 ALIAS_EOF
@@ -1102,17 +1191,265 @@ do_claude() {
     fi
 
     info "Installing Claude Code..."
-    su - "$REAL_USER" -c 'curl -fsSL https://claude.ai/install.sh | sh'
+    su - "$REAL_USER" -c 'curl -fsSL https://claude.ai/install.sh | bash'
     success "Claude Code installed (run 'claude' to start)"
+}
+
+# --- Uninstall functions -----------------------------------------------------
+# Each undo_<key> mirrors do_<key>: removes packages, the APT repo file + key,
+# downloaded binaries and (best-effort) the config it wrote. System-state steps
+# that cannot be reversed (update) are skipped with a warning.
+
+undo_mirror() {
+    info "Restoring original APT mirror from backups..."
+    local restored=0 f
+    local targets=(
+        /etc/apt/sources.list
+        /etc/apt/sources.list.d/ubuntu.sources
+        /etc/apt/sources.list.d/official-package-repositories.list
+    )
+    for f in "${targets[@]}"; do
+        if [[ -f "$f.bak" ]]; then
+            mv -f "$f.bak" "$f"
+            success "Restored $(basename "$f")"
+            restored=1
+        fi
+    done
+    if [[ $restored -eq 1 ]]; then
+        apt update || true
+        success "Original APT mirror restored"
+    else
+        warn "No mirror backup (*.bak) found — nothing to restore"
+    fi
+}
+
+undo_update() {
+    warn "A system update/upgrade cannot be rolled back — skipping"
+}
+
+undo_swap() {
+    info "Removing swap & resetting swappiness..."
+    swapoff /swapfile 2>/dev/null || true
+    rm -f /swapfile
+    sed -i '\#/swapfile#d' /etc/fstab
+    sed -i '/^vm.swappiness/d' /etc/sysctl.conf
+    sysctl -w vm.swappiness=60 >/dev/null 2>&1 || true
+    success "Swap removed, swappiness reset to default (60)"
+}
+
+undo_terminal() {
+    info "Removing terminal tools..."
+
+    # Revert the login shell to bash before removing zsh.
+    local cur_shell
+    cur_shell=$(getent passwd "$REAL_USER" | cut -d: -f7)
+    if [[ "$cur_shell" == *zsh ]]; then
+        chsh -s "$(command -v bash)" "$REAL_USER" 2>/dev/null || true
+        success "Default shell reverted to bash (re-login to apply)"
+    fi
+
+    # git/curl are intentionally kept — too many other things depend on them.
+    apt_purge zsh tmux htop jq ripgrep fzf bat batcat
+    rm -f /usr/local/bin/yq /usr/local/bin/bat
+
+    su - "$REAL_USER" -c 'rm -rf "$HOME/.oh-my-zsh"' 2>/dev/null || true
+    strip_zshrc_block "Tool integrations"
+    warn "~/.zshrc left in place (Tool-integrations block removed)"
+    success "Terminal tools removed (kept git & curl)"
+}
+
+undo_font() {
+    info "Removing MesloLGS Nerd Font..."
+    rm -rf /usr/local/share/fonts/MesloLGS-NF
+    fc-cache -f >/dev/null 2>&1 || true
+    if fc-list 2>/dev/null | grep -qi 'MesloLGS NF'; then
+        warn "MesloLGS NF still detected — it may be installed elsewhere (e.g. user fonts)"
+    else
+        success "MesloLGS Nerd Font removed"
+    fi
+}
+
+undo_eza() {
+    info "Removing eza..."
+    apt_purge eza
+    rm -f /etc/apt/sources.list.d/gierens.list /etc/apt/keyrings/gierens.gpg
+    strip_zshrc_block "eza aliases"
+    success "eza removed (repo, key & aliases cleaned)"
+}
+
+undo_nvm() {
+    info "Removing NVM + Node.js..."
+    su - "$REAL_USER" -c 'rm -rf "$HOME/.nvm"' 2>/dev/null || true
+    success "NVM removed (PATH cleared on next login; .zshrc NVM lines live in the Tool-integrations block)"
+}
+
+undo_dotnet() {
+    info "Removing .NET SDK..."
+    local pkgs
+    pkgs=$(dpkg-query -W -f='${Package}\n' 'dotnet-sdk-*' 'dotnet-runtime-*' 'dotnet-host*' 'aspnetcore-runtime-*' 2>/dev/null || true)
+    if [[ -n "$pkgs" ]]; then
+        # shellcheck disable=SC2086
+        apt_purge $pkgs
+    fi
+    rm -f /etc/apt/sources.list.d/dotnet.list
+    rm -rf /usr/share/dotnet
+    [[ -L /usr/bin/dotnet ]] && rm -f /usr/bin/dotnet
+    success ".NET SDK removed (packages, repo & symlink)"
+}
+
+undo_chrome() {
+    info "Removing Google Chrome..."
+    apt_purge google-chrome-stable
+    rm -f /etc/apt/sources.list.d/google-chrome.list
+    success "Google Chrome removed"
+}
+
+undo_edge() {
+    info "Removing Microsoft Edge..."
+    apt_purge microsoft-edge-stable
+    rm -f /etc/apt/sources.list.d/microsoft-edge.list
+    success "Microsoft Edge removed"
+}
+
+undo_teams() {
+    info "Removing Teams for Linux..."
+    apt_purge teams-for-linux
+    success "Teams for Linux removed"
+}
+
+undo_vscode() {
+    info "Removing VS Code..."
+    apt_purge code
+    rm -f /etc/apt/sources.list.d/vscode.list
+    success "VS Code removed"
+}
+
+undo_trae() {
+    info "Removing Trae IDE..."
+    apt_purge trae
+    success "Trae IDE removed"
+}
+
+undo_terraform() {
+    info "Removing Terraform..."
+    apt_purge terraform
+    rm -f /etc/apt/sources.list.d/hashicorp.list /usr/share/keyrings/hashicorp.gpg
+    success "Terraform removed (package, repo & key)"
+}
+
+undo_azcli() {
+    info "Removing Azure CLI..."
+    apt_purge azure-cli
+    rm -f /etc/apt/sources.list.d/azure-cli.list
+    success "Azure CLI removed"
+}
+
+undo_azcopy() {
+    info "Removing AzCopy..."
+    rm -f /usr/local/bin/azcopy
+    success "AzCopy removed"
+}
+
+undo_docker() {
+    info "Removing Docker + Docker Compose..."
+    apt_purge docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras
+    rm -f /etc/apt/sources.list.d/docker.list /etc/apt/keyrings/docker.gpg
+    gpasswd -d "$REAL_USER" docker 2>/dev/null || true
+    warn "/var/lib/docker (images, volumes, containers) left intact — remove manually if desired"
+    success "Docker removed (packages, repo, key & group membership)"
+}
+
+undo_mysqlclient() {
+    info "Removing MySQL Client..."
+    apt_purge mysql-client
+    success "MySQL Client removed"
+}
+
+undo_pgclient() {
+    info "Removing PostgreSQL Client..."
+    apt_purge postgresql-client
+    success "PostgreSQL Client removed"
+}
+
+undo_dbeaver() {
+    info "Removing DBeaver Community..."
+    apt_purge dbeaver-ce
+    success "DBeaver removed"
+}
+
+undo_navicat() {
+    info "Removing Navicat Premium Lite..."
+    rm -rf /opt/navicat-premium-lite
+    rm -f /usr/share/applications/navicat-premium-lite.desktop
+    rm -f /usr/local/bin/navicat
+    success "Navicat Premium Lite removed"
+}
+
+undo_fcitx5() {
+    info "Removing Fcitx5..."
+    apt_purge fcitx5 fcitx5-unikey fcitx5-config-qt fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5
+    rm -f "$REAL_HOME/.pam_environment"
+    su - "$REAL_USER" -c 'rm -rf "$HOME/.config/fcitx5"' 2>/dev/null || true
+    if [[ -f "$REAL_HOME/.xprofile" ]]; then
+        sed -i '/fcitx/d; /GTK_IM_MODULE/d; /QT_IM_MODULE/d; /XMODIFIERS/d' "$REAL_HOME/.xprofile"
+        chown "$REAL_USER:$REAL_USER" "$REAL_HOME/.xprofile" 2>/dev/null || true
+    fi
+    success "Fcitx5 removed (packages & config cleaned — re-login to apply)"
+}
+
+undo_vlc() {
+    info "Removing VLC..."
+    apt_purge vlc
+    success "VLC removed"
+}
+
+undo_claude() {
+    info "Removing Claude Code..."
+    if su - "$REAL_USER" -c 'command -v claude' &>/dev/null; then
+        su - "$REAL_USER" -c 'claude uninstall --yes' 2>/dev/null \
+            || su - "$REAL_USER" -c 'claude uninstall' 2>/dev/null || true
+    fi
+    su - "$REAL_USER" -c 'rm -f "$HOME/.claude/bin/claude" "$HOME/.local/bin/claude"' 2>/dev/null || true
+    warn "~/.claude config directory left intact — remove manually if desired"
+    success "Claude Code removed"
 }
 
 # --- Main --------------------------------------------------------------------
 
+usage() {
+    cat <<EOF
+MINT — Post-install Setup
+
+Usage:
+  ./install-app.sh              Interactive install menu
+  ./install-app.sh --all        Install every app
+  ./install-app.sh --uninstall  Interactive uninstall menu
+  ./install-app.sh --uninstall --all   Uninstall every app
+  ./install-app.sh -h | --help  Show this help
+EOF
+}
+
 main() {
-    need_root
+    # Parse flags (order-independent).
+    local arg
+    for arg in "$@"; do
+        case "$arg" in
+            --all)       ALL=1 ;;
+            --uninstall) MODE="uninstall" ;;
+            -h|--help)   usage; exit 0 ;;
+            *)           warn "Unknown option: $arg"; usage; exit 1 ;;
+        esac
+    done
+
+    need_root "$@"
+
+    if [[ "$MODE" == "uninstall" ]]; then
+        ACTION_LABEL="Remove"; ACTION_GERUND="Removing"; ACTION_PAST="removed"
+    fi
+
     init_defaults
 
-    if [[ "${1:-}" == "--all" ]]; then
+    if [[ $ALL -eq 1 ]]; then
         select_all
     else
         interactive_menu
@@ -1120,9 +1457,33 @@ main() {
 
     STEP_TOTAL=$(count_selected)
 
+    if [[ $STEP_TOTAL -eq 0 ]]; then
+        echo ""
+        warn "Nothing selected — exiting."
+        echo ""
+        exit 0
+    fi
+
+    # Uninstalling is destructive — confirm once before touching anything.
+    if [[ "$MODE" == "uninstall" ]]; then
+        echo ""
+        printf "  ${YELLOW}?${NC} Remove ${BOLD}%s${NC} selected app(s)? This cannot be undone. [y/N] " "$STEP_TOTAL"
+        local confirm="n"
+        read -r confirm </dev/tty || confirm="n"
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+            echo ""
+            warn "Aborted — nothing was removed."
+            echo ""
+            exit 0
+        fi
+    fi
+
+    local prefix="do_"
+    [[ "$MODE" == "uninstall" ]] && prefix="undo_"
+
     echo ""
     echo -e "  ${DIM}╭─────────────────────────────────────────────────────╮${NC}"
-    echo -e "  ${DIM}│${NC}  ${MINTB}◈${NC}  ${BOLD}${WHITE}Installing ${STEP_TOTAL} packages...${NC}$(printf '%*s' $((31 - ${#STEP_TOTAL})) '')${DIM}│${NC}"
+    printf "  ${DIM}│${NC}  ${MINTB}◈${NC}  ${BOLD}${WHITE}%-48s${NC}${DIM}│${NC}\n" "${ACTION_GERUND} ${STEP_TOTAL} packages..."
     echo -e "  ${DIM}╰─────────────────────────────────────────────────────╯${NC}"
 
     local failed=()
@@ -1133,14 +1494,19 @@ main() {
         IFS='|' read -r key label _ <<< "$entry"
         if [[ "${SELECTED[$key]}" == "1" ]]; then
             print_step_header "$label"
-            if "do_$key"; then
+            if "${prefix}${key}"; then
                 succeeded=$((succeeded + 1))
             else
-                fail "$label — installation failed"
+                fail "$label — ${MODE} failed"
                 failed+=("$label")
             fi
         fi
     done
+
+    # Sweep up packages orphaned by an uninstall pass.
+    if [[ "$MODE" == "uninstall" ]]; then
+        apt-get autoremove -y >/dev/null 2>&1 || true
+    fi
 
     local elapsed=$(( SECONDS - start_time ))
     local mins=$(( elapsed / 60 ))
@@ -1156,7 +1522,7 @@ main() {
         echo -e "  ${DIM}│${NC}   ${YELLOW}!${NC}  ${BOLD}Completed with errors${NC}                           ${DIM}│${NC}"
     fi
     echo -e "  ${DIM}│${NC}                                                     ${DIM}│${NC}"
-    local stats="${succeeded} installed"
+    local stats="${succeeded} ${ACTION_PAST}"
     [[ ${#failed[@]} -gt 0 ]] && stats="${stats}  ${#failed[@]} failed"
     local time_str="${mins}m ${secs}s"
     printf "  ${DIM}│${NC}   ${MINT}●${NC} %-44s${DIM}│${NC}\n" "$stats"
@@ -1177,4 +1543,7 @@ main() {
     echo ""
 }
 
-main "$@"
+# Only run main when executed directly — allows sourcing for tests.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
