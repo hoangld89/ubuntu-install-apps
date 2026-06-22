@@ -41,51 +41,52 @@ ACTION_GERUND="Installing"  # progress box verb
 ACTION_PAST="installed"     # summary stat verb
 
 # --- App registry -----------------------------------------------------------
-# Format: "key|label|default_on"
+# Format: "key|Name::tagline|default_on"
+# The `::` splits the display name (highlighted) from a dim one-line tagline.
 APPS=(
     # ── System ──
-    "mirror|APT mirror → Vietnam (faster downloads)|1"
-    "update|System Update & Upgrade|1"
-    "swap|Swap 8GB + swappiness 10|1"
+    "mirror|APT Mirror::route apt through Vietnam's fastest mirrors|1"
+    "update|System Update::refresh sources & upgrade every package|1"
+    "swap|Swap File::8 GB swap · swappiness dialed to 10|1"
 
     # ── Shell & Terminal ──
-    "terminal|Terminal tools (zsh, oh-my-zsh, tmux, htop, jq, yq, rg, fzf, bat)|1"
-    "font|Nerd Font (MesloLGS — icons for eza & terminal)|1"
-    "eza|eza (modern ls with icons & colors)|1"
+    "terminal|Terminal Kit::zsh · oh-my-zsh · tmux · fzf · rg · bat · jq|1"
+    "font|Nerd Font::MesloLGS glyphs for prompts & icons|1"
+    "eza|eza::a modern ls with icons & git awareness|1"
 
     # ── Languages & Runtime ──
-    "nvm|NVM + Node.js 24|1"
-    "dotnet|.NET SDK (chọn version)|1"
+    "nvm|Node.js 24::managed by nvm, swap versions on the fly|1"
+    "dotnet|.NET SDK::build & run cross-platform .NET|1"
 
     # ── Browser ──
-    "chrome|Google Chrome|1"
-    "edge|Microsoft Edge|1"
+    "chrome|Google Chrome::the web's default browser|1"
+    "edge|Microsoft Edge::Chromium with a Microsoft accent|1"
 
     # ── Communication ──
-    "teams|Teams for Linux|1"
+    "teams|Microsoft Teams::a native client built for Linux|1"
 
     # ── IDE & Editor ──
-    "vscode|Visual Studio Code|1"
-    "trae|Trae IDE|1"
+    "vscode|VS Code::the editor that does it all|1"
+    "trae|Trae IDE::AI-native coding by ByteDance|1"
 
     # ── DevOps & Infrastructure ──
-    "terraform|Terraform|1"
-    "azcli|Azure CLI|1"
-    "azcopy|AzCopy (Azure Storage transfer)|1"
-    "docker|Docker + Docker Compose|1"
+    "terraform|Terraform::infrastructure as code, done right|1"
+    "azcli|Azure CLI::command the Azure cloud from your shell|1"
+    "azcopy|AzCopy::blazing-fast Azure Storage transfers|1"
+    "docker|Docker::container engine + Compose plugin|1"
 
     # ── Database Tools ──
-    "mysqlclient|MySQL Client (mysqldump)|1"
-    "pgclient|PostgreSQL Client (pg_dump)|1"
-    "dbeaver|DBeaver Community|1"
-    "navicat|Navicat Premium Lite|1"
+    "mysqlclient|MySQL Client::CLI shell + mysqldump backups|1"
+    "pgclient|PostgreSQL Client::psql shell + pg_dump backups|1"
+    "dbeaver|DBeaver CE::one GUI for every database|1"
+    "navicat|Navicat Lite::a sleek database workbench|1"
 
     # ── Productivity ──
-    "fcitx5|Fcitx5 (Vietnamese input)|1"
-    "vlc|VLC Media Player|1"
+    "fcitx5|Fcitx5::Vietnamese typing, Unikey-style|1"
+    "vlc|VLC::plays every media format on earth|1"
 
     # ── AI Tools ──
-    "claude|Claude Code|1"
+    "claude|Claude Code::Anthropic's agentic dev CLI|1"
 )
 
 declare -A SELECTED
@@ -106,10 +107,10 @@ MIRRORS=(
 
 APP_GROUPS=(
     "system|System & Shell|⚙|mirror,update,swap,terminal,font,eza"
-    "dev|Dev & IDE|◆|nvm,dotnet,vscode,trae,claude"
+    "dev|Languages & IDEs|◆|nvm,dotnet,vscode,trae,claude"
     "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker"
-    "database|Database|⬡|mysqlclient,pgclient,dbeaver,navicat"
-    "desktop|Desktop & Apps|◎|chrome,edge,teams,fcitx5,vlc"
+    "database|Databases|⬡|mysqlclient,pgclient,dbeaver,navicat"
+    "desktop|Apps & Desktop|◎|chrome,edge,teams,fcitx5,vlc"
 )
 
 declare -A GROUP_EXPANDED
@@ -292,10 +293,10 @@ print_banner() {
     ui_add  ""
     if [[ "$MODE" == "uninstall" ]]; then
         ui_addf "      ${MINTB}mint setup${NC} ${DIM}· uninstaller${NC}"
-        ui_addf "      ${YELLOW}uninstall mode — selected apps will be REMOVED${NC}"
+        ui_addf "      ${YELLOW}danger zone — selected apps will be wiped${NC}"
     else
         ui_addf "      ${MINTB}mint setup${NC} ${DIM}· post-install toolkit${NC}"
-        ui_addf "      ${MINTD}fresh machine · fresh start${NC}"
+        ui_addf "      ${MINTD}from bare install to battle-ready${NC}"
     fi
     ui_add  ""
     ui_add  "  $(ui_gradient_rule 55 ━)"
@@ -355,20 +356,32 @@ print_menu() {
             fi
 
         else
-            local label="${APP_LABELS[$vkey]}"
-            local extra=""
-            [[ "$vkey" == "dotnet" ]] && extra=" ${DIM}[${DOTNET_VERSIONS[*]}]${NC}"
-            [[ "$vkey" == "mirror" ]] && extra=" ${DIM}[${MIRROR_HOST}]${NC}"
+            # Label is "Name::tagline" — name is the highlighted column, tagline
+            # the dim hint to its right. Items without "::" render name-only.
+            local full="${APP_LABELS[$vkey]}"
+            local name="$full" tag=""
+            if [[ "$full" == *"::"* ]]; then
+                name="${full%%::*}"; tag="${full#*::}"
+            fi
 
-            local marker="  " mdot mtext
+            # Configurable items carry a live value chip after the tagline.
+            local chip=""
+            [[ "$vkey" == "dotnet" ]] && chip=" ${MINTD}[${DOTNET_VERSIONS[*]}]${NC}"
+            [[ "$vkey" == "mirror" ]] && chip=" ${MINTD}[${MIRROR_HOST}]${NC}"
+
+            local marker="  "
             [[ $on_cursor -eq 1 ]] && marker="${MINTB}▌${NC} "
 
+            local namecell; printf -v namecell '%-20s' "$name"
+            local mdot tagcol="$DIM"
+            [[ $on_cursor -eq 1 ]] && tagcol="$MINTD"
             if [[ "${SELECTED[$vkey]}" == "1" ]]; then
-                mdot="${MINT}●${NC}"; mtext="${WHITE}${label}${NC}"
+                mdot="${MINT}●${NC}"; namecell="${WHITE}${namecell}${NC}"
             else
-                mdot="${DIM}○${NC}"; mtext="${DIM}${label}${NC}"
+                mdot="${DIM}○${NC}"; namecell="${DIM}${namecell}${NC}"
             fi
-            ui_addf "  %b      %b %b%b" "$marker" "$mdot" "$mtext" "$extra"
+            ui_addf "  %b      %b %b %b%s%b%b" \
+                "$marker" "$mdot" "$namecell" "$tagcol" "$tag" "$NC" "$chip"
         fi
     done
 
@@ -1586,13 +1599,15 @@ main() {
 
     for entry in "${APPS[@]}"; do
         IFS='|' read -r key label _ <<< "$entry"
+        # Drop the "::tagline" — only the name belongs in headers & error lines.
+        local name="${label%%::*}"
         if [[ "${SELECTED[$key]}" == "1" ]]; then
-            print_step_header "$label"
+            print_step_header "$name"
             if "${prefix}${key}"; then
                 succeeded=$((succeeded + 1))
             else
-                fail "$label — ${MODE} failed"
-                failed+=("$label")
+                fail "$name — ${MODE} failed"
+                failed+=("$name")
             fi
         fi
     done
