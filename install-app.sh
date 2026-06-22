@@ -1139,29 +1139,41 @@ DEOF
 }
 
 do_fcitx5() {
-    info "Installing Fcitx5 with Vietnamese support..."
-    apt install -y fcitx5 fcitx5-unikey fcitx5-config-qt fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5
+    info "Installing Fcitx5 with Vietnamese (Unikey) support..."
+    apt install -y fcitx5 fcitx5-unikey fcitx5-config-qt \
+        fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5
 
-    local env_file="$REAL_HOME/.pam_environment"
-    local xprofile="$REAL_HOME/.xprofile"
-
-    cat > "$env_file" <<'ENVEOF'
-GTK_IM_MODULE DEFAULT=fcitx
-QT_IM_MODULE  DEFAULT=fcitx
-XMODIFIERS    DEFAULT=@im=fcitx
+    # ── IM environment variables ──────────────────────────────────────────
+    # Ubuntu 24.04 dropped PAM's reading of ~/.pam_environment, and on Wayland
+    # (GNOME default) ~/.xprofile is never sourced. /etc/environment is read by
+    # pam_env for every login session — X11 *and* Wayland, GNOME (Ubuntu) *and*
+    # Cinnamon (Linux Mint 22) — so it's the one reliable place for IM vars.
+    local env_file="/etc/environment"
+    sed -i -E '/^(GTK_IM_MODULE|QT_IM_MODULE|XMODIFIERS|SDL_IM_MODULE|GLFW_IM_MODULE)=/d' "$env_file"
+    cat >> "$env_file" <<'ENVEOF'
+GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+XMODIFIERS=@im=fcitx
+SDL_IM_MODULE=fcitx
+GLFW_IM_MODULE=ibus
 ENVEOF
-    chown "$REAL_USER:$REAL_USER" "$env_file"
 
-    if ! grep -q 'fcitx5' "$xprofile" 2>/dev/null; then
-        cat >> "$xprofile" <<'XEOF'
-export GTK_IM_MODULE=fcitx
-export QT_IM_MODULE=fcitx
-export XMODIFIERS=@im=fcitx
-fcitx5 &
-XEOF
-        chown "$REAL_USER:$REAL_USER" "$xprofile"
-    fi
+    # ── Autostart on login (X11 + Wayland) ────────────────────────────────
+    # The fcitx5 package ships a system autostart entry; we add a per-user one
+    # explicitly so it starts regardless of session type / desktop.
+    local autostart_dir="$REAL_HOME/.config/autostart"
+    mkdir -p "$autostart_dir"
+    cat > "$autostart_dir/fcitx5.desktop" <<'DEOF'
+[Desktop Entry]
+Type=Application
+Name=Fcitx 5
+Icon=fcitx
+Exec=fcitx5
+X-GNOME-Autostart-Phase=Applications
+X-GNOME-Autostart-enabled=true
+DEOF
 
+    # ── Preselect Unikey ──────────────────────────────────────────────────
     local fcitx_conf_dir="$REAL_HOME/.config/fcitx5"
     local profile_file="$fcitx_conf_dir/profile"
     mkdir -p "$fcitx_conf_dir"
@@ -1182,9 +1194,17 @@ Layout=
 [GroupOrder]
 0=Default
 PROFEOF
-    chown -R "$REAL_USER:$REAL_USER" "$fcitx_conf_dir"
+    chown -R "$REAL_USER:$REAL_USER" "$autostart_dir" "$fcitx_conf_dir"
 
-    success "Fcitx5 + Unikey installed & configured (re-login to activate)"
+    # Migrate away from the legacy locations an older script version may have
+    # written, so stale settings don't fight the new ones.
+    rm -f "$REAL_HOME/.pam_environment"
+    if [[ -f "$REAL_HOME/.xprofile" ]]; then
+        sed -i '/fcitx/d; /GTK_IM_MODULE/d; /QT_IM_MODULE/d; /XMODIFIERS/d' "$REAL_HOME/.xprofile"
+        chown "$REAL_USER:$REAL_USER" "$REAL_HOME/.xprofile" 2>/dev/null || true
+    fi
+
+    success "Fcitx5 + Unikey installed & configured (log out and back in to activate)"
 }
 
 do_vlc() {
@@ -1397,14 +1417,23 @@ undo_navicat() {
 
 undo_fcitx5() {
     info "Removing Fcitx5..."
-    apt_purge fcitx5 fcitx5-unikey fcitx5-config-qt fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5
+    apt_purge fcitx5 fcitx5-unikey fcitx5-config-qt \
+        fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5
+
+    # Strip the IM vars from /etc/environment (leave the rest untouched).
+    sed -i -E '/^(GTK_IM_MODULE|QT_IM_MODULE|XMODIFIERS|SDL_IM_MODULE|GLFW_IM_MODULE)=/d' /etc/environment
+
+    # Remove the config + autostart entry this script created.
+    su - "$REAL_USER" -c 'rm -rf "$HOME/.config/fcitx5" "$HOME/.config/autostart/fcitx5.desktop"' 2>/dev/null || true
+
+    # Clean up legacy locations from older script versions.
     rm -f "$REAL_HOME/.pam_environment"
-    su - "$REAL_USER" -c 'rm -rf "$HOME/.config/fcitx5"' 2>/dev/null || true
     if [[ -f "$REAL_HOME/.xprofile" ]]; then
         sed -i '/fcitx/d; /GTK_IM_MODULE/d; /QT_IM_MODULE/d; /XMODIFIERS/d' "$REAL_HOME/.xprofile"
         chown "$REAL_USER:$REAL_USER" "$REAL_HOME/.xprofile" 2>/dev/null || true
     fi
-    success "Fcitx5 removed (packages & config cleaned — re-login to apply)"
+
+    success "Fcitx5 removed (packages, env vars & config cleaned — re-login to apply)"
 }
 
 undo_vlc() {
