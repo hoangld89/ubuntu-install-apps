@@ -1058,6 +1058,11 @@ do_docker() {
     curl -fsSL "https://download.docker.com/linux/$distro/gpg" | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     chmod a+r /etc/apt/keyrings/docker.gpg
 
+    # Remove any conflicting deb822-style source / armored key left by a prior
+    # install. apt refuses to read sources when the same repo is declared twice
+    # with different Signed-By values (docker.gpg vs docker.asc).
+    rm -f /etc/apt/sources.list.d/docker.sources /etc/apt/keyrings/docker.asc
+
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$distro $codename stable" \
         > /etc/apt/sources.list.d/docker.list
 
@@ -1357,7 +1362,8 @@ undo_azcopy() {
 undo_docker() {
     info "Removing Docker + Docker Compose..."
     apt_purge docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras
-    rm -f /etc/apt/sources.list.d/docker.list /etc/apt/keyrings/docker.gpg
+    rm -f /etc/apt/sources.list.d/docker.list /etc/apt/sources.list.d/docker.sources \
+          /etc/apt/keyrings/docker.gpg /etc/apt/keyrings/docker.asc
     gpasswd -d "$REAL_USER" docker 2>/dev/null || true
     warn "/var/lib/docker (images, volumes, containers) left intact — remove manually if desired"
     success "Docker removed (packages, repo, key & group membership)"
