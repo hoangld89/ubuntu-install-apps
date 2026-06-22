@@ -169,9 +169,10 @@ build_visible() {
 # time interactive_menu reads VIS_TYPES[$CURSOR].
 clamp_cursor() {
     local n=${#VIS_TYPES[@]}
-    (( n == 0 )) && { CURSOR=0; return; }
+    (( n == 0 )) && { CURSOR=0; return 0; }
     (( CURSOR >= n )) && CURSOR=$((n - 1))
     (( CURSOR < 0 )) && CURSOR=0
+    return 0   # never let a false (( )) become the function's exit status (set -e)
 }
 
 group_sel_count() {
@@ -423,8 +424,11 @@ configure_mirror() {
 read_key() {
     # `|| true` guards each read: a bare ESC press (or EOF) makes read return
     # non-zero, which would otherwise abort the whole script under `set -e`.
-    local key rest=""
-    IFS= read -rsn1 key || true
+    local key rest="" st=0
+    IFS= read -rsn1 key || st=$?
+    # EOF (stdin closed) returns non-zero with no char — treat as quit so the
+    # loop never spins forever on a closed/exhausted input.
+    if (( st > 0 )) && [[ -z "$key" ]]; then echo "QUIT"; return 0; fi
     if [[ "$key" == $'\x1b' ]]; then
         read -rsn2 -t 0.1 rest || true
         case "$rest" in
@@ -490,7 +494,7 @@ interactive_menu() {
             d) tput cnorm 2>/dev/null || true; configure_dotnet; tput civis 2>/dev/null || true ;;
             m) tput cnorm 2>/dev/null || true; configure_mirror; tput civis 2>/dev/null || true ;;
             i) menu_ui_stop; trap - EXIT INT TERM; return ;;
-            q) menu_ui_stop; trap - EXIT INT TERM; echo "Cancelled."; exit 0 ;;
+            q|QUIT) menu_ui_stop; trap - EXIT INT TERM; echo "Cancelled."; exit 0 ;;
         esac
     done
 }
