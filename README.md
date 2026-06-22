@@ -57,27 +57,29 @@ leaf-green gradient greets you on launch.
    ╚═╝     ╚═╝ ╚═╝ ╚═╝  ╚═══╝    ╚═╝
 
       mint setup · post-install toolkit
-      fresh machine · fresh start
+      from bare install to battle-ready
 
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    ▾ ⚙ System & Shell                 ● 4/4
-          ● APT mirror → Vietnam (faster downloads) [vn.archive.ubuntu.com]
-          ● System Update & Upgrade
-          ● Swap 8GB + swappiness 10
-          ● Terminal tools (zsh, tmux, fzf…)
-    ▾ ◆ Dev & IDE                      ◐ 4/5
-          ● NVM + Node.js 24
-  ▌       ○ .NET SDK (chọn version) [10]
-          ● Visual Studio Code
-          ● Trae IDE
-          ● Claude Code
+    ▾ ⚙ System & Shell                 ● 6/6
+          ● APT Mirror            route apt through Vietnam's fastest mirrors [mirror.bizflycloud.vn]
+          ● System Update         refresh sources & upgrade every package
+          ● Swap File             8 GB swap · swappiness dialed to 10
+          ● Terminal Kit          zsh · oh-my-zsh · tmux · fzf · rg · bat · jq
+          ● Nerd Font             MesloLGS glyphs for prompts & icons
+          ● eza                   a modern ls with icons & git awareness
+    ▾ ◆ Languages & IDEs               ◐ 4/5
+          ● Node.js 24            managed by nvm, swap versions on the fly
+  ▌       ○ .NET SDK              build & run cross-platform .NET [10]
+          ● VS Code               the editor that does it all
+          ● Trae IDE              AI-native coding by ByteDance
+          ● Claude Code           Anthropic's agentic dev CLI
     ▸ ▲ DevOps & Cloud                 ● 4/4
-    ▸ ⬡ Database                       ● 4/4
-    ▸ ◎ Desktop & Apps                 ● 5/5
+    ▸ ⬡ Databases                      ● 4/4
+    ▸ ◎ Apps & Desktop                 ● 5/5
 
   ───────────────────────────────────────────────────────
-  21/22 selected   ████████████████░░
+  23/24 selected   █████████████████░
 
   ┌─ Navigate ─────┬─ Select ───────┬─ Actions ─────────┐
   │  ↑ ↓  Move     │  Space  Toggle │  d  .NET version  │
@@ -86,6 +88,12 @@ leaf-green gradient greets you on launch.
   │                │                │  q  Quit          │
   └────────────────┴────────────────┴───────────────────┘
 ```
+
+> **Seeing boxes (▯) instead of icons?** Your terminal font lacks the glyphs.
+> Set the terminal font to a Nerd Font — **MesloLGS NF** is installed by the
+> *Nerd Font* step. In the **VS Code** integrated terminal, set
+> `"terminal.integrated.fontFamily": "MesloLGS NF"`. Or run with `--ascii`
+> (or `MINT_ASCII=1`) for a plain-text menu that renders on any font.
 
 ### Groups
 
