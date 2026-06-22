@@ -723,6 +723,35 @@ SETUP_EOF
     success "Terminal tools installed: zsh + oh-my-zsh (3 plugins), tmux, htop, jq, yq, rg, fzf, bat"
 }
 
+# Point gnome-terminal's default profile at the Nerd Font so icons render
+# without a manual settings change. Runs as REAL_USER because gsettings needs
+# that user's own dconf store and DBus session bus — not root's.
+apply_terminal_font() {
+    command -v gnome-terminal &>/dev/null || return 0
+    command -v gsettings     &>/dev/null || return 0
+
+    local font_script
+    font_script=$(mktemp /tmp/term-font-XXXXXX.sh)
+    cat > "$font_script" << 'FONT_EOF'
+runtime_bus="/run/user/$(id -u)/bus"
+[ -S "$runtime_bus" ] && export DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_bus"
+
+profile=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d "'")
+[ -z "$profile" ] && exit 1
+base="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile/"
+gsettings set "$base" use-system-font false || exit 1
+gsettings set "$base" font 'MesloLGS NF 12'  || exit 1
+FONT_EOF
+    chmod a+rx "$font_script"
+
+    if su - "$REAL_USER" -c "bash $font_script" 2>/dev/null; then
+        success "gnome-terminal font set to 'MesloLGS NF' (reopen the terminal to see icons)"
+    else
+        warn "Could not auto-set the terminal font — set it to 'MesloLGS NF' manually so icons render"
+    fi
+    rm -f "$font_script"
+}
+
 do_font() {
     info "Installing MesloLGS Nerd Font (icons for eza & terminal)..."
 
@@ -731,6 +760,7 @@ do_font() {
 
     if fc-list 2>/dev/null | grep -qi 'MesloLGS NF'; then
         success "MesloLGS Nerd Font already installed, skipping ($(fc-list 2>/dev/null | grep -ci 'MesloLGS NF') faces)"
+        apply_terminal_font
         return
     fi
 
@@ -750,7 +780,7 @@ do_font() {
     # Accurate verification: only report success if fontconfig actually sees it.
     if fc-list 2>/dev/null | grep -qi 'MesloLGS NF'; then
         success "MesloLGS Nerd Font installed & verified ($(fc-list 2>/dev/null | grep -ci 'MesloLGS NF') faces)"
-        warn "Set your terminal font to 'MesloLGS NF' so icons render correctly"
+        apply_terminal_font
     else
         [[ $ok -eq 0 ]] && fail "Some font files failed to download"
         fail "Nerd Font not detected after install — eza/terminal icons may not render"
@@ -1287,8 +1317,33 @@ undo_terminal() {
     success "Terminal tools removed (kept git & curl)"
 }
 
+# Revert gnome-terminal's default profile back to the system font, so it does
+# not keep pointing at a font we are about to delete. Best-effort, as REAL_USER.
+revert_terminal_font() {
+    command -v gnome-terminal &>/dev/null || return 0
+    command -v gsettings     &>/dev/null || return 0
+
+    local font_script
+    font_script=$(mktemp /tmp/term-font-XXXXXX.sh)
+    cat > "$font_script" << 'FONT_EOF'
+runtime_bus="/run/user/$(id -u)/bus"
+[ -S "$runtime_bus" ] && export DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_bus"
+
+profile=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d "'")
+[ -z "$profile" ] && exit 1
+base="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile/"
+# Only revert if we are the one who set it, to avoid clobbering a user choice.
+[ "$(gsettings get "$base" font 2>/dev/null | tr -d "'")" = "MesloLGS NF 12" ] || exit 0
+gsettings set "$base" use-system-font true
+FONT_EOF
+    chmod a+rx "$font_script"
+    su - "$REAL_USER" -c "bash $font_script" 2>/dev/null || true
+    rm -f "$font_script"
+}
+
 undo_font() {
     info "Removing MesloLGS Nerd Font..."
+    revert_terminal_font
     rm -rf /usr/local/share/fonts/MesloLGS-NF
     fc-cache -f >/dev/null 2>&1 || true
     if fc-list 2>/dev/null | grep -qi 'MesloLGS NF'; then
