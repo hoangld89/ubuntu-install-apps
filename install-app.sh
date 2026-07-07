@@ -129,7 +129,6 @@ APPS=(
     "vlc|VLC::plays every media format on earth|1"
 
     # ── Media & Capture ──
-    "flameshot|Flameshot::screenshot, annotate & share in a snap|1"
     "obs|OBS Studio::record & stream your screen, pro-grade|1"
 
     # ── Remote Desktop ──
@@ -171,7 +170,7 @@ APP_GROUPS=(
     "dev|Languages & IDEs|◆|nvm,bun,pnpm,dotnet,vscode,trae,claude"
     "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker,browserstack"
     "database|Databases|⬡|mysqlclient,pgclient,dbeaver,navicat"
-    "desktop|Apps & Desktop|◎|chrome,edge,teams,fcitx5,postman,waydroid,vlc,flameshot,obs,anydesk,teamviewer"
+    "desktop|Apps & Desktop|◎|chrome,edge,teams,fcitx5,postman,waydroid,vlc,obs,anydesk,teamviewer"
 )
 
 declare -A GROUP_EXPANDED
@@ -1621,96 +1620,6 @@ do_vlc() {
     success "VLC installed"
 }
 
-# Rebind GNOME's Print key to launch `flameshot gui`. On GNOME Wayland the
-# screenshot portal only grants capture to a key-triggered command (running
-# `flameshot gui` from a terminal fails with "unable to capture screen"), so a
-# custom keybinding is what makes Flameshot usable. Runs as REAL_USER because
-# gsettings needs that user's dconf store and DBus session bus, not root's.
-apply_flameshot_shortcut() {
-    command -v gsettings &>/dev/null || return 0
-
-    local ks
-    ks=$(mktemp /tmp/flameshot-key-XXXXXX.sh)
-    cat > "$ks" << 'KEY_EOF'
-runtime_bus="/run/user/$(id -u)/bus"
-[ -S "$runtime_bus" ] && export DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_bus"
-
-# Bail out cleanly if this isn't a GNOME session (schema absent)
-gsettings writable org.gnome.shell.keybindings show-screenshot-ui >/dev/null 2>&1 || exit 0
-
-path="/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/flameshot/"
-schema="org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$path"
-
-# Free the Print key from GNOME's built-in interactive screenshot
-gsettings set org.gnome.shell.keybindings show-screenshot-ui "[]"
-
-# Register our slot in the custom-keybindings list without clobbering others
-current=$(gsettings get org.gnome.settings-daemon.plugins.media-keys custom-keybindings)
-case "$current" in
-    *"$path"*) : ;;
-    "@as []"|"[]") gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "['$path']" ;;
-    *)             gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "${current%]}, '$path']" ;;
-esac
-
-gsettings set "$schema" name 'Flameshot'
-gsettings set "$schema" command 'flameshot gui'
-gsettings set "$schema" binding 'Print'
-KEY_EOF
-    chmod a+rx "$ks"
-
-    if su - "$REAL_USER" -c "bash $ks" 2>/dev/null; then
-        success "Print key bound to 'flameshot gui' (GNOME screenshot moved off Print)"
-    else
-        warn "Could not auto-bind Print — add a shortcut for 'flameshot gui' in Settings ▸ Keyboard"
-    fi
-    rm -f "$ks"
-}
-
-# Restore GNOME's Print → screenshot binding and drop the Flameshot keybinding.
-remove_flameshot_shortcut() {
-    command -v gsettings &>/dev/null || return 0
-
-    local ks
-    ks=$(mktemp /tmp/flameshot-unkey-XXXXXX.sh)
-    cat > "$ks" << 'KEY_EOF'
-runtime_bus="/run/user/$(id -u)/bus"
-[ -S "$runtime_bus" ] && export DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_bus"
-
-gsettings writable org.gnome.shell.keybindings show-screenshot-ui >/dev/null 2>&1 || exit 0
-
-path="/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/flameshot/"
-
-# Give Print back to GNOME's screenshot UI
-gsettings reset org.gnome.shell.keybindings show-screenshot-ui
-
-# Drop our slot from the list and clear its values
-current=$(gsettings get org.gnome.settings-daemon.plugins.media-keys custom-keybindings)
-new=$(printf '%s' "$current" | sed -e "s#, *'$path'##" -e "s#'$path', *##" -e "s#'$path'##")
-gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "$new"
-gsettings reset-recursively "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$path" 2>/dev/null || true
-KEY_EOF
-    chmod a+rx "$ks"
-    su - "$REAL_USER" -c "bash $ks" 2>/dev/null || true
-    rm -f "$ks"
-}
-
-do_flameshot() {
-    # The apt build is unreliable on 24.04 (fails to install / broken on Wayland);
-    # the snap ships a self-contained, working Flameshot, so we install that.
-    if snap list flameshot &>/dev/null; then
-        success "Flameshot already installed, skipping install"
-    else
-        info "Installing Flameshot (snap)..."
-        command -v snap &>/dev/null || apt install -y snapd
-        snap install flameshot
-        success "Flameshot installed"
-    fi
-    # GNOME Wayland needs the screenshot portal present, then a key-triggered launch
-    dpkg -s xdg-desktop-portal-gnome &>/dev/null || apt install -y xdg-desktop-portal-gnome
-    apply_flameshot_shortcut
-    info "Press Print to capture (log out/in if the shortcut doesn't fire yet)"
-}
-
 do_obs() {
     if command -v obs &>/dev/null; then
         success "OBS Studio already installed, skipping"
@@ -2071,15 +1980,6 @@ undo_vlc() {
     info "Removing VLC..."
     apt_purge vlc
     success "VLC removed"
-}
-
-undo_flameshot() {
-    info "Removing Flameshot..."
-    snap list flameshot &>/dev/null && snap remove flameshot 2>/dev/null || true
-    apt_purge flameshot   # clear any lingering apt install from an older run
-    remove_flameshot_shortcut
-    su - "$REAL_USER" -c 'rm -rf "$HOME/.config/flameshot" "$HOME/snap/flameshot"' 2>/dev/null || true
-    success "Flameshot removed"
 }
 
 undo_obs() {
