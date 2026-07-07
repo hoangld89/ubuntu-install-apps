@@ -6,8 +6,8 @@ if [ -z "${BASH_VERSION:-}" ]; then exec bash "$0" "$@"; fi
 set -euo pipefail
 
 # ============================================================
-# MINT — Post-install Setup
-# Interactive app selector for Ubuntu / Linux Mint
+# SETUP — Post-install toolkit for Ubuntu 24.04
+# Interactive app selector for a fresh Ubuntu 24.04 (noble) machine
 #   ./install-app.sh              interactive install
 #   ./install-app.sh --all        install everything
 #   ./install-app.sh --uninstall  interactive uninstall
@@ -25,9 +25,9 @@ DIM='\033[2m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-# Linux Mint palette — leaf green accent on neutral chrome
-MINT='\033[38;5;113m'        # Mint green (≈ #87CF3E)
-MINTB='\033[1;38;5;113m'     # bold Mint green
+# Leaf-green accent palette on neutral chrome
+MINT='\033[38;5;113m'        # leaf green (≈ #87CF3E)
+MINTB='\033[1;38;5;113m'     # bold leaf green
 MINTD='\033[38;5;108m'       # muted sage green
 LEAF='\033[38;5;71m'         # darker leaf green
 
@@ -95,6 +95,7 @@ APPS=(
     # ── Languages & Runtime ──
     "nvm|Node.js 24::managed by nvm, swap versions on the fly|1"
     "bun|Bun::all-in-one JS runtime & toolkit, blazing fast|1"
+    "pnpm|pnpm::fast, disk-efficient package manager via corepack|1"
     "dotnet|.NET SDK::build & run cross-platform .NET|1"
 
     # ── Browser ──
@@ -113,6 +114,7 @@ APPS=(
     "azcli|Azure CLI::command the Azure cloud from your shell|1"
     "azcopy|AzCopy::blazing-fast Azure Storage transfers|1"
     "docker|Docker::container engine + Compose plugin|1"
+    "browserstack|BrowserStack Local::secure tunnel for local cross-browser testing|1"
 
     # ── Database Tools ──
     "mysqlclient|MySQL Client::CLI shell + mysqldump backups|1"
@@ -121,7 +123,9 @@ APPS=(
     "navicat|Navicat Lite::a sleek database workbench|1"
 
     # ── Productivity ──
-    "fcitx5|Fcitx5::Vietnamese typing, Unikey-style|1"
+    "fcitx5|Fcitx5::Vietnamese typing — Unikey / Bamboo / Lotus|1"
+    "postman|Postman::the API platform for building & testing|1"
+    "waydroid|Waydroid::run Android apps in a container (Wayland)|1"
     "vlc|VLC::plays every media format on earth|1"
 
     # ── AI Tools ──
@@ -131,6 +135,16 @@ APPS=(
 declare -A SELECTED
 DOTNET_VERSIONS=(10)
 CURSOR=0
+
+# Vietnamese input-method engine for fcitx5 — default Unikey. Press 'g' in the
+# menu to switch. `lotus` is a third-party fcitx5 addon (own apt repo); the
+# other two ship in Ubuntu's official archive.
+IME_ENGINE="unikey"
+INPUT_ENGINES=(
+    "unikey|Unikey"
+    "bamboo|Bamboo"
+    "lotus|Lotus"
+)
 
 # APT mirror — default to the official Ubuntu Vietnam mirror. Press 'm' in the
 # menu to pick another nearby mirror.
@@ -146,10 +160,10 @@ MIRRORS=(
 
 APP_GROUPS=(
     "system|System & Shell|⚙|mirror,update,swap,terminal,font,eza"
-    "dev|Languages & IDEs|◆|nvm,bun,dotnet,vscode,trae,claude"
-    "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker"
+    "dev|Languages & IDEs|◆|nvm,bun,pnpm,dotnet,vscode,trae,claude"
+    "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker,browserstack"
     "database|Databases|⬡|mysqlclient,pgclient,dbeaver,navicat"
-    "desktop|Apps & Desktop|◎|chrome,edge,teams,fcitx5,vlc"
+    "desktop|Apps & Desktop|◎|chrome,edge,teams,fcitx5,postman,waydroid,vlc"
 )
 
 declare -A GROUP_EXPANDED
@@ -328,18 +342,18 @@ print_banner() {
     local G6='\033[38;5;22m'     # deep forest (shadow)
 
     ui_add  ""
-    ui_addf "   ${G1}███╗   ███╗ ██╗ ███╗   ██╗ ████████╗${NC}"
-    ui_addf "   ${G2}████╗ ████║ ██║ ████╗  ██║ ╚══██╔══╝${NC}"
-    ui_addf "   ${G3}██╔████╔██║ ██║ ██╔██╗ ██║    ██║${NC}"
-    ui_addf "   ${G4}██║╚██╔╝██║ ██║ ██║╚██╗██║    ██║${NC}"
-    ui_addf "   ${G5}██║ ╚═╝ ██║ ██║ ██║ ╚████║    ██║${NC}"
-    ui_addf "   ${G6}╚═╝     ╚═╝ ╚═╝ ╚═╝  ╚═══╝    ╚═╝${NC}"
+    ui_addf "   ${G1}███████╗ ███████╗ ████████╗ ██╗   ██╗ ██████╗${NC}"
+    ui_addf "   ${G2}██╔════╝ ██╔════╝ ╚══██╔══╝ ██║   ██║ ██╔══██╗${NC}"
+    ui_addf "   ${G3}███████╗ █████╗      ██║    ██║   ██║ ██████╔╝${NC}"
+    ui_addf "   ${G4}╚════██║ ██╔══╝      ██║    ██║   ██║ ██╔═══╝${NC}"
+    ui_addf "   ${G5}███████║ ███████╗    ██║    ╚██████╔╝ ██║${NC}"
+    ui_addf "   ${G6}╚══════╝ ╚══════╝    ╚═╝     ╚═════╝  ╚═╝${NC}"
     ui_add  ""
     if [[ "$MODE" == "uninstall" ]]; then
-        ui_addf "      ${MINTB}mint setup${NC} ${DIM}· uninstaller${NC}"
+        ui_addf "      ${MINTB}ubuntu setup${NC} ${DIM}· uninstaller${NC}"
         ui_addf "      ${YELLOW}danger zone — selected apps will be wiped${NC}"
     else
-        ui_addf "      ${MINTB}mint setup${NC} ${DIM}· post-install toolkit${NC}"
+        ui_addf "      ${MINTB}ubuntu setup${NC} ${DIM}· post-install toolkit${NC}"
         ui_addf "      ${MINTD}from bare install to battle-ready${NC}"
     fi
     ui_add  ""
@@ -413,6 +427,7 @@ print_menu() {
             local chip=""
             [[ "$vkey" == "dotnet" ]] && chip=" ${MINTD}[${DOTNET_VERSIONS[*]}]${NC}"
             [[ "$vkey" == "mirror" ]] && chip=" ${MINTD}[${MIRROR_HOST}]${NC}"
+            [[ "$vkey" == "fcitx5" ]] && chip=" ${MINTD}[${IME_ENGINE}]${NC}"
 
             local marker="  "
             [[ $on_cursor -eq 1 ]] && marker="${MINTB}${G_BAR}${NC} "
@@ -439,13 +454,14 @@ print_menu() {
     if (( UI_ASCII == 1 )); then
         # Borderless hints — box-drawing alignment isn't worth the tofu risk.
         ui_addf "  ${MINTD}Navigate${NC}  ${BOLD}${WHITE}Up/Dn${NC} ${DIM}move${NC}   ${BOLD}${WHITE}Enter${NC} ${DIM}expand${NC}   ${BOLD}${WHITE}Space${NC} ${DIM}toggle${NC}"
-        ui_addf "  ${MINTD}Select  ${NC}  ${BOLD}${WHITE}a${NC} ${DIM}all${NC}   ${BOLD}${WHITE}n${NC} ${DIM}none${NC}   ${BOLD}${WHITE}d${NC} ${DIM}.NET ver${NC}   ${BOLD}${WHITE}m${NC} ${DIM}mirror${NC}"
+        ui_addf "  ${MINTD}Select  ${NC}  ${BOLD}${WHITE}a${NC} ${DIM}all${NC}   ${BOLD}${WHITE}n${NC} ${DIM}none${NC}   ${BOLD}${WHITE}d${NC} ${DIM}.NET ver${NC}   ${BOLD}${WHITE}m${NC} ${DIM}mirror${NC}   ${BOLD}${WHITE}g${NC} ${DIM}input${NC}"
         ui_addf "  ${MINTD}Actions ${NC}  ${MINTB}i${NC} ${MINTB}%s${NC}   ${BOLD}${WHITE}q${NC} ${DIM}quit${NC}" "$ACTION_LABEL"
     else
         ui_addf "  ${DIM}┌─${NC} ${MINTD}Navigate${NC} ${DIM}─────┬─${NC} ${MINTD}Select${NC} ${DIM}───────┬─${NC} ${MINTD}Actions${NC} ${DIM}─────────┐${NC}"
         ui_addf "  ${DIM}│${NC}  ${BOLD}${WHITE}↑ ↓${NC}  ${DIM}Move${NC}     ${DIM}│${NC}  ${BOLD}${WHITE}Space${NC}  ${DIM}Toggle${NC} ${DIM}│${NC}  ${BOLD}${WHITE}d${NC}  ${DIM}.NET version${NC}  ${DIM}│${NC}"
         ui_addf "  ${DIM}│${NC}  ${BOLD}${WHITE}↵${NC}    ${DIM}Expand${NC}   ${DIM}│${NC}  ${BOLD}${WHITE}a${NC}      ${DIM}All${NC}    ${DIM}│${NC}  ${BOLD}${WHITE}m${NC}  ${DIM}APT mirror${NC}    ${DIM}│${NC}"
-        ui_addf "  ${DIM}│${NC}                ${DIM}│${NC}  ${BOLD}${WHITE}n${NC}      ${DIM}None${NC}   ${DIM}│${NC}  ${MINTB}i${NC}  ${MINTB}%-7s${NC}    ${MINT}▸${NC}  ${DIM}│${NC}" "$ACTION_LABEL"
+        ui_addf "  ${DIM}│${NC}                ${DIM}│${NC}  ${BOLD}${WHITE}n${NC}      ${DIM}None${NC}   ${DIM}│${NC}  ${BOLD}${WHITE}g${NC}  ${DIM}Input engine${NC}  ${DIM}│${NC}"
+        ui_addf "  ${DIM}│${NC}                ${DIM}│${NC}                ${DIM}│${NC}  ${MINTB}i${NC}  ${MINTB}%-7s${NC}    ${MINT}▸${NC}  ${DIM}│${NC}" "$ACTION_LABEL"
         ui_addf "  ${DIM}│${NC}                ${DIM}│${NC}                ${DIM}│${NC}  ${BOLD}${WHITE}q${NC}  ${DIM}Quit${NC}          ${DIM}│${NC}"
         ui_addf "  ${DIM}└────────────────┴────────────────┴───────────────────┘${NC}"
     fi
@@ -483,6 +499,28 @@ configure_mirror() {
     if [[ "$input" =~ ^[0-9]+$ ]] && (( input >= 1 && input <= ${#MIRRORS[@]} )); then
         IFS='|' read -r MIRROR_HOST _ <<< "${MIRRORS[$((input - 1))]}"
         SELECTED[mirror]=1
+    fi
+}
+
+configure_input_method() {
+    echo ""
+    echo -e "  ${DIM}Pick the Vietnamese input-method engine (fcitx5):${NC}"
+    echo ""
+    local i=1 ekey elabel
+    for e in "${INPUT_ENGINES[@]}"; do
+        IFS='|' read -r ekey elabel <<< "$e"
+        local mark="  "
+        [[ "$ekey" == "$IME_ENGINE" ]] && mark="${MINT}${G_ON}${NC}"
+        local note=""
+        [[ "$ekey" == "lotus" ]] && note=" ${DIM}(third-party apt repo)${NC}"
+        echo -e "    ${mark} ${BOLD}${WHITE}${i}${NC}) ${elabel}${note}"
+        i=$((i + 1))
+    done
+    echo ""
+    read -rp "  Choice [1-${#INPUT_ENGINES[@]}]: " input
+    if [[ "$input" =~ ^[0-9]+$ ]] && (( input >= 1 && input <= ${#INPUT_ENGINES[@]} )); then
+        IFS='|' read -r IME_ENGINE _ <<< "${INPUT_ENGINES[$((input - 1))]}"
+        SELECTED[fcitx5]=1
     fi
 }
 
@@ -558,6 +596,7 @@ interactive_menu() {
             n) deselect_all ;;
             d) tput cnorm 2>/dev/null || true; configure_dotnet; tput civis 2>/dev/null || true ;;
             m) tput cnorm 2>/dev/null || true; configure_mirror; tput civis 2>/dev/null || true ;;
+            g) tput cnorm 2>/dev/null || true; configure_input_method; tput civis 2>/dev/null || true ;;
             i) menu_ui_stop; trap - EXIT INT TERM; return ;;
             q|QUIT) menu_ui_stop; trap - EXIT INT TERM; echo "Cancelled."; exit 0 ;;
         esac
@@ -600,9 +639,7 @@ get_ubuntu_codename() {
 }
 
 get_ubuntu_version() {
-    if [[ -f /etc/upstream-release/lsb-release ]]; then
-        grep '^DISTRIB_RELEASE=' /etc/upstream-release/lsb-release | cut -d= -f2
-    elif command -v lsb_release &>/dev/null; then
+    if command -v lsb_release &>/dev/null; then
         lsb_release -rs
     else
         ( . /etc/os-release && echo "${VERSION_ID:-}" )
@@ -622,15 +659,96 @@ apt_purge() {
     DEBIAN_FRONTEND=noninteractive apt-get purge -y "$@" >/dev/null 2>&1 || true
 }
 
-# Remove a marked block from the user's .zshrc. Install steps wrap their
-# additions in `# --- <label> ---` … `# --- end <label> ---` so this can delete
-# them cleanly. Runs as root but rewrites REAL_USER's file and restores owner.
-strip_zshrc_block() {
-    local label="$1"
-    local rc="$REAL_HOME/.zshrc"
-    [[ -f "$rc" ]] || return 0
-    sed -i "/^# --- ${label} ---\$/,/^# --- end ${label} ---\$/d" "$rc"
+# Remove a marked block from the user's shell rc files. Install steps wrap their
+# additions in `# --- <label> ---` … `# --- end <label> ---` so this deletes them
+# cleanly from wherever they landed (.zshrc when zsh is installed, else .bashrc).
+# Runs as root but rewrites REAL_USER's files and restores ownership.
+strip_rc_block() {
+    local label="$1" rc
+    for rc in "$REAL_HOME/.zshrc" "$REAL_HOME/.bashrc"; do
+        [[ -f "$rc" ]] || continue
+        sed -i "/^# --- ${label} ---\$/,/^# --- end ${label} ---\$/d" "$rc"
+        chown "$REAL_USER:$REAL_USER" "$rc" 2>/dev/null || true
+    done
+}
+
+# Which shell rc should tool integrations & aliases be written to? If the user
+# installs (or already uses) zsh, target ~/.zshrc; otherwise leave zsh untouched
+# and write to ~/.bashrc so bash — the default shell — picks up the settings.
+resolve_shell_rc() {
+    local login_shell
+    login_shell=$(getent passwd "$REAL_USER" | cut -d: -f7)
+    if [[ "${SELECTED[terminal]:-0}" == "1" || "$login_shell" == *zsh ]]; then
+        echo "$REAL_HOME/.zshrc"
+    else
+        echo "$REAL_HOME/.bashrc"
+    fi
+}
+
+# Append the shared "Tool integrations" block (PATH/env for nvm, bun, pnpm,
+# .NET, Azure CLI, Claude, cargo) to the given rc file, once. Written as root
+# then chowned back. The block is shell-agnostic: existence guards keep it inert
+# for tools that aren't installed, and the Azure completion is gated on the
+# running shell so bash never trips over zsh's `autoload`/`bashcompinit`.
+write_tool_integrations() {
+    local rc="$1"
+    [[ -n "$rc" ]] || return 0
+    touch "$rc"
+    if ! grep -q '# --- Tool integrations ---' "$rc" 2>/dev/null; then
+        cat >> "$rc" <<'TOOLEOF'
+
+# --- Tool integrations ---
+# NVM
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# Bun
+[ -d "$HOME/.bun" ] && export BUN_INSTALL="$HOME/.bun" && export PATH="$BUN_INSTALL/bin:$PATH"
+
+# pnpm
+export PNPM_HOME="$HOME/.local/share/pnpm"
+case ":$PATH:" in *":$PNPM_HOME:"*) ;; *) export PATH="$PNPM_HOME:$PATH" ;; esac
+
+# .NET
+if [ -d "/usr/share/dotnet" ]; then
+    export DOTNET_ROOT="/usr/share/dotnet"
+    export PATH="$PATH:$DOTNET_ROOT"
+fi
+[ -d "$HOME/.dotnet/tools" ] && export PATH="$PATH:$HOME/.dotnet/tools"
+
+# Azure CLI completions
+if [ -f /etc/bash_completion.d/azure-cli ]; then
+    if [ -n "$ZSH_VERSION" ]; then
+        autoload -U +X bashcompinit && bashcompinit
+    fi
+    source /etc/bash_completion.d/azure-cli
+fi
+
+# Claude Code
+[ -d "$HOME/.claude/bin" ] && export PATH="$PATH:$HOME/.claude/bin"
+
+# Cargo / Rust
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+# --- end Tool integrations ---
+TOOLEOF
+    fi
     chown "$REAL_USER:$REAL_USER" "$rc" 2>/dev/null || true
+}
+
+# Wayland input-method flags for Chromium/Electron apps — without them fcitx5
+# can't type into these apps under a Wayland session. `-hint=auto` picks Wayland
+# when available and falls back to X11, so the flags are safe on either session.
+WAYLAND_IME_FLAGS="--enable-features=UseOzonePlatform --ozone-platform-hint=auto --enable-wayland-ime --wayland-text-input-version=3"
+
+# Inject the flags into every Exec= line of a .desktop file (right after the
+# executable, before any %U/%F field codes). Idempotent: skips files that
+# already carry them. Runs after an app installs so its launcher gets the flags.
+enable_wayland_ime() {
+    local desktop="$1"
+    [[ -f "$desktop" ]] || return 0
+    grep -q -- '--enable-wayland-ime' "$desktop" && return 0
+    sed -i -E "s#^(Exec=[^ ]+)#\1 ${WAYLAND_IME_FLAGS}#" "$desktop"
 }
 
 # --- Install functions -------------------------------------------------------
@@ -642,7 +760,6 @@ do_mirror() {
     local targets=(
         /etc/apt/sources.list                                       # legacy
         /etc/apt/sources.list.d/ubuntu.sources                      # deb822 (24.04+)
-        /etc/apt/sources.list.d/official-package-repositories.list  # Linux Mint
     )
 
     for f in "${targets[@]}"; do
@@ -733,44 +850,13 @@ git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_CUSTOM/plug
 
 # Minimal, sane defaults. zsh-syntax-highlighting MUST be last.
 sed -i 's/^plugins=.*/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/' "$HOME/.zshrc"
-
-if ! grep -q '# --- Tool integrations ---' "$HOME/.zshrc" 2>/dev/null; then
-    cat >> "$HOME/.zshrc" << 'TOOLEOF'
-
-# --- Tool integrations ---
-# NVM
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-
-# Bun
-[ -d "$HOME/.bun" ] && export BUN_INSTALL="$HOME/.bun" && export PATH="$BUN_INSTALL/bin:$PATH"
-
-# .NET
-if [ -d "/usr/share/dotnet" ]; then
-    export DOTNET_ROOT="/usr/share/dotnet"
-    export PATH="$PATH:$DOTNET_ROOT"
-fi
-[ -d "$HOME/.dotnet/tools" ] && export PATH="$PATH:$HOME/.dotnet/tools"
-
-# Azure CLI completions
-if [ -f /etc/bash_completion.d/azure-cli ]; then
-    autoload -U +X bashcompinit && bashcompinit
-    source /etc/bash_completion.d/azure-cli
-fi
-
-# Claude Code
-[ -d "$HOME/.claude/bin" ] && export PATH="$PATH:$HOME/.claude/bin"
-
-# Cargo / Rust
-[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
-# --- end Tool integrations ---
-TOOLEOF
-fi
 SETUP_EOF
     chmod a+rx "$setup_script"
     su - "$REAL_USER" -c "bash $setup_script"
     rm -f "$setup_script"
+
+    # PATH/env for the runtimes lives in the shared Tool-integrations block.
+    write_tool_integrations "$REAL_HOME/.zshrc"
 
     local cur_shell
     cur_shell=$(getent passwd "$REAL_USER" | cut -d: -f7)
@@ -897,11 +983,12 @@ do_eza() {
         success "eza already installed, skipping"
     fi
 
-    local alias_script
-    alias_script=$(mktemp /tmp/eza-alias-XXXXXX.sh)
-    cat > "$alias_script" << 'ALIAS_EOF'
-if ! grep -q '# --- eza aliases ---' "$HOME/.zshrc" 2>/dev/null; then
-    cat >> "$HOME/.zshrc" << 'EZAEOF'
+    # Aliases go to whichever rc the user's shell reads (.zshrc with zsh, else
+    # .bashrc) so they take effect even when the Terminal Kit / zsh isn't chosen.
+    local rc; rc=$(resolve_shell_rc)
+    touch "$rc"
+    if ! grep -q '# --- eza aliases ---' "$rc" 2>/dev/null; then
+        cat >> "$rc" <<'EZAEOF'
 
 # --- eza aliases ---
 alias ls='eza --icons --group-directories-first'
@@ -910,13 +997,10 @@ alias la='eza -la --icons --group-directories-first --git'
 alias lt='eza --tree --icons --level=2'
 # --- end eza aliases ---
 EZAEOF
-fi
-ALIAS_EOF
-    chmod a+rx "$alias_script"
-    su - "$REAL_USER" -c "bash $alias_script"
-    rm -f "$alias_script"
+    fi
+    chown "$REAL_USER:$REAL_USER" "$rc" 2>/dev/null || true
 
-    success "eza installed (ls/ll/la/lt aliases added)"
+    success "eza installed (ls/ll/la/lt aliases added to $(basename "$rc"))"
 }
 
 do_nvm() {
@@ -957,6 +1041,45 @@ do_bun() {
         success "Bun $("$REAL_HOME/.bun/bin/bun" --version 2>/dev/null || echo 'ready') installed for '$REAL_USER'"
     else
         fail "Bun install did not produce ~/.bun/bin/bun"
+        return 1
+    fi
+}
+
+do_pnpm() {
+    if su - "$REAL_USER" -c 'command -v pnpm' &>/dev/null; then
+        success "pnpm already installed, skipping"
+        return
+    fi
+
+    info "Installing pnpm for user '$REAL_USER'..."
+    apt install -y curl
+
+    # Preferred path: corepack (bundled with Node ≥16.9) — it shims pnpm against
+    # the user's nvm-managed Node. Falls back to pnpm's standalone installer when
+    # Node/corepack isn't present.
+    local ok=0
+    if su - "$REAL_USER" -c '
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        command -v corepack >/dev/null 2>&1
+    '; then
+        su - "$REAL_USER" -c '
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            corepack enable pnpm 2>/dev/null || corepack enable
+            corepack prepare pnpm@latest --activate
+        ' && ok=1
+    fi
+
+    if [[ $ok -eq 0 ]]; then
+        warn "corepack unavailable (install Node.js first for the cleanest setup) — using the standalone pnpm installer"
+        su - "$REAL_USER" -c 'curl -fsSL https://get.pnpm.io/install.sh | sh -' && ok=1
+    fi
+
+    if [[ $ok -eq 1 ]]; then
+        success "pnpm installed for '$REAL_USER' (open a new shell to use it)"
+    else
+        fail "pnpm install failed"
         return 1
     fi
 }
@@ -1035,6 +1158,7 @@ do_chrome() {
     wget -q -O "$tmp" "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
     apt install -y "$tmp"
     rm -f "$tmp"
+    enable_wayland_ime /usr/share/applications/google-chrome.desktop
     success "Google Chrome installed"
 }
 
@@ -1050,6 +1174,7 @@ do_edge() {
         > /etc/apt/sources.list.d/microsoft-edge.list
     apt update
     apt install -y microsoft-edge-stable
+    enable_wayland_ime /usr/share/applications/microsoft-edge.desktop
     success "Microsoft Edge installed"
 }
 
@@ -1076,6 +1201,7 @@ do_teams() {
     wget -q -O "$tmp" "$download_url"
     apt install -y "$tmp"
     rm -f "$tmp"
+    enable_wayland_ime /usr/share/applications/teams-for-linux.desktop
     success "Teams for Linux installed"
 }
 
@@ -1091,6 +1217,7 @@ do_vscode() {
         > /etc/apt/sources.list.d/vscode.list
     apt update
     apt install -y code
+    enable_wayland_ime /usr/share/applications/code.desktop
     success "VS Code installed"
 }
 
@@ -1106,6 +1233,7 @@ do_trae() {
     wget -q -O "$tmp" "https://lf-cdn.trae.ai/obj/trae-ai-us/pkg/Trae_latest_linux_x64.deb"
     apt install -y "$tmp"
     rm -f "$tmp"
+    enable_wayland_ime /usr/share/applications/trae.desktop
     success "Trae IDE installed"
 }
 
@@ -1183,12 +1311,7 @@ do_docker() {
     apt install -y ca-certificates curl gnupg
 
     install -m 0755 -d /etc/apt/keyrings
-    local distro
-    distro=$(. /etc/os-release && echo "$ID")
-
-    if [[ "$distro" == "linuxmint" ]]; then
-        distro="ubuntu"
-    fi
+    local distro="ubuntu"
 
     local codename
     codename=$(get_ubuntu_codename)
@@ -1213,6 +1336,26 @@ do_docker() {
     systemctl start docker
 
     success "Docker + Compose installed (user '$REAL_USER' added to docker group — re-login to apply)"
+}
+
+do_browserstack() {
+    if [[ -x /usr/local/bin/BrowserStackLocal ]]; then
+        success "BrowserStack Local already installed, skipping"
+        return
+    fi
+
+    info "Installing BrowserStack Local..."
+    apt install -y wget unzip
+
+    local tmp
+    tmp=$(mktemp /tmp/bstack-XXXXXX.zip)
+    wget -q -O "$tmp" "https://local-downloads.browserstack.com/BrowserStackLocal-linux-x64.zip"
+    # -o overwrite, -j junk paths (the zip holds a single bare binary).
+    unzip -o -j "$tmp" BrowserStackLocal -d /usr/local/bin
+    rm -f "$tmp"
+    chmod +x /usr/local/bin/BrowserStackLocal
+
+    success "BrowserStack Local installed (run 'BrowserStackLocal --key <ACCESS_KEY>')"
 }
 
 do_mysqlclient() {
@@ -1277,15 +1420,47 @@ DEOF
 }
 
 do_fcitx5() {
-    info "Installing Fcitx5 with Vietnamese (Unikey) support..."
-    apt install -y fcitx5 fcitx5-unikey fcitx5-config-qt \
+    info "Installing Fcitx5 with Vietnamese input (engine: ${IME_ENGINE})..."
+
+    # Base fcitx5 runtime + GTK/Qt frontends — shared across every engine.
+    apt install -y fcitx5 fcitx5-config-qt \
         fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5
+
+    # Per-engine package, plus the IM addon name written into the fcitx5 profile.
+    local im_name
+    case "$IME_ENGINE" in
+        bamboo)
+            apt install -y fcitx5-bamboo
+            im_name="bamboo"
+            ;;
+        lotus)
+            # Lotus is a third-party fcitx5 addon distributed via its own signed
+            # apt repo (not in Ubuntu's archive), keyed per release codename.
+            install -m 0755 -d /etc/apt/keyrings
+            if [[ ! -f /etc/apt/keyrings/fcitx5-lotus.gpg ]]; then
+                wget -qO- https://fcitx5-lotus.pages.dev/pubkey.gpg \
+                    | gpg --dearmor -o /etc/apt/keyrings/fcitx5-lotus.gpg
+                chmod a+r /etc/apt/keyrings/fcitx5-lotus.gpg
+            fi
+            local lotus_codename
+            lotus_codename=$(get_ubuntu_codename)
+            echo "deb [signed-by=/etc/apt/keyrings/fcitx5-lotus.gpg] https://fcitx5-lotus.pages.dev/apt/${lotus_codename} ${lotus_codename} main" \
+                > /etc/apt/sources.list.d/fcitx5-lotus.list
+            apt update
+            apt install -y fcitx5-lotus
+            im_name="lotus"
+            ;;
+        *)
+            apt install -y fcitx5-unikey
+            im_name="unikey"
+            ;;
+    esac
 
     # ── IM environment variables ──────────────────────────────────────────
     # Ubuntu 24.04 dropped PAM's reading of ~/.pam_environment, and on Wayland
     # (GNOME default) ~/.xprofile is never sourced. /etc/environment is read by
-    # pam_env for every login session — X11 *and* Wayland, GNOME (Ubuntu) *and*
-    # Cinnamon (Linux Mint 22) — so it's the one reliable place for IM vars.
+    # pam_env for every login session — X11 *and* Wayland — so it's the one
+    # reliable place for IM vars.
     local env_file="/etc/environment"
     sed -i -E '/^(GTK_IM_MODULE|QT_IM_MODULE|XMODIFIERS|SDL_IM_MODULE|GLFW_IM_MODULE)=/d' "$env_file"
     cat >> "$env_file" <<'ENVEOF'
@@ -1315,18 +1490,18 @@ DEOF
     local fcitx_conf_dir="$REAL_HOME/.config/fcitx5"
     local profile_file="$fcitx_conf_dir/profile"
     mkdir -p "$fcitx_conf_dir"
-    cat > "$profile_file" <<'PROFEOF'
+    cat > "$profile_file" <<PROFEOF
 [Groups/0]
 Name=Default
 Default Layout=us
-DefaultIM=unikey
+DefaultIM=${im_name}
 
 [Groups/0/Items/0]
 Name=keyboard-us
 Layout=
 
 [Groups/0/Items/1]
-Name=unikey
+Name=${im_name}
 Layout=
 
 [GroupOrder]
@@ -1342,7 +1517,60 @@ PROFEOF
         chown "$REAL_USER:$REAL_USER" "$REAL_HOME/.xprofile" 2>/dev/null || true
     fi
 
-    success "Fcitx5 + Unikey installed & configured (log out and back in to activate)"
+    success "Fcitx5 + ${im_name} installed & configured (log out and back in to activate)"
+}
+
+do_postman() {
+    if [[ -x /opt/Postman/Postman ]]; then
+        success "Postman already installed, skipping"
+        return
+    fi
+
+    info "Installing Postman..."
+    apt install -y wget
+
+    local tmp
+    tmp=$(mktemp /tmp/postman-XXXXXX.tar.gz)
+    wget -q -O "$tmp" "https://dl.pstmn.io/download/latest/linux_64"
+    rm -rf /opt/Postman
+    tar -xzf "$tmp" -C /opt          # unpacks into /opt/Postman
+    rm -f "$tmp"
+    ln -sf /opt/Postman/Postman /usr/local/bin/postman
+
+    cat > /usr/share/applications/postman.desktop <<'DEOF'
+[Desktop Entry]
+Type=Application
+Name=Postman
+GenericName=API Client
+Comment=The API platform for building and testing
+Exec=/opt/Postman/Postman %U
+Icon=/opt/Postman/app/resources/app/assets/icon.png
+Terminal=false
+Categories=Development;
+StartupWMClass=Postman
+DEOF
+
+    enable_wayland_ime /usr/share/applications/postman.desktop
+    success "Postman installed (/opt/Postman)"
+}
+
+do_waydroid() {
+    if command -v waydroid &>/dev/null; then
+        success "Waydroid already installed, skipping"
+        return
+    fi
+
+    info "Installing Waydroid..."
+    apt install -y curl ca-certificates
+
+    # Official Waydroid apt repo — the helper detects the release codename and
+    # writes the source + key for us.
+    curl -fsSL https://repo.waydro.id | bash
+
+    apt install -y waydroid
+
+    warn "Waydroid needs a Wayland session and the kernel 'binder' module. Run 'waydroid init' once, then launch it from your app menu."
+    success "Waydroid installed"
 }
 
 do_vlc() {
@@ -1373,7 +1601,6 @@ undo_mirror() {
     local targets=(
         /etc/apt/sources.list
         /etc/apt/sources.list.d/ubuntu.sources
-        /etc/apt/sources.list.d/official-package-repositories.list
     )
     for f in "${targets[@]}"; do
         if [[ -f "$f.bak" ]]; then
@@ -1420,8 +1647,8 @@ undo_terminal() {
     rm -f /usr/local/bin/yq /usr/local/bin/bat
 
     su - "$REAL_USER" -c 'rm -rf "$HOME/.oh-my-zsh"' 2>/dev/null || true
-    strip_zshrc_block "Tool integrations"
-    warn "~/.zshrc left in place (Tool-integrations block removed)"
+    strip_rc_block "Tool integrations"
+    warn "Shell rc files left in place (Tool-integrations block removed)"
     success "Terminal tools removed (kept git & curl)"
 }
 
@@ -1465,7 +1692,7 @@ undo_eza() {
     info "Removing eza..."
     apt_purge eza
     rm -f /etc/apt/sources.list.d/gierens.list /etc/apt/keyrings/gierens.gpg
-    strip_zshrc_block "eza aliases"
+    strip_rc_block "eza aliases"
     success "eza removed (repo, key & aliases cleaned)"
 }
 
@@ -1487,6 +1714,17 @@ undo_bun() {
         chown "$REAL_USER:$REAL_USER" "$rc" 2>/dev/null || true
     done
     success "Bun removed (.bun dir & installer rc block cleaned)"
+}
+
+undo_pnpm() {
+    info "Removing pnpm..."
+    su - "$REAL_USER" -c '
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        command -v corepack >/dev/null 2>&1 && corepack disable pnpm
+    ' 2>/dev/null || true
+    su - "$REAL_USER" -c 'rm -rf "$HOME/.local/share/pnpm" "$HOME/.config/pnpm"' 2>/dev/null || true
+    success "pnpm removed (corepack shim disabled, pnpm dirs cleaned)"
 }
 
 undo_dotnet() {
@@ -1566,6 +1804,12 @@ undo_docker() {
     success "Docker removed (packages, repo, key & group membership)"
 }
 
+undo_browserstack() {
+    info "Removing BrowserStack Local..."
+    rm -f /usr/local/bin/BrowserStackLocal
+    success "BrowserStack Local removed"
+}
+
 undo_mysqlclient() {
     info "Removing MySQL Client..."
     apt_purge mysql-client
@@ -1594,8 +1838,12 @@ undo_navicat() {
 
 undo_fcitx5() {
     info "Removing Fcitx5..."
-    apt_purge fcitx5 fcitx5-unikey fcitx5-config-qt \
+    # Purge every engine we might have installed, whichever was selected.
+    apt_purge fcitx5 fcitx5-unikey fcitx5-bamboo fcitx5-lotus fcitx5-config-qt \
         fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5
+
+    # Drop the third-party Lotus apt repo + key if they were added.
+    rm -f /etc/apt/sources.list.d/fcitx5-lotus.list /etc/apt/keyrings/fcitx5-lotus.gpg
 
     # Strip the IM vars from /etc/environment (leave the rest untouched).
     sed -i -E '/^(GTK_IM_MODULE|QT_IM_MODULE|XMODIFIERS|SDL_IM_MODULE|GLFW_IM_MODULE)=/d' /etc/environment
@@ -1611,6 +1859,26 @@ undo_fcitx5() {
     fi
 
     success "Fcitx5 removed (packages, env vars & config cleaned — re-login to apply)"
+}
+
+undo_postman() {
+    info "Removing Postman..."
+    rm -rf /opt/Postman
+    rm -f /usr/local/bin/postman /usr/share/applications/postman.desktop
+    success "Postman removed"
+}
+
+undo_waydroid() {
+    info "Removing Waydroid..."
+    su - "$REAL_USER" -c 'waydroid session stop' 2>/dev/null || true
+    systemctl stop waydroid-container 2>/dev/null || true
+    systemctl disable waydroid-container 2>/dev/null || true
+    apt_purge waydroid
+    rm -f /etc/apt/sources.list.d/waydroid.list /usr/share/keyrings/waydroid.gpg
+    rm -rf /var/lib/waydroid
+    su - "$REAL_USER" -c 'rm -rf "$HOME/.local/share/waydroid"' 2>/dev/null || true
+    warn "Waydroid data removed; a reboot clears the leftover container/network state"
+    success "Waydroid removed"
 }
 
 undo_vlc() {
@@ -1634,7 +1902,7 @@ undo_claude() {
 
 usage() {
     cat <<EOF
-MINT — Post-install Setup
+SETUP — Post-install toolkit for Ubuntu 24.04
 
 Usage:
   ./install-app.sh              Interactive install menu
@@ -1667,6 +1935,14 @@ main() {
     setup_glyphs
 
     need_root "$@"
+
+    # This toolkit targets Ubuntu 24.04 — warn (don't refuse) on anything else.
+    local os_id os_ver
+    os_id=$(. /etc/os-release && echo "${ID:-}")
+    os_ver=$(. /etc/os-release && echo "${VERSION_ID:-}")
+    if [[ "$os_id" != "ubuntu" || "$os_ver" != "24.04" ]]; then
+        warn "This toolkit targets Ubuntu 24.04 — detected '${os_id:-unknown} ${os_ver:-?}'. It may still work, but nothing is guaranteed."
+    fi
 
     if [[ "$MODE" == "uninstall" ]]; then
         ACTION_LABEL="Remove"; ACTION_GERUND="Removing"; ACTION_PAST="removed"
@@ -1730,6 +2006,28 @@ main() {
             fi
         fi
     done
+
+    if [[ "$MODE" == "install" ]]; then
+        # Wire runtime PATH/env into the shell rc even when the zsh Terminal Kit
+        # was skipped, so bash — the default shell — still sees the tools.
+        local _rt
+        for _rt in nvm bun pnpm dotnet azcli claude; do
+            if [[ "${SELECTED[$_rt]}" == "1" ]]; then
+                write_tool_integrations "$(resolve_shell_rc)"
+                break
+            fi
+        done
+        # Electron apps read this hint to auto-select Wayland, which is what lets
+        # fcitx5 type into them. Harmless on X11 (falls back automatically).
+        local _el
+        for _el in chrome edge teams vscode trae postman; do
+            if [[ "${SELECTED[$_el]}" == "1" ]]; then
+                grep -q '^ELECTRON_OZONE_PLATFORM_HINT=' /etc/environment 2>/dev/null \
+                    || echo 'ELECTRON_OZONE_PLATFORM_HINT=auto' >> /etc/environment
+                break
+            fi
+        done
+    fi
 
     # Sweep up packages orphaned by an uninstall pass.
     if [[ "$MODE" == "uninstall" ]]; then
