@@ -128,6 +128,10 @@ APPS=(
     "waydroid|Waydroid::run Android apps in a container (Wayland)|1"
     "vlc|VLC::plays every media format on earth|1"
 
+    # ── Media & Capture ──
+    "flameshot|Flameshot::screenshot, annotate & share in a snap|1"
+    "obs|OBS Studio::record & stream your screen, pro-grade|1"
+
     # ── AI Tools ──
     "claude|Claude Code::Anthropic's agentic dev CLI|1"
 )
@@ -163,7 +167,7 @@ APP_GROUPS=(
     "dev|Languages & IDEs|◆|nvm,bun,pnpm,dotnet,vscode,trae,claude"
     "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker,browserstack"
     "database|Databases|⬡|mysqlclient,pgclient,dbeaver,navicat"
-    "desktop|Apps & Desktop|◎|chrome,edge,teams,fcitx5,postman,waydroid,vlc"
+    "desktop|Apps & Desktop|◎|chrome,edge,teams,fcitx5,postman,waydroid,vlc,flameshot,obs"
 )
 
 declare -A GROUP_EXPANDED
@@ -1579,6 +1583,31 @@ do_vlc() {
     success "VLC installed"
 }
 
+do_flameshot() {
+    if command -v flameshot &>/dev/null; then
+        success "Flameshot already installed, skipping"
+        return
+    fi
+    info "Installing Flameshot..."
+    apt install -y flameshot
+    success "Flameshot installed"
+    info "Wayland: bind a shortcut to 'flameshot gui' in Settings ▸ Keyboard (GNOME owns PrtScn)"
+}
+
+do_obs() {
+    if command -v obs &>/dev/null; then
+        success "OBS Studio already installed, skipping"
+        return
+    fi
+    info "Installing OBS Studio..."
+    # Official OBS PPA — newest builds with PipeWire screen capture for Wayland.
+    # `add-apt-repository -y` refreshes the apt cache itself, so no extra update.
+    command -v add-apt-repository &>/dev/null || apt install -y software-properties-common
+    add-apt-repository -y ppa:obsproject/obs-studio
+    apt install -y obs-studio
+    success "OBS Studio installed"
+}
+
 do_claude() {
     if su - "$REAL_USER" -c 'command -v claude' &>/dev/null; then
         success "Claude Code already installed, skipping"
@@ -1885,6 +1914,24 @@ undo_vlc() {
     info "Removing VLC..."
     apt_purge vlc
     success "VLC removed"
+}
+
+undo_flameshot() {
+    info "Removing Flameshot..."
+    apt_purge flameshot
+    su - "$REAL_USER" -c 'rm -rf "$HOME/.config/flameshot"' 2>/dev/null || true
+    success "Flameshot removed"
+}
+
+undo_obs() {
+    info "Removing OBS Studio..."
+    apt_purge obs-studio
+    # `--remove` handles the deb822 `.sources` file on 24.04; glob covers both formats.
+    add-apt-repository -y --remove ppa:obsproject/obs-studio 2>/dev/null || true
+    rm -f /etc/apt/sources.list.d/obsproject-ubuntu-obs-studio-*.list \
+          /etc/apt/sources.list.d/obsproject-ubuntu-obs-studio-*.sources
+    su - "$REAL_USER" -c 'rm -rf "$HOME/.config/obs-studio"' 2>/dev/null || true
+    success "OBS Studio removed"
 }
 
 undo_claude() {
