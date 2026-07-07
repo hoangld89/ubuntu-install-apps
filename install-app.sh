@@ -132,6 +132,10 @@ APPS=(
     "flameshot|Flameshot::screenshot, annotate & share in a snap|1"
     "obs|OBS Studio::record & stream your screen, pro-grade|1"
 
+    # ── Remote Desktop ──
+    "anydesk|AnyDesk::fast remote desktop & support|1"
+    "teamviewer|TeamViewer::remote control & support, cross-platform|1"
+
     # ── AI Tools ──
     "claude|Claude Code::Anthropic's agentic dev CLI|1"
 )
@@ -167,7 +171,7 @@ APP_GROUPS=(
     "dev|Languages & IDEs|◆|nvm,bun,pnpm,dotnet,vscode,trae,claude"
     "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker,browserstack"
     "database|Databases|⬡|mysqlclient,pgclient,dbeaver,navicat"
-    "desktop|Apps & Desktop|◎|chrome,edge,teams,fcitx5,postman,waydroid,vlc,flameshot,obs"
+    "desktop|Apps & Desktop|◎|chrome,edge,teams,fcitx5,postman,waydroid,vlc,flameshot,obs,anydesk,teamviewer"
 )
 
 declare -A GROUP_EXPANDED
@@ -1691,11 +1695,14 @@ KEY_EOF
 }
 
 do_flameshot() {
-    if command -v flameshot &>/dev/null; then
+    # The apt build is unreliable on 24.04 (fails to install / broken on Wayland);
+    # the snap ships a self-contained, working Flameshot, so we install that.
+    if snap list flameshot &>/dev/null; then
         success "Flameshot already installed, skipping install"
     else
-        info "Installing Flameshot..."
-        apt install -y flameshot
+        info "Installing Flameshot (snap)..."
+        command -v snap &>/dev/null || apt install -y snapd
+        snap install flameshot
         success "Flameshot installed"
     fi
     # GNOME Wayland needs the screenshot portal present, then a key-triggered launch
@@ -1716,6 +1723,46 @@ do_obs() {
     add-apt-repository -y ppa:obsproject/obs-studio
     apt install -y obs-studio
     success "OBS Studio installed"
+}
+
+do_anydesk() {
+    if command -v anydesk &>/dev/null; then
+        success "AnyDesk already installed, skipping"
+        return
+    fi
+
+    info "Installing AnyDesk..."
+    apt install -y wget gpg ca-certificates apt-transport-https
+
+    # Official AnyDesk apt repo. The repo is single-arch (amd64) and uses the
+    # legacy `all main` suite regardless of Ubuntu codename.
+    wget -qO- https://keys.anydesk.com/repos/DEB-GPG-KEY \
+        | gpg --dearmor -o /usr/share/keyrings/anydesk.gpg
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/anydesk.gpg] http://deb.anydesk.com/ all main" \
+        > /etc/apt/sources.list.d/anydesk.list
+    apt update
+    apt install -y anydesk
+    success "AnyDesk installed"
+}
+
+do_teamviewer() {
+    if command -v teamviewer &>/dev/null; then
+        success "TeamViewer already installed, skipping"
+        return
+    fi
+
+    info "Installing TeamViewer..."
+    apt install -y wget
+
+    local tmp
+    tmp=$(mktemp /tmp/teamviewer-XXXXXX.deb)
+    if ! download_deb "https://download.teamviewer.com/download/linux/teamviewer_amd64.deb" "$tmp"; then
+        rm -f "$tmp"
+        return 1
+    fi
+    apt install -y "$tmp"
+    rm -f "$tmp"
+    success "TeamViewer installed"
 }
 
 do_claude() {
@@ -2028,9 +2075,10 @@ undo_vlc() {
 
 undo_flameshot() {
     info "Removing Flameshot..."
-    apt_purge flameshot
+    snap list flameshot &>/dev/null && snap remove flameshot 2>/dev/null || true
+    apt_purge flameshot   # clear any lingering apt install from an older run
     remove_flameshot_shortcut
-    su - "$REAL_USER" -c 'rm -rf "$HOME/.config/flameshot"' 2>/dev/null || true
+    su - "$REAL_USER" -c 'rm -rf "$HOME/.config/flameshot" "$HOME/snap/flameshot"' 2>/dev/null || true
     success "Flameshot removed"
 }
 
@@ -2043,6 +2091,24 @@ undo_obs() {
           /etc/apt/sources.list.d/obsproject-ubuntu-obs-studio-*.sources
     su - "$REAL_USER" -c 'rm -rf "$HOME/.config/obs-studio"' 2>/dev/null || true
     success "OBS Studio removed"
+}
+
+undo_anydesk() {
+    info "Removing AnyDesk..."
+    apt_purge anydesk
+    rm -f /etc/apt/sources.list.d/anydesk.list /usr/share/keyrings/anydesk.gpg
+    su - "$REAL_USER" -c 'rm -rf "$HOME/.anydesk"' 2>/dev/null || true
+    success "AnyDesk removed"
+}
+
+undo_teamviewer() {
+    info "Removing TeamViewer..."
+    apt_purge teamviewer
+    # The teamviewer .deb drops its own apt repo + key; clear both.
+    rm -f /etc/apt/sources.list.d/teamviewer.list \
+          /etc/apt/trusted.gpg.d/teamviewer*.asc
+    su - "$REAL_USER" -c 'rm -rf "$HOME/.config/teamviewer"' 2>/dev/null || true
+    success "TeamViewer removed"
 }
 
 undo_claude() {
