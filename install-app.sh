@@ -91,6 +91,7 @@ APPS=(
     "terminal|Terminal Kit::zsh · oh-my-zsh · tmux · fzf · rg · bat · jq|1"
     "font|Nerd Font::MesloLGS glyphs for prompts & icons|1"
     "eza|eza::a modern ls with icons & git awareness|1"
+    "fastfetch|Fastfetch::system info at a glance, neofetch reborn|1"
 
     # ── Languages & Runtime ──
     "nvm|Node.js 24::managed by nvm, swap versions on the fly|1"
@@ -168,7 +169,7 @@ MIRRORS=(
 )
 
 APP_GROUPS=(
-    "system|System & Shell|⚙|mirror,update,swap,terminal,font,eza"
+    "system|System & Shell|⚙|mirror,update,swap,terminal,font,eza,fastfetch"
     "dev|Languages & IDEs|◆|nvm,bun,pnpm,yarn,dotnet,abp,vscode,trae,claude"
     "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker,browserstack"
     "database|Databases|⬡|mysqlclient,pgclient,dbeaver,navicat"
@@ -1034,6 +1035,32 @@ EZAEOF
     success "eza installed (ls/ll/la/lt aliases added to $(basename "$rc"))"
 }
 
+do_fastfetch() {
+    if command -v fastfetch &>/dev/null; then
+        success "Fastfetch already installed, skipping"
+        return
+    fi
+
+    info "Installing Fastfetch..."
+    # Not in the noble archive (fastfetch landed in Ubuntu 24.10) — try apt first
+    # in case a newer release / PPA carries it, else grab the official GitHub
+    # release .deb.
+    if apt install -y fastfetch 2>/dev/null; then
+        success "Fastfetch installed via apt"
+        return
+    fi
+
+    local tmp
+    tmp=$(mktemp /tmp/fastfetch-XXXXXX.deb)
+    if ! download_deb "https://github.com/fastfetch-cli/fastfetch/releases/latest/download/fastfetch-linux-amd64.deb" "$tmp"; then
+        rm -f "$tmp"
+        return 1
+    fi
+    apt install -y "$tmp"
+    rm -f "$tmp"
+    success "Fastfetch installed (GitHub release .deb)"
+}
+
 do_nvm() {
     if [[ -s "$REAL_HOME/.nvm/nvm.sh" ]]; then
         success "NVM already installed, skipping"
@@ -1867,6 +1894,12 @@ undo_eza() {
     rm -f /etc/apt/sources.list.d/gierens.list /etc/apt/keyrings/gierens.gpg
     strip_rc_block "eza aliases"
     success "eza removed (repo, key & aliases cleaned)"
+}
+
+undo_fastfetch() {
+    info "Removing Fastfetch..."
+    apt_purge fastfetch
+    success "Fastfetch removed"
 }
 
 undo_nvm() {

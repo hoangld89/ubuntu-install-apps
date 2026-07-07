@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <b>34 apps</b> &nbsp;·&nbsp; <b>Idempotent</b> (safe to re-run) &nbsp;·&nbsp; <b>Uninstall mode</b> &nbsp;·&nbsp; <b>Wayland-ready</b> input method
+  <b>35 apps</b> &nbsp;·&nbsp; <b>Idempotent</b> (safe to re-run) &nbsp;·&nbsp; <b>Uninstall mode</b> &nbsp;·&nbsp; <b>Wayland-ready</b> input method
 </p>
 
 ---
@@ -45,7 +45,7 @@ cd ubuntu-install-apps
 
 ## Interactive Menu
 
-A flicker-free, leaf-green TUI rendered on the alternate screen. 34 apps live
+A flicker-free, leaf-green TUI rendered on the alternate screen. 35 apps live
 under **5 collapsible groups**; the cursor row is marked with a green bar `▌`.
 A 3D SETUP wordmark in leaf-green gradient greets you on launch.
 
@@ -62,13 +62,14 @@ A 3D SETUP wordmark in leaf-green gradient greets you on launch.
 
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    ▾ ⚙ System & Shell                 ● 6/6
+    ▾ ⚙ System & Shell                 ● 7/7
           ● APT Mirror            route apt through Vietnam's fastest mirrors [mirror.bizflycloud.vn]
           ● System Update         refresh sources & upgrade every package
           ● Swap File             8 GB swap · swappiness dialed to 10
           ● Terminal Kit          zsh · oh-my-zsh · tmux · fzf · rg · bat · jq
           ● Nerd Font             MesloLGS glyphs for prompts & icons
           ● eza                   a modern ls with icons & git awareness
+          ● Fastfetch             system info at a glance, neofetch reborn
     ▾ ◆ Languages & IDEs               ◐ 8/9
           ● Node.js 24            managed by nvm, swap versions on the fly
           ● Bun                   all-in-one JS runtime & toolkit, blazing fast
@@ -84,7 +85,7 @@ A 3D SETUP wordmark in leaf-green gradient greets you on launch.
     ▸ ◎ Apps & Desktop                 ● 7/7
 
   ───────────────────────────────────────────────────────
-  33/34 selected   █████████████████░
+  34/35 selected   █████████████████░
 
   ┌─ Navigate ─────┬─ Select ───────┬─ Actions ─────────┐
   │  ↑ ↓  Move     │  Space  Toggle │  d  .NET version  │
@@ -105,7 +106,7 @@ A 3D SETUP wordmark in leaf-green gradient greets you on launch.
 
 | # | Group | Apps |
 |:-:|-------|------|
-| 1 | **System & Shell** | APT mirror (Vietnam) · System update · Swap 8GB · Terminal tools (zsh, tmux, fzf…) · Nerd Font · eza |
+| 1 | **System & Shell** | APT mirror (Vietnam) · System update · Swap 8GB · Terminal tools (zsh, tmux, fzf…) · Nerd Font · eza · Fastfetch |
 | 2 | **Languages & IDEs** | NVM/Node · Bun · pnpm · Yarn · .NET SDK · ABP CLI · VS Code · Trae · Claude Code |
 | 3 | **DevOps & Cloud** | Terraform · Azure CLI · AzCopy · Docker · BrowserStack Local |
 | 4 | **Databases** | MySQL client · PostgreSQL client · DBeaver · Navicat |
@@ -146,6 +147,7 @@ to `.bashrc` instead — the default shell keeps working with every tool on PATH
 | **fzf** | Fuzzy finder |
 | **bat** | `cat` with syntax highlighting |
 | **eza** | Modern `ls` with icons & colors (`ls`/`ll`/`la`/`lt` aliases, written to the active shell rc) |
+| **Fastfetch** | System info at a glance (neofetch successor). Tries apt, falls back to the official GitHub release `.deb` since it's not in the noble archive |
 | **Nerd Font** | Installs **MesloLGS NF** to `/usr/local/share/fonts` and verifies it with `fc-list` so eza/terminal icons render. Set your terminal font to *MesloLGS NF* afterwards |
 
 <details>
