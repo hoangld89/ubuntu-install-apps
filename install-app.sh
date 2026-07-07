@@ -663,6 +663,28 @@ apt_purge() {
     DEBIAN_FRONTEND=noninteractive apt-get purge -y "$@" >/dev/null 2>&1 || true
 }
 
+# Download a .deb to $dest, retrying on flaky networks, then verify the archive
+# is a well-formed Debian package before the caller hands it to apt. A truncated
+# download (wget can exit 0 on a partial transfer through some proxies) yields a
+# corrupt .deb that apt rejects with "could not locate member control.tar" /
+# "could not read meta" — so we validate with `dpkg-deb` and fail loudly instead.
+# `--contents` (not `--info`) is used on purpose: it reads data.tar, the final
+# archive member, so a download truncated anywhere is caught; `--info` only reads
+# the control member near the start and passes on a partial file.
+download_deb() {
+    local url="$1" dest="$2" attempt
+    for attempt in 1 2 3; do
+        if wget --tries=3 --timeout=30 --continue -q -O "$dest" "$url" \
+            && dpkg-deb --contents "$dest" >/dev/null 2>&1; then
+            return 0
+        fi
+        warn "Download attempt $attempt failed or produced a corrupt package, retrying..."
+        rm -f "$dest"
+    done
+    fail "Could not download a valid .deb from $url"
+    return 1
+}
+
 # Remove a marked block from the user's shell rc files. Install steps wrap their
 # additions in `# --- <label> ---` … `# --- end <label> ---` so this deletes them
 # cleanly from wherever they landed (.zshrc when zsh is installed, else .bashrc).
@@ -1159,7 +1181,10 @@ do_chrome() {
     info "Installing Google Chrome..."
     local tmp
     tmp=$(mktemp /tmp/chrome-XXXXXX.deb)
-    wget -q -O "$tmp" "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
+    if ! download_deb "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" "$tmp"; then
+        rm -f "$tmp"
+        return 1
+    fi
     apt install -y "$tmp"
     rm -f "$tmp"
     enable_wayland_ime /usr/share/applications/google-chrome.desktop
@@ -1196,13 +1221,16 @@ do_teams() {
         | grep -oP '"browser_download_url":\s*"\K[^"]*_amd64\.deb' | head -1)
 
     if [[ -z "$download_url" ]]; then
-        fail "Could not find Teams for Linux download URL"
+        fail "Could not find Teams for Linux download URL (GitHub API may be rate-limited, try again later)"
         return 1
     fi
 
     local tmp
     tmp=$(mktemp /tmp/teams-for-linux-XXXXXX.deb)
-    wget -q -O "$tmp" "$download_url"
+    if ! download_deb "$download_url" "$tmp"; then
+        rm -f "$tmp"
+        return 1
+    fi
     apt install -y "$tmp"
     rm -f "$tmp"
     enable_wayland_ime /usr/share/applications/teams-for-linux.desktop
@@ -1234,7 +1262,10 @@ do_trae() {
     info "Installing Trae IDE..."
     local tmp
     tmp=$(mktemp /tmp/trae-XXXXXX.deb)
-    wget -q -O "$tmp" "https://lf-cdn.trae.ai/obj/trae-ai-us/pkg/Trae_latest_linux_x64.deb"
+    if ! download_deb "https://lf-cdn.trae.ai/obj/trae-ai-us/pkg/Trae_latest_linux_x64.deb" "$tmp"; then
+        rm -f "$tmp"
+        return 1
+    fi
     apt install -y "$tmp"
     rm -f "$tmp"
     enable_wayland_ime /usr/share/applications/trae.desktop
@@ -1383,7 +1414,10 @@ do_dbeaver() {
     info "Installing DBeaver Community..."
     local tmp
     tmp=$(mktemp /tmp/dbeaver-XXXXXX.deb)
-    wget -q -O "$tmp" "https://dbeaver.io/files/dbeaver-ce_latest_amd64.deb"
+    if ! download_deb "https://dbeaver.io/files/dbeaver-ce_latest_amd64.deb" "$tmp"; then
+        rm -f "$tmp"
+        return 1
+    fi
     apt install -y "$tmp"
     rm -f "$tmp"
     success "DBeaver Community installed"
