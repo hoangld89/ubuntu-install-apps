@@ -30,12 +30,20 @@ Kết quả: thêm đúng **2 app mới** — `flameshot` và `obs`.
 
 - **Cài**: `apt install -y flameshot` — có sẵn trong Ubuntu 24.04 archive
   (candidate 12.1.0-2build2, hỗ trợ Wayland qua portal). Không cần thêm repo.
-- **Idempotency**: guard `command -v flameshot`.
-- **Wayland**: sau khi cài, in `info` nhắc user gán shortcut chạy `flameshot gui`
-  trong Settings ▸ Keyboard (GNOME giữ phím `PrtScn`). Không tự rebind phím để
-  tránh xung đột giữa các bản GNOME và giữ tính idempotent.
+- **Idempotency**: install guard `command -v flameshot`; phần cấu hình chạy lại
+  mỗi lần (đảm bảo cả máy đã cài sẵn Flameshot cũng được cấu hình đúng).
+- **Wayland**: đảm bảo `xdg-desktop-portal-gnome` được cài (portal screenshot).
+  Trên GNOME Wayland, portal chỉ cấp quyền chụp cho lệnh kích hoạt bằng phím —
+  chạy `flameshot gui` từ terminal sẽ báo "unable to capture screen". Vì vậy
+  `apply_flameshot_shortcut` gỡ `Print` khỏi screenshot mặc định
+  (`org.gnome.shell.keybindings show-screenshot-ui = []`) rồi tạo custom
+  keybinding GNOME gán `Print` → `flameshot gui`. Chạy dưới `REAL_USER` (cần
+  dconf + DBus session bus của user), thao tác mảng `custom-keybindings`
+  idempotent qua slot cố định `.../custom-keybindings/flameshot/`.
 - Là Qt app → không cần `enable_wayland_ime` (chỉ dành cho Chromium/Electron).
-- **undo**: `apt_purge flameshot` + xóa `~/.config/flameshot` (dưới `REAL_USER`).
+- **undo**: `apt_purge flameshot`; `remove_flameshot_shortcut` khôi phục
+  `Print` về screenshot GNOME (`gsettings reset show-screenshot-ui`) + gỡ slot
+  khỏi list + `reset-recursively`; xóa `~/.config/flameshot` (dưới `REAL_USER`).
 
 ### OBS Studio (thay ScreenToGif — vai trò quay màn hình)
 
@@ -82,6 +90,7 @@ File duy nhất bị đụng: **`install-app.sh`**
 
 ### Known edge cases
 
-- Flameshot trên GNOME Wayland cần shortcut thủ công cho `flameshot gui` (đã có hint).
+- Flameshot trên GNOME Wayland chỉ chụp được khi khởi động bằng phím → script
+  tự gán `Print`; user có thể cần log out/in để shortcut mới có hiệu lực.
 - PPA OBS trên 24.04 ghi file deb822 `.sources` — undo phải glob cả 2 đuôi.
 - OBS không xuất GIF; đây là giới hạn đã biết khi bỏ Kooha.
