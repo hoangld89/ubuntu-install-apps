@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <b>29 apps</b> &nbsp;·&nbsp; <b>Idempotent</b> (safe to re-run) &nbsp;·&nbsp; <b>Uninstall mode</b> &nbsp;·&nbsp; <b>Wayland-ready</b> input method
+  <b>34 apps</b> &nbsp;·&nbsp; <b>Idempotent</b> (safe to re-run) &nbsp;·&nbsp; <b>Uninstall mode</b> &nbsp;·&nbsp; <b>Wayland-ready</b> input method
 </p>
 
 ---
@@ -45,7 +45,7 @@ cd ubuntu-install-apps
 
 ## Interactive Menu
 
-A flicker-free, leaf-green TUI rendered on the alternate screen. 29 apps live
+A flicker-free, leaf-green TUI rendered on the alternate screen. 34 apps live
 under **5 collapsible groups**; the cursor row is marked with a green bar `▌`.
 A 3D SETUP wordmark in leaf-green gradient greets you on launch.
 
@@ -69,11 +69,13 @@ A 3D SETUP wordmark in leaf-green gradient greets you on launch.
           ● Terminal Kit          zsh · oh-my-zsh · tmux · fzf · rg · bat · jq
           ● Nerd Font             MesloLGS glyphs for prompts & icons
           ● eza                   a modern ls with icons & git awareness
-    ▾ ◆ Languages & IDEs               ◐ 6/7
+    ▾ ◆ Languages & IDEs               ◐ 8/9
           ● Node.js 24            managed by nvm, swap versions on the fly
           ● Bun                   all-in-one JS runtime & toolkit, blazing fast
           ● pnpm                  fast, disk-efficient package manager via corepack
+          ● Yarn                  the classic JS package manager via corepack
   ▌       ○ .NET SDK              build & run cross-platform .NET [10]
+          ● ABP CLI               ABP Studio CLI for building ABP apps
           ● VS Code               the editor that does it all
           ● Trae IDE              AI-native coding by ByteDance
           ● Claude Code           Anthropic's agentic dev CLI
@@ -82,7 +84,7 @@ A 3D SETUP wordmark in leaf-green gradient greets you on launch.
     ▸ ◎ Apps & Desktop                 ● 7/7
 
   ───────────────────────────────────────────────────────
-  28/29 selected   █████████████████░
+  33/34 selected   █████████████████░
 
   ┌─ Navigate ─────┬─ Select ───────┬─ Actions ─────────┐
   │  ↑ ↓  Move     │  Space  Toggle │  d  .NET version  │
@@ -104,7 +106,7 @@ A 3D SETUP wordmark in leaf-green gradient greets you on launch.
 | # | Group | Apps |
 |:-:|-------|------|
 | 1 | **System & Shell** | APT mirror (Vietnam) · System update · Swap 8GB · Terminal tools (zsh, tmux, fzf…) · Nerd Font · eza |
-| 2 | **Languages & IDEs** | NVM/Node · Bun · pnpm · .NET SDK · VS Code · Trae · Claude Code |
+| 2 | **Languages & IDEs** | NVM/Node · Bun · pnpm · Yarn · .NET SDK · ABP CLI · VS Code · Trae · Claude Code |
 | 3 | **DevOps & Cloud** | Terraform · Azure CLI · AzCopy · Docker · BrowserStack Local |
 | 4 | **Databases** | MySQL client · PostgreSQL client · DBeaver · Navicat |
 | 5 | **Apps & Desktop** | Chrome · Edge · Teams · Fcitx5 · Postman · Waydroid · VLC |
@@ -186,7 +188,9 @@ previously installed tool working.
 | **NVM + Node.js 24** | NVM v0.40.3 for current user, Node 24 as default |
 | **Bun** | Official `bun.sh/install` script, per-user (`~/.bun`); `bun`/`bunx` on PATH via the Tool-integrations block |
 | **pnpm** | Enabled via **corepack** (bundled with Node); falls back to the standalone `get.pnpm.io` installer when Node isn't present |
+| **Yarn** | Enabled via **corepack** (`yarn@stable`); falls back to `npm install -g yarn` when corepack isn't present |
 | **.NET SDK** | Default: v10. Press `d` to select multiple (e.g. `8 9 10`). Falls back to the Microsoft install script if unavailable in apt |
+| **ABP CLI** | `Volo.Abp.Studio.Cli` dotnet global tool (`~/.dotnet/tools`); requires the .NET SDK. Provides the `abp` command |
 
 ### Browser
 
@@ -317,8 +321,8 @@ The install order is deliberate:
 2. System Update      ─── apt cache fresh (now from the fast mirror)
 3. Swap               ─── memory ready
 4. Terminal + ZSH     ─── shell rc exists BEFORE anything writes to it
-5-7. Node/Bun/pnpm    ─── JS runtimes; config goes into the active shell rc
-8. .NET SDK           ─── DOTNET_ROOT picked up by the rc
+5-8. Node/Bun/pnpm/Yarn ── JS runtimes; config goes into the active shell rc
+9. .NET SDK + ABP CLI ─── DOTNET_ROOT picked up by the rc; abp tool after SDK
 ...  Browsers, editors, infra, databases
 ...  Fcitx5, Postman, Waydroid, VLC ─── apps & desktop
 last. Claude Code     ─── AI tools (no Node.js dependency)
@@ -344,7 +348,9 @@ Quick verification:
 echo $SHELL                     # → /usr/bin/zsh (if you set it)
 node -v                         # → v24.x.x
 pnpm -v                         # → x.x.x
+yarn -v                         # → x.x.x
 dotnet --list-sdks              # → 10.0.xxx
+abp --version                   # → x.x.x
 terraform -v                    # → Terraform vX.X.X
 az version                      # → X.X.X
 docker run hello-world          # → Hello from Docker!

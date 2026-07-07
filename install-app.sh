@@ -96,7 +96,9 @@ APPS=(
     "nvm|Node.js 24::managed by nvm, swap versions on the fly|1"
     "bun|Bun::all-in-one JS runtime & toolkit, blazing fast|1"
     "pnpm|pnpm::fast, disk-efficient package manager via corepack|1"
+    "yarn|Yarn::the classic JS package manager via corepack|1"
     "dotnet|.NET SDK::build & run cross-platform .NET|1"
+    "abp|ABP CLI::ABP Studio CLI for building ABP apps|1"
 
     # ── Browser ──
     "chrome|Google Chrome::the web's default browser|1"
@@ -167,7 +169,7 @@ MIRRORS=(
 
 APP_GROUPS=(
     "system|System & Shell|⚙|mirror,update,swap,terminal,font,eza"
-    "dev|Languages & IDEs|◆|nvm,bun,pnpm,dotnet,vscode,trae,claude"
+    "dev|Languages & IDEs|◆|nvm,bun,pnpm,yarn,dotnet,abp,vscode,trae,claude"
     "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker,browserstack"
     "database|Databases|⬡|mysqlclient,pgclient,dbeaver,navicat"
     "desktop|Apps & Desktop|◎|chrome,edge,teams,fcitx5,postman,waydroid,vlc,obs,anydesk,teamviewer"
@@ -1113,6 +1115,82 @@ do_pnpm() {
     fi
 }
 
+do_yarn() {
+    if su - "$REAL_USER" -c 'command -v yarn' &>/dev/null; then
+        success "Yarn already installed, skipping"
+        return
+    fi
+
+    info "Installing Yarn for user '$REAL_USER'..."
+    apt install -y curl
+
+    # Preferred path: corepack (bundled with Node ≥16.9) — it shims yarn against
+    # the user's nvm-managed Node. Falls back to `npm install -g yarn` when
+    # corepack isn't present.
+    local ok=0
+    if su - "$REAL_USER" -c '
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        command -v corepack >/dev/null 2>&1
+    '; then
+        su - "$REAL_USER" -c '
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            corepack enable yarn 2>/dev/null || corepack enable
+            corepack prepare yarn@stable --activate
+        ' && ok=1
+    fi
+
+    if [[ $ok -eq 0 ]]; then
+        warn "corepack unavailable (install Node.js first for the cleanest setup) — falling back to npm"
+        su - "$REAL_USER" -c '
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            command -v npm >/dev/null 2>&1 && npm install -g yarn
+        ' && ok=1
+    fi
+
+    if [[ $ok -eq 1 ]]; then
+        success "Yarn installed for '$REAL_USER' (open a new shell to use it)"
+    else
+        fail "Yarn install failed (Node.js/npm required)"
+        return 1
+    fi
+}
+
+do_abp() {
+    if ! su - "$REAL_USER" -c '
+        export DOTNET_ROOT="/usr/share/dotnet"
+        export PATH="$PATH:$DOTNET_ROOT:$HOME/.dotnet/tools"
+        command -v dotnet >/dev/null 2>&1
+    '; then
+        warn "ABP CLI needs the .NET SDK — select .NET SDK too, then re-run"
+        return 1
+    fi
+
+    # `abp` is provided by the Volo.Abp.Studio.Cli dotnet global tool (into
+    # ~/.dotnet/tools, already on PATH via the Tool-integrations block).
+    if su - "$REAL_USER" -c '
+        export PATH="$PATH:$HOME/.dotnet/tools"
+        command -v abp
+    ' &>/dev/null; then
+        success "ABP CLI already installed, skipping"
+        return
+    fi
+
+    info "Installing ABP CLI (Volo.Abp.Studio.Cli) for user '$REAL_USER'..."
+    if su - "$REAL_USER" -c '
+        export DOTNET_ROOT="/usr/share/dotnet"
+        export PATH="$PATH:$DOTNET_ROOT:$HOME/.dotnet/tools"
+        dotnet tool install -g Volo.Abp.Studio.Cli
+    '; then
+        success "ABP CLI installed for '$REAL_USER' (open a new shell, then run: abp)"
+    else
+        fail "ABP CLI install failed"
+        return 1
+    fi
+}
+
 do_dotnet() {
     info "Installing .NET SDK (versions: ${DOTNET_VERSIONS[*]})..."
     ensure_microsoft_gpg
@@ -1820,6 +1898,28 @@ undo_pnpm() {
     ' 2>/dev/null || true
     su - "$REAL_USER" -c 'rm -rf "$HOME/.local/share/pnpm" "$HOME/.config/pnpm"' 2>/dev/null || true
     success "pnpm removed (corepack shim disabled, pnpm dirs cleaned)"
+}
+
+undo_yarn() {
+    info "Removing Yarn..."
+    su - "$REAL_USER" -c '
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        command -v corepack >/dev/null 2>&1 && corepack disable yarn
+        command -v npm >/dev/null 2>&1 && npm uninstall -g yarn
+    ' 2>/dev/null || true
+    su - "$REAL_USER" -c 'rm -rf "$HOME/.yarn" "$HOME/.cache/yarn"' 2>/dev/null || true
+    success "Yarn removed (corepack shim disabled, yarn dirs cleaned)"
+}
+
+undo_abp() {
+    info "Removing ABP CLI..."
+    su - "$REAL_USER" -c '
+        export DOTNET_ROOT="/usr/share/dotnet"
+        export PATH="$PATH:$DOTNET_ROOT:$HOME/.dotnet/tools"
+        command -v dotnet >/dev/null 2>&1 && dotnet tool uninstall -g Volo.Abp.Studio.Cli
+    ' 2>/dev/null || true
+    success "ABP CLI removed"
 }
 
 undo_dotnet() {
