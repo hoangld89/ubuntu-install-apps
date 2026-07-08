@@ -86,6 +86,7 @@ APPS=(
     "mirror|APT Mirror::route apt through Vietnam's fastest mirrors|1"
     "update|System Update::refresh sources & upgrade every package|1"
     "swap|Swap File::8 GB swap · swappiness dialed to 10|1"
+    "adminuser|Administrator User::recovery login with passwordless sudo|1"
 
     # ── Shell & Terminal ──
     "terminal|Terminal Kit::zsh · oh-my-zsh · tmux · fzf · rg · bat · jq|1"
@@ -169,7 +170,7 @@ MIRRORS=(
 )
 
 APP_GROUPS=(
-    "system|System & Shell|⚙|mirror,update,swap,terminal,font,eza,fastfetch"
+    "system|System & Shell|⚙|mirror,update,swap,adminuser,terminal,font,eza,fastfetch"
     "dev|Languages & IDEs|◆|nvm,bun,pnpm,yarn,dotnet,abp,vscode,trae,claude"
     "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker,browserstack"
     "database|Databases|⬡|mysqlclient,pgclient,dbeaver,navicat"
@@ -846,6 +847,66 @@ do_swap() {
     sysctl vm.swappiness=10
 
     success "Swap 8GB active, swappiness=10 (persistent)"
+}
+
+# Create a dedicated 'administrator' account with passwordless sudo, kept as an
+# emergency recovery login for resetting a forgotten password on the main user.
+# It joins the 'sudo' group (so it still works if the drop-in is ever removed)
+# and gets a NOPASSWD rule via a validated /etc/sudoers.d drop-in.
+do_adminuser() {
+    local admin="administrator"
+    local sudoers="/etc/sudoers.d/$admin"
+    info "Setting up recovery account '$admin' with passwordless sudo..."
+
+    if id "$admin" &>/dev/null; then
+        success "User '$admin' already exists — refreshing sudo access"
+    else
+        useradd -m -s /bin/bash -c "Recovery Administrator" "$admin"
+        success "Created user '$admin'"
+    fi
+
+    # Keep it in the sudo group too, so it stays privileged even if the
+    # sudoers.d drop-in below is ever deleted.
+    usermod -aG sudo "$admin"
+
+    # Prompt for a login password so the account can actually be used at the
+    # login screen. A blank answer (or no terminal) falls back to a default
+    # password that must be changed at first login.
+    local pw1="" pw2=""
+    if [[ -r /dev/tty ]]; then
+        while true; do
+            printf "  ${CYAN}?${NC} Set a password for '%s' (blank = default 'administrator'): " "$admin"
+            if ! read -rs pw1 </dev/tty; then pw1=""; echo; break; fi
+            echo
+            [[ -z "$pw1" ]] && break
+            printf "  ${CYAN}?${NC} Confirm password: "
+            if ! read -rs pw2 </dev/tty; then pw2=""; echo; fi
+            echo
+            [[ "$pw1" == "$pw2" ]] && break
+            warn "Passwords did not match — try again"
+        done
+    fi
+
+    if [[ -n "$pw1" ]]; then
+        echo "$admin:$pw1" | chpasswd
+        success "Password set for '$admin'"
+    else
+        echo "$admin:$admin" | chpasswd
+        chage -d 0 "$admin"   # force a password change at first login
+        warn "Default password 'administrator' set — you'll be forced to change it at first login"
+    fi
+
+    # Passwordless sudo via a dedicated drop-in (never edit /etc/sudoers directly)
+    # and validate before leaving it in place — a broken sudoers file can lock
+    # everyone out of sudo.
+    printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$admin" > "$sudoers"
+    chmod 440 "$sudoers"
+    if visudo -c -f "$sudoers" >/dev/null 2>&1; then
+        success "Passwordless sudo enabled for '$admin' ($sudoers)"
+    else
+        rm -f "$sudoers"
+        fail "sudoers syntax check failed — removed $sudoers (NOPASSWD not applied)"
+    fi
 }
 
 do_terminal() {
@@ -1829,6 +1890,21 @@ undo_swap() {
     sed -i '/^vm.swappiness/d' /etc/sysctl.conf
     sysctl -w vm.swappiness=60 >/dev/null 2>&1 || true
     success "Swap removed, swappiness reset to default (60)"
+}
+
+undo_adminuser() {
+    local admin="administrator"
+    info "Removing recovery account '$admin'..."
+    rm -f "/etc/sudoers.d/$admin"
+    if id "$admin" &>/dev/null; then
+        # Terminate any live sessions before deleting the account.
+        pkill -KILL -u "$admin" 2>/dev/null || true
+        deluser --remove-home "$admin" >/dev/null 2>&1 \
+            || userdel -r "$admin" >/dev/null 2>&1 || true
+        success "User '$admin' and its home directory removed"
+    else
+        warn "User '$admin' not found — only the sudoers drop-in was cleared"
+    fi
 }
 
 undo_terminal() {
