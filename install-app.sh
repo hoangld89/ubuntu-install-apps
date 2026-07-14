@@ -1281,23 +1281,39 @@ do_abp() {
 
 do_dotnet() {
     info "Installing .NET SDK (versions: ${DOTNET_VERSIONS[*]})..."
-    ensure_microsoft_gpg
 
     local codename
     codename=$(get_ubuntu_codename)
     local ubuntu_ver
     ubuntu_ver=$(get_ubuntu_version)
 
-    # Nếu repo prod đã được khai báo ở file khác (vd: microsoft-prod.list từ
-    # gói packages-microsoft-prod.deb), không ghi thêm dotnet.list để tránh
-    # xung đột "Conflicting values set for option Signed-By".
-    if grep -rqsl "packages.microsoft.com/ubuntu/$ubuntu_ver/prod" \
-        /etc/apt/sources.list.d/ --include='*.list' --exclude='dotnet.list'; then
-        info "Microsoft prod repo already configured, skipping dotnet.list"
-        rm -f /etc/apt/sources.list.d/dotnet.list
+    # Kể từ Ubuntu 24.04, Microsoft không còn phát hành gói .NET qua
+    # packages.microsoft.com nữa — .NET được Canonical đóng gói sẵn trong repo
+    # gốc của Ubuntu (xem "Considerations when upgrading Ubuntu" /
+    # learn.microsoft.com/dotnet/core/install/linux-ubuntu-decision). Repo
+    # packages.microsoft.com/ubuntu/<ver>/prod vẫn phản hồi HTTP 200 nhưng
+    # rỗng gói dotnet cho các bản >=24.04, nên đăng ký nó là thừa và có rủi ro:
+    # nếu repo đó tạm trục trặc, `apt update` phía dưới sẽ fail và (do
+    # set -euo pipefail) làm sập cả script dù .NET vẫn cài được bình thường từ
+    # repo gốc Ubuntu. Vì vậy chỉ đăng ký repo Microsoft cho Ubuntu <24.04.
+    if dpkg --compare-versions "$ubuntu_ver" lt 24.04; then
+        ensure_microsoft_gpg
+        # Nếu repo prod đã được khai báo ở file khác (vd: microsoft-prod.list
+        # từ gói packages-microsoft-prod.deb), không ghi thêm dotnet.list để
+        # tránh xung đột "Conflicting values set for option Signed-By".
+        if grep -rqsl "packages.microsoft.com/ubuntu/$ubuntu_ver/prod" \
+            /etc/apt/sources.list.d/ --include='*.list' --exclude='dotnet.list'; then
+            info "Microsoft prod repo already configured, skipping dotnet.list"
+            rm -f /etc/apt/sources.list.d/dotnet.list
+        else
+            echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/$ubuntu_ver/prod $codename main" \
+                > /etc/apt/sources.list.d/dotnet.list
+        fi
     else
-        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/$ubuntu_ver/prod $codename main" \
-            > /etc/apt/sources.list.d/dotnet.list
+        # Dọn dotnet.list còn sót lại từ lần chạy trước (vd: máy vừa
+        # upgrade từ 22.04 lên 24.04+) để tránh "package mix up" giữa repo
+        # Microsoft cũ và repo Ubuntu mới cho cùng gói dotnet-sdk.
+        rm -f /etc/apt/sources.list.d/dotnet.list
     fi
     apt update
 
@@ -1474,6 +1490,19 @@ do_azcli() {
 
     local codename
     codename=$(get_ubuntu_codename)
+    # Repo Azure CLI chỉ publish cho jammy (22.04) và noble (24.04); các
+    # codename mới hơn (oracular, plucky, questing, resolute...) 404 và làm
+    # `apt update` fail — sập cả script do set -euo pipefail. Theo đúng
+    # khuyến nghị troubleshooting chính thức (learn.microsoft.com/cli/azure/
+    # install-azure-cli-linux, mục "No package for your distribution"),
+    # fallback về "jammy" khi codename hiện tại chưa được Azure CLI hỗ trợ.
+    case "$codename" in
+        jammy | noble) ;;
+        *)
+            warn "Azure CLI repo chưa hỗ trợ '$codename', dùng repo 'jammy' thay thế"
+            codename="jammy"
+            ;;
+    esac
 
     echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $codename main" \
         > /etc/apt/sources.list.d/azure-cli.list
