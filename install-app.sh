@@ -90,7 +90,7 @@ APPS=(
 
     # ── Shell & Terminal ──
     "terminal|Terminal Kit::zsh · oh-my-zsh · tmux · fzf · rg · bat · jq|1"
-    "font|Nerd Font::MesloLGS glyphs for prompts & icons|1"
+    "font|Fonts::Nerd Font glyphs + Vietnamese web fonts (Facebook/Chrome)|1"
     "eza|eza::a modern ls with icons & git awareness|1"
     "fastfetch|Fastfetch::system info at a glance, neofetch reborn|1"
 
@@ -999,11 +999,39 @@ FONT_EOF
     rm -f "$font_script"
 }
 
+# Vietnamese web fonts. Facebook (and most sites) fall back to whatever face the
+# system offers for Vietnamese diacritics; without full-coverage fonts the
+# combining marks render misplaced/overlapping or as tofu boxes. Noto gives
+# correctly-composed Vietnamese coverage, its emoji face fixes broken emoji, and
+# Liberation covers the Arial/Helvetica CSS stacks sites commonly request.
+install_vn_web_fonts() {
+    local pkgs=(fonts-noto-core fonts-noto-cjk fonts-noto-color-emoji fonts-liberation)
+    local missing=() p
+    for p in "${pkgs[@]}"; do
+        dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' \
+            || missing+=("$p")
+    done
+    if [[ ${#missing[@]} -eq 0 ]]; then
+        success "Vietnamese web fonts already present (Noto + Liberation)"
+        return
+    fi
+    info "Installing Vietnamese web fonts: ${missing[*]}"
+    if apt install -y "${missing[@]}" >/dev/null 2>&1 || apt install -y "${missing[@]}"; then
+        fc-cache -f >/dev/null 2>&1 || true
+        success "Vietnamese web fonts installed — Facebook/browser diacritics fixed"
+    else
+        warn "Some Vietnamese web fonts failed to install (${missing[*]})"
+    fi
+}
+
 do_font() {
-    info "Installing MesloLGS Nerd Font (icons for eza & terminal)..."
+    info "Installing fonts (Nerd Font + Vietnamese web fonts)..."
 
     # fontconfig provides fc-list / fc-cache — required for an accurate check.
     apt install -y fontconfig wget >/dev/null 2>&1 || apt install -y fontconfig wget
+
+    # Web fonts run regardless of Nerd Font state (Nerd Font has an early return).
+    install_vn_web_fonts
 
     if fc-list 2>/dev/null | grep -qi 'MesloLGS NF'; then
         success "MesloLGS Nerd Font already installed, skipping ($(fc-list 2>/dev/null | grep -ci 'MesloLGS NF') faces)"
@@ -1991,6 +2019,10 @@ undo_font() {
     else
         success "MesloLGS Nerd Font removed"
     fi
+    # Vietnamese web fonts (Noto/Liberation) are intentionally left in place:
+    # the desktop and browsers depend on them, so purging risks breaking
+    # system-wide text rendering. Remove manually if you really need to.
+    info "Vietnamese web fonts (Noto/Liberation) left installed — shared with the desktop"
 }
 
 undo_eza() {
