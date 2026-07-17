@@ -6,8 +6,8 @@ if [ -z "${BASH_VERSION:-}" ]; then exec bash "$0" "$@"; fi
 set -euo pipefail
 
 # ============================================================
-# SETUP — Post-install toolkit for Ubuntu 24.04
-# Interactive app selector for a fresh Ubuntu 24.04 (noble) machine
+# SETUP — Post-install toolkit for Ubuntu 26.04
+# Interactive app selector for a fresh Ubuntu 26.04 (resolute) machine
 #   ./install-app.sh              interactive install
 #   ./install-app.sh --all        install everything
 #   ./install-app.sh --uninstall  interactive uninstall
@@ -91,6 +91,7 @@ APPS=(
     # ── Shell & Terminal ──
     "terminal|Terminal Kit::zsh · oh-my-zsh · tmux · fzf · rg · bat · jq|1"
     "font|Fonts::Nerd Font glyphs + Vietnamese web fonts (Facebook/Chrome)|1"
+"msfonts|MS Fonts::Arial, Times New Roman, Calibri & ClearType fonts|1"
     "eza|eza::a modern ls with icons & git awareness|1"
     "fastfetch|Fastfetch::system info at a glance, neofetch reborn|1"
 
@@ -170,7 +171,7 @@ MIRRORS=(
 )
 
 APP_GROUPS=(
-    "system|System & Shell|⚙|mirror,update,swap,adminuser,terminal,font,eza,fastfetch"
+    "system|System & Shell|⚙|mirror,update,swap,adminuser,terminal,font,msfonts,eza,fastfetch"
     "dev|Languages & IDEs|◆|nvm,bun,pnpm,yarn,dotnet,abp,vscode,trae,claude"
     "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker,browserstack"
     "database|Databases|⬡|mysqlclient,pgclient,dbeaver,navicat"
@@ -758,8 +759,10 @@ if [ -f /etc/bash_completion.d/azure-cli ]; then
     source /etc/bash_completion.d/azure-cli
 fi
 
-# Claude Code
-[ -d "$HOME/.claude/bin" ] && export PATH="$PATH:$HOME/.claude/bin"
+# Claude Code (native installer symlinks the CLI into ~/.local/bin)
+if [ -d "$HOME/.local/bin" ]; then
+    case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH" ;; esac
+fi
 
 # Cargo / Rust
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
@@ -775,13 +778,21 @@ TOOLEOF
 WAYLAND_IME_FLAGS="--enable-features=UseOzonePlatform --ozone-platform-hint=auto --enable-wayland-ime --wayland-text-input-version=3"
 
 # Inject the flags into every Exec= line of a .desktop file (right after the
-# executable, before any %U/%F field codes). Idempotent: skips files that
-# already carry them. Runs after an app installs so its launcher gets the flags.
+# executable, before any %U/%F field codes). Idempotent: the x11-strip is a
+# no-op when absent, and the flag injection skips files that already carry them.
+# Runs after an app installs so its launcher gets the flags.
 enable_wayland_ime() {
     local desktop="$1"
     [[ -f "$desktop" ]] || return 0
-    grep -q -- '--enable-wayland-ime' "$desktop" && return 0
-    sed -i -E "s#^(Exec=[^ ]+)#\1 ${WAYLAND_IME_FLAGS}#" "$desktop"
+    # Ubuntu 26.04 is Wayland-first. Some launchers (e.g. teams-for-linux) ship a
+    # hard `--ozone-platform=x11` that conflicts with our `-hint=auto`: the
+    # explicit flag wins and pins the app to X11, which breaks Wayland IME and —
+    # on some GPUs — crashes the app (SIGILL/GPU-process). Strip it so the Ozone
+    # platform resolves consistently through the hint.
+    sed -i -E 's# --ozone-platform=x11\b##g' "$desktop"
+    # Inject our IME flags once (skip if a previous run already added them).
+    grep -q -- '--enable-wayland-ime' "$desktop" \
+        || sed -i -E "s#^(Exec=[^ ]+)#\1 ${WAYLAND_IME_FLAGS}#" "$desktop"
 }
 
 # --- Install functions -------------------------------------------------------
@@ -1022,6 +1033,73 @@ install_vn_web_fonts() {
     else
         warn "Some Vietnamese web fonts failed to install (${missing[*]})"
     fi
+}
+
+# Microsoft fonts, from two separate sources:
+#   * ttf-mscorefonts-installer (multiverse) — Arial, Times New Roman, Courier
+#     New, Georgia, Verdana, Trebuchet MS, Comic Sans, Impact, Andale, Webdings.
+#     The EULA must be pre-accepted via debconf so the install is non-interactive.
+#   * Calibri, Cambria, Consolas, Candara, Constantia, Corbel — the ClearType
+#     ("Vista") faces MS never shipped stand-alone. They live inside PowerPoint
+#     Viewer 2007; we download it and pull the .ttf/.ttc out with cabextract
+#     (the long-standing community method).
+# Each part guards its own already-installed state, so this is safe to re-run.
+do_msfonts() {
+    # fontconfig provides fc-list / fc-cache — required for the accurate checks.
+    apt install -y fontconfig >/dev/null 2>&1 || apt install -y fontconfig
+
+    # --- Core fonts: Arial, Times New Roman, … (ttf-mscorefonts-installer) ---
+    if fc-list 2>/dev/null | grep -qi 'Times New Roman'; then
+        success "MS core fonts already installed (Arial / Times New Roman / …)"
+    else
+        info "Installing MS core fonts (Arial, Times New Roman, Courier New, Georgia, Verdana…)..."
+        # The package lives in the `multiverse` component — enable it if missing.
+        if ! apt-cache policy ttf-mscorefonts-installer 2>/dev/null | grep -q 'Candidate: [0-9]'; then
+            add-apt-repository -y multiverse >/dev/null 2>&1 || true
+            apt update >/dev/null 2>&1 || true
+        fi
+        # Pre-accept the EULA so apt doesn't stop for the interactive prompt.
+        echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true \
+            | debconf-set-selections 2>/dev/null || true
+        if DEBIAN_FRONTEND=noninteractive apt install -y ttf-mscorefonts-installer >/dev/null 2>&1 \
+           || DEBIAN_FRONTEND=noninteractive apt install -y ttf-mscorefonts-installer; then
+            fc-cache -f >/dev/null 2>&1 || true
+            success "MS core fonts installed (Arial, Times New Roman, Courier New, Georgia, Verdana, …)"
+        else
+            warn "MS core fonts (ttf-mscorefonts-installer) failed — check network / multiverse repo"
+        fi
+    fi
+
+    # --- Calibri + ClearType faces, extracted from PowerPoint Viewer 2007 ---
+    if fc-list 2>/dev/null | grep -qi 'Calibri'; then
+        success "Calibri & ClearType fonts already installed"
+        return
+    fi
+    info "Installing Calibri + ClearType fonts (Cambria, Consolas, Candara, Constantia, Corbel)..."
+    apt install -y cabextract wget >/dev/null 2>&1 || apt install -y cabextract wget
+    local vista_dir="/usr/local/share/fonts/vista"
+    local tmp; tmp=$(mktemp -d /tmp/vistafonts-XXXXXX)
+    local ppv="$tmp/PowerPointViewer.exe"
+    # SourceForge mirror of the original MS installer (Microsoft pulled its own).
+    if wget -q -O "$ppv" "https://master.dl.sourceforge.net/project/mscorefonts2/cabs/PowerPointViewer.exe?viasf=1"; then
+        mkdir -p "$vista_dir"
+        # The .exe is a self-extractor; ppviewer.cab inside it holds the fonts.
+        if cabextract -L -F ppviewer.cab -d "$tmp" "$ppv" >/dev/null 2>&1 \
+           && cabextract -L -F '*.tt?' -d "$vista_dir" "$tmp/ppviewer.cab" >/dev/null 2>&1; then
+            chmod 644 "$vista_dir"/*.tt? 2>/dev/null || true
+            fc-cache -f >/dev/null 2>&1 || true
+            if fc-list 2>/dev/null | grep -qi 'Calibri'; then
+                success "Calibri & ClearType fonts installed (Cambria, Consolas, Candara, Constantia, Corbel)"
+            else
+                success "Calibri fonts extracted to $vista_dir; fontconfig cache refreshes on next login"
+            fi
+        else
+            warn "Could not extract Calibri fonts from PowerPoint Viewer (cabextract failed)"
+        fi
+    else
+        warn "Could not download PowerPoint Viewer for Calibri fonts (check network)"
+    fi
+    rm -rf "$tmp"
 }
 
 do_font() {
@@ -1523,12 +1601,13 @@ do_azcli() {
     # `apt update` fail — sập cả script do set -euo pipefail. Theo đúng
     # khuyến nghị troubleshooting chính thức (learn.microsoft.com/cli/azure/
     # install-azure-cli-linux, mục "No package for your distribution"),
-    # fallback về "jammy" khi codename hiện tại chưa được Azure CLI hỗ trợ.
+    # fallback về "noble" (bản LTS mới nhất Azure CLI hỗ trợ) khi codename
+    # hiện tại chưa có repo — gần 26.04 hơn nên tương thích ABI tốt hơn jammy.
     case "$codename" in
         jammy | noble) ;;
         *)
-            warn "Azure CLI repo chưa hỗ trợ '$codename', dùng repo 'jammy' thay thế"
-            codename="jammy"
+            warn "Azure CLI repo chưa hỗ trợ '$codename', dùng repo 'noble' thay thế"
+            codename="noble"
             ;;
     esac
 
@@ -2025,6 +2104,16 @@ undo_font() {
     info "Vietnamese web fonts (Noto/Liberation) left installed — shared with the desktop"
 }
 
+undo_msfonts() {
+    # Purge the core-fonts package and delete the extracted Calibri/ClearType
+    # faces. apt_purge never aborts the run on failure.
+    info "Removing Microsoft fonts (Arial/Times New Roman/Calibri/…)..."
+    apt_purge ttf-mscorefonts-installer
+    rm -rf /usr/local/share/fonts/vista
+    fc-cache -f >/dev/null 2>&1 || true
+    success "Microsoft fonts removed (core fonts + Calibri/ClearType)"
+}
+
 undo_eza() {
     info "Removing eza..."
     apt_purge eza
@@ -2296,7 +2385,7 @@ undo_claude() {
 
 usage() {
     cat <<EOF
-SETUP — Post-install toolkit for Ubuntu 24.04
+SETUP — Post-install toolkit for Ubuntu 26.04
 
 Usage:
   ./install-app.sh              Interactive install menu
@@ -2330,12 +2419,12 @@ main() {
 
     need_root "$@"
 
-    # This toolkit targets Ubuntu 24.04 — warn (don't refuse) on anything else.
+    # This toolkit targets Ubuntu 26.04 — warn (don't refuse) on anything else.
     local os_id os_ver
     os_id=$(. /etc/os-release && echo "${ID:-}")
     os_ver=$(. /etc/os-release && echo "${VERSION_ID:-}")
-    if [[ "$os_id" != "ubuntu" || "$os_ver" != "24.04" ]]; then
-        warn "This toolkit targets Ubuntu 24.04 — detected '${os_id:-unknown} ${os_ver:-?}'. It may still work, but nothing is guaranteed."
+    if [[ "$os_id" != "ubuntu" || "$os_ver" != "26.04" ]]; then
+        warn "This toolkit targets Ubuntu 26.04 — detected '${os_id:-unknown} ${os_ver:-?}'. It may still work, but nothing is guaranteed."
     fi
 
     if [[ "$MODE" == "uninstall" ]]; then

@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A single-file Bash post-install setup for fresh Ubuntu 24.04 (noble) machines. An
+A single-file Bash post-install setup for fresh Ubuntu 26.04 (resolute) machines. An
 interactive TUI menu lets the user pick which of ~28 apps to install (or
 uninstall), then runs each installer in sequence. Everything lives in
-`install-app.sh`. A non-24.04 host gets a soft warning at startup but the run
+`install-app.sh`. A non-26.04 host gets a soft warning at startup but the run
 still proceeds.
 
 ## Architecture
