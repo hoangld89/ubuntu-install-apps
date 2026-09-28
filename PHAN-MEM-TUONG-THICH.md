@@ -59,6 +59,23 @@ Nhập lần lượt: mật khẩu hiện tại → mật khẩu mới → nhậ
 
 > **Lưu ý:** Mật khẩu này cũng là mật khẩu dùng khi chạy lệnh `sudo`. Sau khi đổi, hãy nhớ mật khẩu mới — nếu quên sẽ phải nhờ IT khôi phục.
 
+## Sửa lỗi chữ bị mất / thành ô vuông trong Terminal của VS Code, Trae
+
+**Dấu hiệu:** trong Terminal tích hợp của VS Code hoặc Trae, một số chữ bị mất nét hoặc hiện thành ô vuông `█` — hay gặp ở chữ tiếng Việt có dấu, chữ nghiêng, chữ màu mờ (ví dụ khi dùng Claude Code).
+
+**Nguyên nhân:** Terminal vẽ chữ bằng GPU (WebGL) và dùng font mặc định thiếu ký tự.
+
+**Cách sửa:** mở **Command Palette** (`Ctrl + Shift + P`) → **Preferences: Open User Settings (JSON)**, thêm 2 dòng sau vào trong dấu `{ }`:
+
+```json
+"terminal.integrated.gpuAcceleration": "off",
+"terminal.integrated.fontFamily": "'DejaVu Sans Mono', 'Noto Sans Mono', monospace",
+```
+
+Lưu file rồi mở một Terminal mới. Nếu vẫn lỗi: **Command Palette → Developer: Reload Window**.
+
+File settings nằm ở `~/.config/Code/User/settings.json` (VS Code) và `~/.config/Trae/User/settings.json` (Trae). Font DejaVu Sans Mono có sẵn trên Ubuntu.
+
 Nếu cần hỗ trợ cài đặt hoặc làm quen với phần mềm mới, vui lòng liên hệ bộ phận IT.
 
 Trân trọng.

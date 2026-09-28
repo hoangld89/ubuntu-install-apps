@@ -359,6 +359,13 @@ docker run hello-world          # → Hello from Docker!
 claude --version                # → claude X.X.X
 ```
 
+**Garbled text in the VS Code / Trae integrated terminal** (missing glyphs or `█` blocks, mostly on Vietnamese diacritics, italic or dim text): disable the terminal's GPU renderer and set a font with full glyph coverage in the user `settings.json` (`~/.config/Code/User/` or `~/.config/Trae/User/`):
+
+```json
+"terminal.integrated.gpuAcceleration": "off",
+"terminal.integrated.fontFamily": "'DejaVu Sans Mono', 'Noto Sans Mono', monospace"
+```
+
 ---
 
 ## Customization
