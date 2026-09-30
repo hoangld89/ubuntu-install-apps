@@ -666,6 +666,25 @@ ensure_microsoft_gpg() {
     fi
 }
 
+# Download a remote installer to a temp file (never piped) so a failed fetch runs nothing, then run it as $1 with shell $2; extra args go to the script.
+run_remote_script() {
+    local run_user="$1" shell_cmd="$2" url="$3" script rc=0
+    shift 3
+    script=$(mktemp /tmp/remote-install-XXXXXX.sh)
+    trap 'rm -f "$script"' RETURN
+    if ! curl -fsSL --retry 3 --connect-timeout 15 --max-time 300 -o "$script" "$url"; then
+        fail "Could not download $url"
+        return 1
+    fi
+    chmod 644 "$script"
+    if [[ "$run_user" == root ]]; then
+        "$shell_cmd" "$script" "$@" || rc=$?
+    else
+        su - "$run_user" -c "$(printf '%q ' "$shell_cmd" "$script" "$@")" || rc=$?
+    fi
+    return $rc
+}
+
 # Purge packages without ever aborting the run (missing packages are fine).
 apt_purge() {
     DEBIAN_FRONTEND=noninteractive apt-get purge -y "$@" >/dev/null 2>&1 || true
@@ -934,8 +953,14 @@ do_terminal() {
 
     if ! command -v yq &>/dev/null; then
         info "Installing yq..."
-        wget -q -O /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64"
-        chmod +x /usr/local/bin/yq
+        local yq_tmp
+        yq_tmp=$(mktemp /tmp/yq-XXXXXX)
+        if wget -q --tries=3 --timeout=30 -O "$yq_tmp" "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64"; then
+            install -m 755 "$yq_tmp" /usr/local/bin/yq
+        else
+            warn "Could not download yq, skipping"
+        fi
+        rm -f "$yq_tmp"
     fi
 
     info "Configuring Oh My Zsh + plugins for '$REAL_USER'..."
@@ -1237,9 +1262,15 @@ do_nvm() {
     info "Installing NVM + Node.js 24 for user '$REAL_USER'..."
     apt install -y curl
 
+    local nvm_tag
+    nvm_tag=$(curl -fsSL --connect-timeout 10 --max-time 20 https://api.github.com/repos/nvm-sh/nvm/releases/latest 2>/dev/null \
+        | grep -oP '"tag_name":\s*"\Kv[0-9.]+' | head -1 || true)
+    nvm_tag="${nvm_tag:-v0.40.8}"
+    info "Using nvm $nvm_tag"
+
+    run_remote_script "$REAL_USER" bash "https://raw.githubusercontent.com/nvm-sh/nvm/$nvm_tag/install.sh"
     su - "$REAL_USER" -c '
         export NVM_DIR="$HOME/.nvm"
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
         . "$NVM_DIR/nvm.sh"
         nvm install 24
         nvm alias default 24
@@ -1260,7 +1291,7 @@ do_bun() {
 
     # Official per-user installer (into ~/.bun). PATH is wired up by the
     # Bun block in the Tool-integrations section of .zshrc (added by do_terminal).
-    su - "$REAL_USER" -c 'curl -fsSL https://bun.sh/install | bash'
+    run_remote_script "$REAL_USER" bash https://bun.sh/install
 
     if [[ -x "$REAL_HOME/.bun/bin/bun" ]]; then
         success "Bun $("$REAL_HOME/.bun/bin/bun" --version 2>/dev/null || echo 'ready') installed for '$REAL_USER'"
@@ -1298,7 +1329,7 @@ do_pnpm() {
 
     if [[ $ok -eq 0 ]]; then
         warn "corepack unavailable (install Node.js first for the cleanest setup) — using the standalone pnpm installer"
-        su - "$REAL_USER" -c 'curl -fsSL https://get.pnpm.io/install.sh | sh -' && ok=1
+        run_remote_script "$REAL_USER" sh https://get.pnpm.io/install.sh && ok=1
     fi
 
     if [[ $ok -eq 1 ]]; then
@@ -1393,20 +1424,10 @@ do_dotnet() {
     local ubuntu_ver
     ubuntu_ver=$(get_ubuntu_version)
 
-    # Kể từ Ubuntu 24.04, Microsoft không còn phát hành gói .NET qua
-    # packages.microsoft.com nữa — .NET được Canonical đóng gói sẵn trong repo
-    # gốc của Ubuntu (xem "Considerations when upgrading Ubuntu" /
-    # learn.microsoft.com/dotnet/core/install/linux-ubuntu-decision). Repo
-    # packages.microsoft.com/ubuntu/<ver>/prod vẫn phản hồi HTTP 200 nhưng
-    # rỗng gói dotnet cho các bản >=24.04, nên đăng ký nó là thừa và có rủi ro:
-    # nếu repo đó tạm trục trặc, `apt update` phía dưới sẽ fail và (do
-    # set -euo pipefail) làm sập cả script dù .NET vẫn cài được bình thường từ
-    # repo gốc Ubuntu. Vì vậy chỉ đăng ký repo Microsoft cho Ubuntu <24.04.
+    # Ubuntu >=24.04 ships .NET in its own archive; the Microsoft prod repo has no dotnet packages there and only risks breaking apt update.
     if dpkg --compare-versions "$ubuntu_ver" lt 24.04; then
         ensure_microsoft_gpg
-        # Nếu repo prod đã được khai báo ở file khác (vd: microsoft-prod.list
-        # từ gói packages-microsoft-prod.deb), không ghi thêm dotnet.list để
-        # tránh xung đột "Conflicting values set for option Signed-By".
+        # Skip dotnet.list if the prod repo is already declared elsewhere, to avoid "Conflicting values set for option Signed-By".
         if grep -rqsl "packages.microsoft.com/ubuntu/$ubuntu_ver/prod" \
             /etc/apt/sources.list.d/ --include='*.list' --exclude='dotnet.list'; then
             info "Microsoft prod repo already configured, skipping dotnet.list"
@@ -1416,9 +1437,7 @@ do_dotnet() {
                 > /etc/apt/sources.list.d/dotnet.list
         fi
     else
-        # Dọn dotnet.list còn sót lại từ lần chạy trước (vd: máy vừa
-        # upgrade từ 22.04 lên 24.04+) để tránh "package mix up" giữa repo
-        # Microsoft cũ và repo Ubuntu mới cho cùng gói dotnet-sdk.
+        # Drop a leftover dotnet.list from a pre-24.04 install to avoid a package mix-up with the Ubuntu repo.
         rm -f /etc/apt/sources.list.d/dotnet.list
     fi
     apt update
@@ -1438,16 +1457,11 @@ do_dotnet() {
             installed+=("$ver")
         else
             warn "$pkg not found in repo, trying install script..."
-            local tmp
-            tmp=$(mktemp /tmp/dotnet-install-XXXXXX.sh)
-            wget -q -O "$tmp" "https://dot.net/v1/dotnet-install.sh"
-            chmod +x "$tmp"
-            if bash "$tmp" --channel "$ver.0" --install-dir /usr/share/dotnet; then
+            if run_remote_script root bash https://dot.net/v1/dotnet-install.sh --channel "$ver.0" --install-dir /usr/share/dotnet; then
                 installed+=("$ver")
             else
                 failed_ver+=("$ver")
             fi
-            rm -f "$tmp"
         fi
     done
 
@@ -1596,17 +1610,11 @@ do_azcli() {
 
     local codename
     codename=$(get_ubuntu_codename)
-    # Repo Azure CLI chỉ publish cho jammy (22.04) và noble (24.04); các
-    # codename mới hơn (oracular, plucky, questing, resolute...) 404 và làm
-    # `apt update` fail — sập cả script do set -euo pipefail. Theo đúng
-    # khuyến nghị troubleshooting chính thức (learn.microsoft.com/cli/azure/
-    # install-azure-cli-linux, mục "No package for your distribution"),
-    # fallback về "noble" (bản LTS mới nhất Azure CLI hỗ trợ) khi codename
-    # hiện tại chưa có repo — gần 26.04 hơn nên tương thích ABI tốt hơn jammy.
+    # Azure CLI has no repo for other codenames (apt update 404s and aborts the run), so fall back to noble.
     case "$codename" in
-        jammy | noble) ;;
+        jammy | noble | resolute) ;;
         *)
-            warn "Azure CLI repo chưa hỗ trợ '$codename', dùng repo 'noble' thay thế"
+            warn "Azure CLI repo does not support '$codename', using the 'noble' repo instead"
             codename="noble"
             ;;
     esac
@@ -1948,7 +1956,7 @@ do_waydroid() {
 
     # Official Waydroid apt repo — the helper detects the release codename and
     # writes the source + key for us.
-    curl -fsSL https://repo.waydro.id | bash
+    run_remote_script root bash https://repo.waydro.id
 
     apt install -y waydroid
 
@@ -2023,7 +2031,7 @@ do_claude() {
     fi
 
     info "Installing Claude Code..."
-    su - "$REAL_USER" -c 'curl -fsSL https://claude.ai/install.sh | bash'
+    run_remote_script "$REAL_USER" bash https://claude.ai/install.sh
     success "Claude Code installed (run 'claude' to start)"
 }
 
