@@ -15,11 +15,8 @@ set -euo pipefail
 # ============================================================
 
 RED='\033[0;31m'
-GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
-BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
 WHITE='\033[1;37m'
 DIM='\033[2m'
 BOLD='\033[1m'
@@ -29,7 +26,6 @@ NC='\033[0m'
 MINT='\033[38;5;113m'        # leaf green (≈ #87CF3E)
 MINTB='\033[1;38;5;113m'     # bold leaf green
 MINTD='\033[38;5;108m'       # muted sage green
-LEAF='\033[38;5;71m'         # darker leaf green
 
 # --- Glyph set ---------------------------------------------------------------
 # The menu leans on box-drawing and geometric symbols. Terminals whose font
@@ -396,7 +392,7 @@ print_menu() {
         if [[ "$vtype" == "group" ]]; then
             local glabel="" gapps=""
             for g in "${APP_GROUPS[@]}"; do
-                IFS='|' read -r gk gl gi ga <<< "$g"
+                IFS='|' read -r gk gl _ ga <<< "$g"
                 if [[ "$gk" == "$vkey" ]]; then
                     glabel="$gl"; gapps="$ga"
                     break
