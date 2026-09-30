@@ -231,7 +231,7 @@ previously installed tool working.
 | **MySQL Client** | apt | `mysqldump`, `mysql` CLI |
 | **PostgreSQL Client** | apt | `pg_dump`, `pg_restore`, `psql` |
 | **DBeaver Community** | `.deb` latest | Universal database GUI |
-| **Navicat Premium Lite** | AppImage | Installed to `/opt`, available as `navicat` command |
+| **Navicat Premium Lite 18** | AppImage | Installed to `/opt`, available as `navicat` command; upgrading an older version backs up `~/.config/navicat` to `~/.config/navicat.bak-<timestamp>` first |
 
 ### Apps & Desktop
 

@@ -125,7 +125,7 @@ APPS=(
     "mysqlclient|MySQL Client::CLI shell + mysqldump backups|1"
     "pgclient|PostgreSQL Client::psql shell + pg_dump backups|1"
     "dbeaver|DBeaver CE::one GUI for every database|1"
-    "navicat|Navicat Lite::a sleek database workbench|1"
+    "navicat|Navicat Lite 18::a sleek database workbench|1"
 
     # ── Productivity ──
     "fcitx5|Fcitx5::Vietnamese typing — Unikey / Bamboo / Lotus|1"
@@ -1728,38 +1728,78 @@ do_dbeaver() {
     success "DBeaver Community installed"
 }
 
+remove_navicat_user_entries() {
+    rm -f "$REAL_HOME"/.local/share/applications/Navicat.Premium.*.desktop \
+        "$REAL_HOME"/.local/share/icons/hicolor/256x256/apps/"Navicat Premium Lite "*.png
+}
+
 do_navicat() {
-    if [[ -f /opt/navicat-premium-lite/navicat.AppImage ]]; then
-        success "Navicat Premium Lite already installed, skipping"
+    local version=18
+    local install_dir="/opt/navicat-premium-lite"
+    local appimage="$install_dir/navicat.AppImage"
+
+    # SQL Server needs the unversioned libodbc.so, shipped only by unixodbc-dev
+    if ! dpkg -s unixodbc-dev >/dev/null 2>&1; then
+        info "Installing unixODBC for Navicat SQL Server connections..."
+        apt install -y unixodbc-dev >/dev/null 2>&1 || apt install -y unixodbc-dev
+    fi
+
+    if [[ "$(cat "$install_dir/VERSION" 2>/dev/null)" == "$version" ]]; then
+        success "Navicat Premium Lite $version already installed, skipping"
         return
     fi
 
-    info "Installing Navicat Premium Lite..."
+    if pgrep -f '\.mount_navica|navicat-premium-lite/navicat\.AppImage' >/dev/null; then
+        warn "Navicat is running — close it and re-run to install Navicat Premium Lite $version"
+        return
+    fi
+
+    info "Installing Navicat Premium Lite $version..."
     local tmp_dir
     tmp_dir=$(mktemp -d /tmp/navicat-XXXXXX)
 
-    local appimage="$tmp_dir/navicat.AppImage"
-    wget -q -O "$appimage" "https://download.navicat.com/download/navicat17-premium-lite-en-x86_64.AppImage"
-    chmod +x "$appimage"
+    local download="$tmp_dir/navicat.AppImage"
+    wget -q -O "$download" "https://download.navicat.com/download/navicat${version}-premium-lite-en-x86_64.AppImage"
+    chmod +x "$download"
 
-    local install_dir="/opt/navicat-premium-lite"
+    if [[ -f "$appimage" ]]; then
+        local config_dir="$REAL_HOME/.config/navicat"
+        if [[ -d "$config_dir" ]]; then
+            local backup
+            backup="$config_dir.bak-$(date +%Y%m%d-%H%M%S)"
+            cp -a "$config_dir" "$backup"
+            chown -R "$REAL_USER": "$backup"
+            info "Backed up Navicat settings to $backup"
+        fi
+        remove_navicat_user_entries
+    fi
+
     mkdir -p "$install_dir"
-    mv "$appimage" "$install_dir/navicat.AppImage"
+    mv "$download" "$appimage"
+    echo "$version" > "$install_dir/VERSION"
+    (cd "$tmp_dir" && "$appimage" --appimage-extract icon.png >/dev/null 2>&1 \
+        && install -Dm 644 squashfs-root/icon.png /usr/share/icons/hicolor/256x256/apps/navicat-premium-lite.png) \
+        || warn "Could not extract the Navicat icon"
+    gtk-update-icon-cache -q /usr/share/icons/hicolor 2>/dev/null || true
 
-    cat > /usr/share/applications/navicat-premium-lite.desktop <<DEOF
+    # Same basename as Navicat's self-registered entry so it shadows ours, not duplicates
+    rm -f /usr/share/applications/navicat-premium-lite.desktop /usr/share/applications/Navicat.Premium.*.desktop
+    # WM_CLASS is AppRun (Qt uses argv[0]), so StartupWMClass must match it
+    cat > "/usr/share/applications/Navicat.Premium.$version.desktop" <<DEOF
 [Desktop Entry]
-Name=Navicat Premium Lite
-Exec=$install_dir/navicat.AppImage
+Name=Navicat Premium Lite $version
+Exec=$appimage
 Type=Application
-Icon=navicat
+Icon=navicat-premium-lite
 Categories=Development;Database;
 Comment=Database Management Tool
+StartupWMClass=AppRun
 DEOF
 
-    ln -sf "$install_dir/navicat.AppImage" /usr/local/bin/navicat
+    ln -sf "$appimage" /usr/local/bin/navicat
 
     rm -rf "$tmp_dir"
-    success "Navicat Premium Lite installed (run 'navicat' or from app menu)"
+    success "Navicat Premium Lite $version installed (run 'navicat' or from app menu)"
 }
 
 do_fcitx5() {
@@ -2285,8 +2325,10 @@ undo_dbeaver() {
 undo_navicat() {
     info "Removing Navicat Premium Lite..."
     rm -rf /opt/navicat-premium-lite
-    rm -f /usr/share/applications/navicat-premium-lite.desktop
-    rm -f /usr/local/bin/navicat
+    rm -f /usr/share/applications/navicat-premium-lite.desktop /usr/share/applications/Navicat.Premium.*.desktop
+    rm -f /usr/local/bin/navicat /usr/share/icons/hicolor/256x256/apps/navicat-premium-lite.png
+    gtk-update-icon-cache -q /usr/share/icons/hicolor 2>/dev/null || true
+    remove_navicat_user_entries
     success "Navicat Premium Lite removed"
 }
 
