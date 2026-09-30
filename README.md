@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Ubuntu-24.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white" />
+  <img src="https://img.shields.io/badge/Ubuntu-26.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white" />
   <img src="https://img.shields.io/badge/Shell-Bash-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white" />
 </p>
 
-<h1 align="center">SETUP &mdash; Ubuntu 24.04 Post-install Toolkit</h1>
+<h1 align="center">SETUP &mdash; Ubuntu 26.04 Post-install Toolkit</h1>
 
 <p align="center">
-  An interactive post-install setup for a fresh Ubuntu 24.04 (noble) machine.<br/>
+  An interactive post-install setup for a fresh Ubuntu 26.04 (resolute) machine.<br/>
   Pick what you need from a TUI menu &mdash; everything else is automatic.
 </p>
 
@@ -38,7 +38,7 @@ cd ubuntu-install-apps
 > `sh`/dash, it auto re-execs under bash, so the old
 > `sh: Syntax error: "(" unexpected` never happens.
 
-> **Targets Ubuntu 24.04.** On a different release the script prints a warning
+> **Targets Ubuntu 26.04.** On a different release the script prints a warning
 > and continues — most steps still work, but nothing is guaranteed.
 
 ---
@@ -147,7 +147,7 @@ to `.bashrc` instead — the default shell keeps working with every tool on PATH
 | **fzf** | Fuzzy finder |
 | **bat** | `cat` with syntax highlighting |
 | **eza** | Modern `ls` with icons & colors (`ls`/`ll`/`la`/`lt` aliases, written to the active shell rc) |
-| **Fastfetch** | System info at a glance (neofetch successor). Tries apt, falls back to the official GitHub release `.deb` since it's not in the noble archive |
+| **Fastfetch** | System info at a glance (neofetch successor). Tries apt, falls back to the official GitHub release `.deb` in case it's missing from the archive |
 | **Nerd Font** | Installs **MesloLGS NF** to `/usr/local/share/fonts` and verifies it with `fc-list` so eza/terminal icons render. Set your terminal font to *MesloLGS NF* afterwards |
 
 <details>
@@ -252,7 +252,7 @@ previously installed tool working.
 
 ## Wayland Input Method
 
-Ubuntu 24.04 defaults to a **Wayland** GNOME session. Chromium/Electron apps
+Ubuntu 26.04 defaults to a **Wayland** GNOME session. Chromium/Electron apps
 need extra flags before fcitx5 can type into them, so their `.desktop` launchers
 are patched with:
 
@@ -416,7 +416,7 @@ fallocate -l 16G /swapfile
 
 | | |
 |---|---|
-| **OS** | Ubuntu 24.04 (noble) |
+| **OS** | Ubuntu 26.04 (resolute) |
 | **Arch** | amd64 (x86_64) |
 | **Privileges** | Root (`sudo`) |
 | **Network** | Internet connection required |
