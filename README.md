@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <b>35 apps</b> &nbsp;·&nbsp; <b>Idempotent</b> (safe to re-run) &nbsp;·&nbsp; <b>Uninstall mode</b> &nbsp;·&nbsp; <b>Wayland-ready</b> input method
+  <b>36 apps</b> &nbsp;·&nbsp; <b>Idempotent</b> (safe to re-run) &nbsp;·&nbsp; <b>Uninstall mode</b> &nbsp;·&nbsp; <b>Wayland-ready</b> input method
 </p>
 
 ---
@@ -45,7 +45,7 @@ cd ubuntu-install-apps
 
 ## Interactive Menu
 
-A flicker-free, leaf-green TUI rendered on the alternate screen. 35 apps live
+A flicker-free, leaf-green TUI rendered on the alternate screen. 36 apps live
 under **5 collapsible groups**; the cursor row is marked with a green bar `▌`.
 A 3D SETUP wordmark in leaf-green gradient greets you on launch.
 
@@ -62,19 +62,20 @@ A 3D SETUP wordmark in leaf-green gradient greets you on launch.
 
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    ▾ ⚙ System & Shell                 ● 7/7
+    ▾ ⚙ System & Shell                 ● 8/8
           ● APT Mirror            route apt through Vietnam's fastest mirrors [mirror.bizflycloud.vn]
           ● System Update         refresh sources & upgrade every package
           ● Swap File             8 GB swap · swappiness dialed to 10
           ● Terminal Kit          zsh · oh-my-zsh · tmux · fzf · rg · bat · jq
-          ● Nerd Font             MesloLGS glyphs for prompts & icons
+          ● Fonts                 Nerd Font glyphs + Vietnamese web fonts (Facebook/Chrome)
+          ● MS Fonts              Arial, Times New Roman, Calibri & ClearType fonts
           ● eza                   a modern ls with icons & git awareness
           ● Fastfetch             system info at a glance, neofetch reborn
     ▾ ◆ Languages & IDEs               ◐ 8/9
-          ● Node.js 24            managed by nvm, swap versions on the fly
+          ● Node.js LTS           managed by nvm, swap versions on the fly
           ● Bun                   all-in-one JS runtime & toolkit, blazing fast
           ● pnpm                  fast, disk-efficient package manager via corepack
-          ● Yarn                  the classic JS package manager via corepack
+          ● Yarn 4                the Berry JS package manager via corepack
   ▌       ○ .NET SDK              build & run cross-platform .NET [10]
           ● ABP CLI               ABP Studio CLI for building ABP apps
           ● VS Code               the editor that does it all
@@ -82,10 +83,10 @@ A 3D SETUP wordmark in leaf-green gradient greets you on launch.
           ● Claude Code           Anthropic's agentic dev CLI
     ▸ ▲ DevOps & Cloud                 ● 5/5
     ▸ ⬡ Databases                      ● 4/4
-    ▸ ◎ Apps & Desktop                 ● 7/7
+    ▸ ◎ Apps & Desktop                 ● 10/10
 
   ───────────────────────────────────────────────────────
-  34/35 selected   █████████████████░
+  35/36 selected   █████████████████░
 
   ┌─ Navigate ─────┬─ Select ───────┬─ Actions ─────────┐
   │  ↑ ↓  Move     │  Space  Toggle │  d  .NET version  │
@@ -98,7 +99,7 @@ A 3D SETUP wordmark in leaf-green gradient greets you on launch.
 
 > **Seeing boxes (▯) instead of icons?** Your terminal font lacks the glyphs.
 > Set the terminal font to a Nerd Font — **MesloLGS NF** is installed by the
-> *Nerd Font* step. In the **VS Code** integrated terminal, set
+> *Fonts* step. In the **VS Code** integrated terminal, set
 > `"terminal.integrated.fontFamily": "MesloLGS NF"`. Or run with `--ascii`
 > (or `MINT_ASCII=1`) for a plain-text menu that renders on any font.
 
@@ -106,15 +107,15 @@ A 3D SETUP wordmark in leaf-green gradient greets you on launch.
 
 | # | Group | Apps |
 |:-:|-------|------|
-| 1 | **System & Shell** | APT mirror (Vietnam) · System update · Swap 8GB · Terminal tools (zsh, tmux, fzf…) · Nerd Font · eza · Fastfetch |
-| 2 | **Languages & IDEs** | NVM/Node · Bun · pnpm · Yarn · .NET SDK · ABP CLI · VS Code · Trae · Claude Code |
-| 3 | **DevOps & Cloud** | Terraform · Azure CLI · AzCopy · Docker · BrowserStack Local |
-| 4 | **Databases** | MySQL client · PostgreSQL client · DBeaver · Navicat |
-| 5 | **Apps & Desktop** | Chrome · Edge · Teams · Fcitx5 · Postman · Waydroid · VLC |
+| 1 | **System & Shell** (8) | APT mirror (Vietnam) · System update · Swap 8GB · Terminal Kit (zsh, tmux, fzf…) · Fonts (Nerd Font + Vietnamese web fonts) · MS Fonts · eza · Fastfetch |
+| 2 | **Languages & IDEs** (9) | Node.js LTS (nvm) · Bun · pnpm · Yarn 4 · .NET SDK · ABP CLI · VS Code · Trae · Claude Code |
+| 3 | **DevOps & Cloud** (5) | Terraform · Azure CLI · AzCopy · Docker · BrowserStack Local |
+| 4 | **Databases** (4) | MySQL client · PostgreSQL client · DBeaver · Navicat |
+| 5 | **Apps & Desktop** (10) | Chrome · Edge · Teams · Fcitx5 · Postman · Waydroid · VLC · OBS Studio · AnyDesk · TeamViewer |
 
 | Navigate | Select | Actions |
 |----------|--------|---------|
-| `↑` `↓` Move cursor | `Space` Toggle selection | `d` Configure .NET versions |
+| `↑` `↓` / `k` `j` Move cursor | `Space` Toggle selection | `d` Configure .NET versions (8, 9, 10) |
 | `↵` Expand / collapse group | `a` Select all | `m` Change APT mirror |
 | | `n` Deselect all | `g` Change input engine |
 | | | **`i` Start install** · `q` Quit |
@@ -128,7 +129,7 @@ A 3D SETUP wordmark in leaf-green gradient greets you on launch.
 | Component | Details |
 |-----------|---------|
 | **APT mirror (Vietnam)** | Switches the Ubuntu archive mirror to a nearby Vietnam host (default `mirror.bizflycloud.vn`; press `m` to pick another). Works from **any** previous mirror, not just the default. Rewrites `sources.list` and the deb822 `ubuntu.sources`, leaves `security.ubuntu.com` untouched, and backs up each sources file (`*.bak`). Runs first so later steps download from the fast mirror |
-| **System Update** | `apt update && upgrade && autoremove` |
+| **System Update** | `apt-get update && upgrade --with-new-pkgs && autoremove`, keeping your existing config files on conffile prompts. If the new mirror's `apt-get update` fails, the mirror step restores the previous sources |
 | **Swap 8GB** | Grows the installer's `/swap.img` to 8GB (or creates `/swapfile` if none), `swappiness=10`, persists in `/etc/fstab` + `/etc/sysctl.d/99-swappiness.conf` |
 
 ### Shell & Terminal
@@ -147,8 +148,9 @@ to `.bashrc` instead — the default shell keeps working with every tool on PATH
 | **fzf** | Fuzzy finder |
 | **bat** | `cat` with syntax highlighting |
 | **eza** | Modern `ls` with icons & colors (`ls`/`ll`/`la`/`lt` aliases, written to the active shell rc) |
-| **Fastfetch** | System info at a glance (neofetch successor). Tries apt, falls back to the official GitHub release `.deb` in case it's missing from the archive |
-| **Nerd Font** | Installs **MesloLGS NF** to `/usr/local/share/fonts` and verifies it with `fc-list` so eza/terminal icons render. Set your terminal font to *MesloLGS NF* afterwards |
+| **eza** / **Fastfetch** | Both come from the Ubuntu 26.04 archive |
+| **Fonts** | Installs the 4 **MesloLGS NF** faces to `/usr/local/share/fonts` (each download lands in a temp file first) and points gnome-terminal at it, plus Noto/Liberation fonts for correct Vietnamese diacritics in browsers |
+| **MS Fonts** | `ttf-mscorefonts-installer` (Arial, Times New Roman, …; reinstalled when the package is present but its fonts are missing) plus Calibri/ClearType faces extracted from PowerPoint Viewer |
 
 <details>
 <summary><b>ZSH Plugins (3)</b></summary>
@@ -167,19 +169,21 @@ A deliberately minimal set — just the essentials. `zsh-syntax-highlighting` is
 <summary><b>Shell Tool Integrations</b></summary>
 
 A single `# --- Tool integrations ---` block is written to the active shell rc
-(`.zshrc` when zsh is chosen, else `.bashrc`). Each entry is guarded so it is
+(`.zshrc` when zsh is installed, else `.bashrc`). Each entry is guarded so it is
 auto-loaded when the tool is present and silently skipped otherwise:
 
 - **NVM** &mdash; `$NVM_DIR/nvm.sh`
 - **Bun** &mdash; `$HOME/.bun/bin` PATH
 - **pnpm** &mdash; `$PNPM_HOME` (`$HOME/.local/share/pnpm`) PATH
-- **.NET** &mdash; `DOTNET_ROOT` + `$HOME/.dotnet/tools` PATH
+- **.NET** &mdash; `DOTNET_ROOT` (resolved from `/usr/bin/dotnet`) + `$HOME/.dotnet/tools` PATH
 - **Azure CLI** &mdash; completions (`bashcompinit` under zsh only)
-- **Claude Code** &mdash; `$HOME/.claude/bin` PATH
-- **Cargo / Rust** &mdash; `$HOME/.cargo/env`
+- **Claude Code** &mdash; `$HOME/.local/bin` PATH
 
 The block is shell-agnostic, so switching between bash and zsh keeps every
-previously installed tool working.
+previously installed tool working. Every run rewrites the block in place, so a
+newer script version updates machines that ran an older one. It is the only rc
+wiring: the nvm installer runs with `PROFILE=/dev/null`, and the unmarked loader
+lines an older nvm install appended are removed.
 
 </details>
 
@@ -187,11 +191,11 @@ previously installed tool working.
 
 | Component | Details |
 |-----------|---------|
-| **NVM + Node.js 24** | NVM v0.40.3 for current user, Node 24 as default |
+| **NVM + Node.js LTS** | Latest nvm release for the current user, `nvm install --lts`, default alias `lts/*`. Skipped while the current LTS line is installed; once a newer Node line becomes LTS, a re-run installs it (global packages carried over) |
 | **Bun** | Official `bun.sh/install` script, per-user (`~/.bun`); `bun`/`bunx` on PATH via the Tool-integrations block |
-| **pnpm** | Enabled via **corepack** (bundled with Node); falls back to the standalone `get.pnpm.io` installer when Node isn't present |
-| **Yarn** | Enabled via **corepack** (`yarn@stable`); falls back to `npm install -g yarn` when corepack isn't present |
-| **.NET SDK** | Default: v10. Press `d` to select multiple (e.g. `8 9 10`). Falls back to the Microsoft install script if unavailable in apt |
+| **pnpm** | `corepack install -g pnpm@latest` through the standalone **corepack npm package** (`npm i -g corepack`; Node ≥ 25 no longer bundles corepack). Needs Node.js (select it too) |
+| **Yarn 4** | `corepack install -g yarn@stable` (Yarn Berry) through the same corepack npm package |
+| **.NET SDK** | Default: v10. Press `d` to pick from `8 9 10`. .NET 10 comes from the Ubuntu archive; 8 and 9 from `ppa:dotnet/backports` (both reach end of support on **2026-11-10**). Everything lives in `/usr/lib/dotnet`. A version that fails to install fails the step |
 | **ABP CLI** | `Volo.Abp.Studio.Cli` dotnet global tool (`~/.dotnet/tools`); requires the .NET SDK. Provides the `abp` command |
 
 ### Browser
@@ -212,7 +216,7 @@ previously installed tool working.
 | Component | Source |
 |-----------|--------|
 | **Visual Studio Code** | Microsoft apt repo |
-| **Trae IDE** | `.deb` from CDN |
+| **Trae IDE** | `.deb` resolved from Trae's release API; a re-run reinstalls when the API points at a new build |
 
 ### DevOps & Infrastructure
 
@@ -221,7 +225,7 @@ previously installed tool working.
 | **Terraform** | HashiCorp apt repo | Infrastructure as Code |
 | **Azure CLI** | Microsoft apt repo | Azure resource management |
 | **AzCopy** | `aka.ms` v10 tarball | Azure Storage / Blob transfer CLI. Binary installed to `/usr/local/bin/azcopy` |
-| **Docker + Compose** | Docker apt repo | Docker CE, Compose plugin, buildx. Adds user to `docker` group |
+| **Docker + Compose** | Docker apt repo | Docker CE, Compose plugin, buildx. First purges the conflicting distro packages (`docker.io`, `podman-docker`, `containerd`, `runc`, …). Adds user to `docker` group |
 | **BrowserStack Local** | Official zip | Secure tunnel binary for local cross-browser testing. Installed to `/usr/local/bin/BrowserStackLocal`; run with `--key <ACCESS_KEY>` |
 
 ### Database Tools
@@ -230,7 +234,7 @@ previously installed tool working.
 |-----------|--------|---------|
 | **MySQL Client** | apt | `mysqldump`, `mysql` CLI |
 | **PostgreSQL Client** | apt | `pg_dump`, `pg_restore`, `psql` |
-| **DBeaver Community** | `.deb` latest | Universal database GUI |
+| **DBeaver Community** | Official apt repo (`dbeaver.io/debs`) | Universal database GUI. A re-run moves an older `.deb` install onto the repo |
 | **Navicat Premium Lite 18** | AppImage | Installed to `/opt`, available as `navicat` command; upgrading an older version backs up `~/.config/navicat` to `~/.config/navicat.bak-<timestamp>` first |
 
 ### Apps & Desktop
@@ -238,9 +242,12 @@ previously installed tool working.
 | Component | Source | Details |
 |-----------|--------|---------|
 | **Fcitx5 (Vietnamese)** | apt / third-party repo | Vietnamese input. Press `g` to pick the engine: **Unikey** (default) or **Bamboo** (both from Ubuntu's archive), or **Lotus** (third-party fcitx5 apt repo). Auto-configures IM env vars, autostart & profile |
-| **Postman** | Official tarball | API client. Unpacked to `/opt/Postman`, `postman` command + `.desktop` launcher |
+| **Postman** | Official tarball | API client. Unpacked to `/opt/Postman` (owned by root), `postman` command + `.desktop` launcher |
 | **Waydroid** | Official apt repo | Run Android apps in a container. Needs a Wayland session + kernel `binder`; run `waydroid init` once after install |
 | **VLC** | apt | Media player |
+| **OBS Studio** | `ppa:obsproject/obs-studio` | Screen recording & streaming with PipeWire capture |
+| **AnyDesk** | Official apt repo | Remote desktop |
+| **TeamViewer** | `.deb` (adds its own apt repo) | Remote control & support |
 
 ### AI
 
@@ -274,22 +281,46 @@ apt run. It is removed in uninstall mode once none of those apps remain.
 
 ## Idempotent &mdash; Safe to Re-run
 
-The script detects already-installed tools and skips them:
+The script detects already-installed tools and skips them. A second run with the
+same selection skips every step:
 
 ```
 [OK] Google Chrome already installed, skipping
 [OK] Docker already installed, skipping
-[OK] NVM already installed, skipping
+[OK] Node.js LTS already installed via nvm, skipping
 [INFO] Installing Terraform...          ← only installs what's missing
 ```
 
 | Install method | Skip behavior |
 |----------------|---------------|
 | `.deb` / AppImage / curl downloads | Checks binary or install path before downloading |
-| apt packages | `apt install` is natively idempotent |
+| apt packages | Checked with `dpkg` before installing |
 | Oh My Zsh + plugins | Checks `~/.oh-my-zsh` directory |
 | shell rc config blocks | Checks for marker before appending |
 | Swap | Checks existing size matches 8GB |
+
+Re-runs also move older installs onto the current upstream method: DBeaver and
+Teams `.deb` installs onto their apt repos, pnpm/Yarn onto the corepack npm
+package, Node onto the current LTS line, and Postman's file ownership is fixed.
+
+---
+
+## Errors & Logs
+
+Each step runs in its own subshell with `set -e`, so any command that fails
+ends **that step only** and the run continues with the next one. The failing
+command and its line number are printed and repeated in the summary:
+
+```
+  Failed:
+    ✗ Docker — "apt-get install -y docker-ce docker-ce-cli …" exited 100 (do_docker, line N)
+```
+
+The whole run (after the menu) is also written to
+`/var/log/install-app/<YYYYmmdd-HHMMSS>.log`, and the summary prints its path.
+Ctrl-C during the run prints a partial summary before exiting. While the run is
+active, apt waits up to 10 minutes for a busy dpkg lock (e.g. unattended-upgrades)
+instead of failing.
 
 ---
 
@@ -305,16 +336,17 @@ and the action becomes **Remove**. After you press `i`, a single confirmation
 gate (`y/N`) protects against accidental removal. Each app has a dedicated
 `undo_<app>` routine that reverses what its installer did:
 
-- **apt packages** are purged (`apt-get purge`), then `apt autoremove` sweeps orphans
+- **apt packages** are purged (`apt-get purge`), then `apt-get autoremove` sweeps orphans
 - **APT repos & GPG keys** added under `sources.list.d` / `keyrings` are deleted
 - **Downloaded binaries** (`azcopy`, `BrowserStackLocal`, Postman, Navicat, etc.) are removed
-- **shell rc blocks** are stripped from both `.zshrc` and `.bashrc` by their `# --- … ---` markers
+- **shell rc blocks** are stripped from both `.zshrc` and `.bashrc` by their `# --- … ---` markers (only when both markers are present; a `.bak` copy is kept). The Tool-integrations block stays in `.bashrc` while other runtimes still use it
 - **Mirror** is restored from the `*.bak` backups created during install
 
 What it deliberately **leaves alone** (to avoid data loss), warning you instead:
 
 - `git` & `curl` (too many other things depend on them)
-- `/var/lib/docker` (your images, volumes, containers)
+- `/var/lib/docker`, `/var/lib/containerd`, `/etc/docker` (your images, volumes, config)
+- `unixodbc-dev` after removing Navicat (other ODBC tools may use it)
 - `~/.claude` config and a completed system `update`/`upgrade` (cannot be rolled back)
 
 ---
@@ -339,7 +371,10 @@ last. Claude Code     ─── AI tools (no Node.js dependency)
 
 ## Post-install
 
-Some changes require a **re-login** or **reboot**:
+Some changes require a **re-login** or **reboot**. The summary prints the hint
+only when this run actually made such a change, and lists why (docker group
+added, login shell changed, `/etc/environment` changed by fcitx5 or the Electron
+hint, or `/var/run/reboot-required` present):
 
 | Component | Requires |
 |-----------|----------|
@@ -353,9 +388,9 @@ Quick verification:
 
 ```bash
 echo $SHELL                     # → /usr/bin/zsh (if you set it)
-node -v                         # → v24.x.x
+node -v                         # → current LTS, e.g. v24.x.x
 pnpm -v                         # → x.x.x
-yarn -v                         # → x.x.x
+yarn -v                         # → 4.x.x
 dotnet --list-sdks              # → 10.0.xxx
 abp --version                   # → x.x.x
 terraform -v                    # → Terraform vX.X.X
@@ -405,7 +440,13 @@ claude --version                # → claude X.X.X
    ```
 
 4. Add the `myapp` key to the relevant group's comma list in the `APP_GROUPS`
-   array so it shows up under that group in the menu.
+   array so it shows up under that group in the menu. The script checks at
+   startup that every key sits in exactly one group and has both functions.
+
+Steps run in a subshell with `set -e`, so an unchecked failing command fails the
+step. Guard expected failures with `|| true`, and add apt repos through
+`add_apt_repo <list> <key-url> <key-path> <dearmor:0|1> <content>`, which rolls
+the repo back when `apt-get update` fails.
 
 ### Changing swap size
 

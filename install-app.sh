@@ -82,20 +82,19 @@ APPS=(
     "mirror|APT Mirror::route apt through Vietnam's fastest mirrors|1"
     "update|System Update::refresh sources & upgrade every package|1"
     "swap|Swap File::8 GB swap · swappiness dialed to 10|1"
-    "adminuser|Administrator User::recovery login with passwordless sudo|1"
 
     # ── Shell & Terminal ──
     "terminal|Terminal Kit::zsh · oh-my-zsh · tmux · fzf · rg · bat · jq|1"
     "font|Fonts::Nerd Font glyphs + Vietnamese web fonts (Facebook/Chrome)|1"
-"msfonts|MS Fonts::Arial, Times New Roman, Calibri & ClearType fonts|1"
+    "msfonts|MS Fonts::Arial, Times New Roman, Calibri & ClearType fonts|1"
     "eza|eza::a modern ls with icons & git awareness|1"
     "fastfetch|Fastfetch::system info at a glance, neofetch reborn|1"
 
     # ── Languages & Runtime ──
-    "nvm|Node.js 24::managed by nvm, swap versions on the fly|1"
+    "nvm|Node.js LTS::managed by nvm, swap versions on the fly|1"
     "bun|Bun::all-in-one JS runtime & toolkit, blazing fast|1"
     "pnpm|pnpm::fast, disk-efficient package manager via corepack|1"
-    "yarn|Yarn::the classic JS package manager via corepack|1"
+    "yarn|Yarn 4::the Berry JS package manager via corepack|1"
     "dotnet|.NET SDK::build & run cross-platform .NET|1"
     "abp|ABP CLI::ABP Studio CLI for building ABP apps|1"
 
@@ -154,8 +153,8 @@ INPUT_ENGINES=(
     "lotus|Lotus"
 )
 
-# APT mirror — default to the official Ubuntu Vietnam mirror. Press 'm' in the
-# menu to pick another nearby mirror.
+# APT mirror — default to BizFly Cloud (first entry). Press 'm' in the menu to
+# pick another nearby mirror.
 MIRROR_HOST="mirror.bizflycloud.vn"
 MIRRORS=(
     "mirror.bizflycloud.vn|BizFly Cloud — VCCorp (1 Gbps)"
@@ -166,17 +165,18 @@ MIRRORS=(
     "mirror.clearsky.vn|ClearSky"
 )
 
+# Format: "groupkey|Title|csv,of,app,keys" — icons live in G_ICON.
 APP_GROUPS=(
-    "system|System & Shell|⚙|mirror,update,swap,adminuser,terminal,font,msfonts,eza,fastfetch"
-    "dev|Languages & IDEs|◆|nvm,bun,pnpm,yarn,dotnet,abp,vscode,trae,claude"
-    "devops|DevOps & Cloud|▲|terraform,azcli,azcopy,docker,browserstack"
-    "database|Databases|⬡|mysqlclient,pgclient,dbeaver,navicat"
-    "desktop|Apps & Desktop|◎|chrome,edge,teams,fcitx5,postman,waydroid,vlc,obs,anydesk,teamviewer"
+    "system|System & Shell|mirror,update,swap,terminal,font,msfonts,eza,fastfetch"
+    "dev|Languages & IDEs|nvm,bun,pnpm,yarn,dotnet,abp,vscode,trae,claude"
+    "devops|DevOps & Cloud|terraform,azcli,azcopy,docker,browserstack"
+    "database|Databases|mysqlclient,pgclient,dbeaver,navicat"
+    "desktop|Apps & Desktop|chrome,edge,teams,fcitx5,postman,waydroid,vlc,obs,anydesk,teamviewer"
 )
 
 declare -A GROUP_EXPANDED
 for _g in "${APP_GROUPS[@]}"; do
-    IFS='|' read -r _gk _ _ _ <<< "$_g"
+    IFS='|' read -r _gk _ _ <<< "$_g"
     GROUP_EXPANDED[$_gk]=0
 done
 
@@ -213,7 +213,7 @@ build_visible() {
     VIS_TYPES=()
     VIS_KEYS=()
     for g in "${APP_GROUPS[@]}"; do
-        IFS='|' read -r gkey _ _ gapps <<< "$g"
+        IFS='|' read -r gkey _ gapps <<< "$g"
         VIS_TYPES+=("group")
         VIS_KEYS+=("$gkey")
         if [[ "${GROUP_EXPANDED[$gkey]}" == "1" ]]; then
@@ -256,7 +256,7 @@ group_app_count() {
 toggle_group() {
     local target_gkey="$1"
     for g in "${APP_GROUPS[@]}"; do
-        IFS='|' read -r gkey _ _ gapps <<< "$g"
+        IFS='|' read -r gkey _ gapps <<< "$g"
         if [[ "$gkey" == "$target_gkey" ]]; then
             IFS=',' read -ra apps <<< "$gapps"
             local all_on=1
@@ -392,7 +392,7 @@ print_menu() {
         if [[ "$vtype" == "group" ]]; then
             local glabel="" gapps=""
             for g in "${APP_GROUPS[@]}"; do
-                IFS='|' read -r gk gl _ ga <<< "$g"
+                IFS='|' read -r gk gl ga <<< "$g"
                 if [[ "$gk" == "$vkey" ]]; then
                     glabel="$gl"; gapps="$ga"
                     break
@@ -480,14 +480,22 @@ print_menu() {
 
 configure_dotnet() {
     echo ""
-    echo -e "  ${DIM}Available:${NC} 6  7  8  9  10"
+    echo -e "  ${DIM}Available:${NC} 8 ${YELLOW}(EOL 2026-11-10)${NC}  9 ${YELLOW}(EOL 2026-11-10)${NC}  10"
     echo -e "  ${DIM}Current: ${NC} ${BOLD}${DOTNET_VERSIONS[*]}${NC}"
     echo ""
-    read -rp "  Versions (e.g. '8 9 10'): " input
-    if [[ -n "$input" ]]; then
-        read -ra DOTNET_VERSIONS <<< "$input"
-        SELECTED[dotnet]=1
-    fi
+    local input v picked=()
+    read -rp "  Versions (e.g. '8 10'): " input
+    [[ -n "$input" ]] || return 0
+    read -ra picked <<< "$input"
+    for v in "${picked[@]}"; do
+        if [[ ! "$v" =~ ^(8|9|10)$ ]]; then
+            warn "Unsupported .NET version '$v' — keeping ${DOTNET_VERSIONS[*]}"
+            sleep 1.5
+            return 0
+        fi
+    done
+    mapfile -t DOTNET_VERSIONS < <(printf '%s\n' "${picked[@]}" | sort -nu)
+    SELECTED[dotnet]=1
 }
 
 configure_mirror() {
@@ -542,15 +550,20 @@ read_key() {
     if (( st > 0 )) && [[ -z "$key" ]]; then echo "QUIT"; return 0; fi
     if [[ "$key" == $'\x1b' ]]; then
         read -rsn2 -t 0.1 rest || true
+        # Application cursor mode (tmux, some terminals) sends ESC O A/B.
         case "$rest" in
-            '[A') echo "UP" ;;
-            '[B') echo "DOWN" ;;
-            *)    echo "ESC" ;;
+            '[A'|'OA') echo "UP" ;;
+            '[B'|'OB') echo "DOWN" ;;
+            *)         echo "ESC" ;;
         esac
     elif [[ "$key" == "" ]]; then
         echo "ENTER"
     elif [[ "$key" == " " ]]; then
         echo "SPACE"
+    elif [[ "$key" == k ]]; then
+        echo "UP"
+    elif [[ "$key" == j ]]; then
+        echo "DOWN"
     else
         echo "$key"
     fi
@@ -615,6 +628,15 @@ interactive_menu() {
 
 STEP_CURRENT=0
 STEP_TOTAL=0
+STEP_TMP=""
+
+RUN_DIR=/run/install-app            # per-run scratch: reboot reasons, step errors
+STATE_DIR=/var/lib/install-app      # markers that must survive a reboot
+LOG_DIR=/var/log/install-app
+LOG_FILE=""
+APT_RUN_CONF=/etc/apt/apt.conf.d/99install-app-run
+
+export DEBIAN_FRONTEND=noninteractive
 
 info()    { echo -e "\n  ${MINT}${G_INFO}${NC} $*"; }
 success() { echo -e "  ${MINT}${G_OK}${NC} $*"; }
@@ -634,16 +656,15 @@ need_root() {
         echo -e "${YELLOW}Requesting sudo privileges...${NC}"
         # Pass the original CLI args along — otherwise flags like --uninstall /
         # --all are dropped on the sudo re-exec.
-        exec sudo bash "$0" "$@"
+        exec sudo env "MINT_ASCII=${MINT_ASCII:-0}" bash "$0" "$@"
     fi
 }
 
 REAL_USER="${SUDO_USER:-${USER:-$(id -un)}}"
-REAL_HOME=$(eval echo "~$REAL_USER")
+REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6 || true)
 
 get_ubuntu_codename() {
-    . /etc/os-release
-    echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}"
+    ( . /etc/os-release && echo "${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}" )
 }
 
 get_ubuntu_version() {
@@ -654,36 +675,139 @@ get_ubuntu_version() {
     fi
 }
 
+# Every APPS key must sit in exactly one group and have both do_/undo_ functions, or the menu/dispatch breaks mid-run.
+validate_registry() {
+    local entry g key gapps apps
+    local -A in_apps=() seen=()
+    for entry in "${APPS[@]}"; do
+        IFS='|' read -r key _ <<< "$entry"
+        in_apps[$key]=1
+    done
+    for g in "${APP_GROUPS[@]}"; do
+        IFS='|' read -r _ _ gapps <<< "$g"
+        IFS=',' read -ra apps <<< "$gapps"
+        for key in "${apps[@]}"; do
+            [[ -n "${in_apps[$key]:-}" ]] || { echo "Registry error: group lists unknown app '$key'" >&2; exit 1; }
+            seen[$key]=$(( ${seen[$key]:-0} + 1 ))
+        done
+    done
+    for entry in "${APPS[@]}"; do
+        IFS='|' read -r key _ <<< "$entry"
+        [[ "${seen[$key]:-0}" == 1 ]] \
+            || { echo "Registry error: app '$key' is in ${seen[$key]:-0} APP_GROUPS lists (expected 1)" >&2; exit 1; }
+        declare -F "do_$key" >/dev/null && declare -F "undo_$key" >/dev/null \
+            || { echo "Registry error: app '$key' needs both do_$key and undo_$key" >&2; exit 1; }
+    done
+}
+
+pkg_installed() { dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q 'install ok installed'; }
+
+pkg_up_to_date() {
+    local policy installed candidate
+    policy=$(apt-cache policy "$1" 2>/dev/null) || return 1
+    installed=$(awk '/Installed:/ { print $2; exit }' <<< "$policy")
+    candidate=$(awk '/Candidate:/ { print $2; exit }' <<< "$policy")
+    [[ -n "$installed" && "$installed" != "(none)" && "$installed" == "$candidate" ]]
+}
+
+# grep must read all of fc-list: an early `grep -q` exit SIGPIPEs fc-list and pipefail turns a match into a failure.
+has_font() { fc-list 2>/dev/null | grep -i -- "$1" >/dev/null; }
+
+# Steps run in subshells, so reboot reasons go to a file the parent reads for the summary.
+need_reboot() { mkdir -p "$RUN_DIR"; echo "$*" >> "$RUN_DIR/reboot-reasons"; }
+
+# Scratch dir for the current step; each step is its own subshell, so the EXIT trap fires when the step ends.
+step_tmpdir() {
+    [[ -n "$STEP_TMP" ]] && return 0
+    STEP_TMP=$(mktemp -d /tmp/install-app-XXXXXX)
+    trap 'rm -rf -- "$STEP_TMP"' EXIT
+}
+
+# Download a repo signing key to $2 (dearmored when $3 is 1) through a temp file, so a failed fetch never leaves a broken key.
+fetch_key() {
+    local url="$1" dest="$2" dearmor="$3" tmp
+    tmp=$(mktemp)
+    if ! curl -fsSL --retry 3 --connect-timeout 15 --max-time 60 -o "$tmp" "$url" || [[ ! -s "$tmp" ]]; then
+        rm -f "$tmp"
+        fail "Could not download the repo key from $url"
+        return 1
+    fi
+    if [[ "$dearmor" == 1 ]]; then
+        if ! gpg --batch --yes --dearmor -o "$tmp.gpg" "$tmp"; then
+            rm -f "$tmp" "$tmp.gpg"
+            fail "Could not dearmor the repo key from $url"
+            return 1
+        fi
+        mv -f "$tmp.gpg" "$tmp"
+    fi
+    mkdir -p "$(dirname "$dest")"
+    chmod 644 "$tmp"
+    mv -f "$tmp" "$dest"
+}
+
 ensure_microsoft_gpg() {
-    if [[ ! -f /usr/share/keyrings/microsoft.gpg ]]; then
-        apt install -y wget gpg apt-transport-https >/dev/null 2>&1
-        wget -qO- https://packages.microsoft.com/keys/microsoft.asc \
-            | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
+    [[ -s /usr/share/keyrings/microsoft.gpg ]] && return 0
+    fetch_key https://packages.microsoft.com/keys/microsoft.asc /usr/share/keyrings/microsoft.gpg 1
+}
+
+# Refreshes only the new source, so a broken unrelated repo can't get this one rolled back.
+add_apt_source() {
+    local list="$1" content="$2"
+    printf '%s\n' "$content" > "$list" || return 1
+    chmod 644 "$list"
+    if ! apt-get update -o Dir::Etc::sourcelist="$list" -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0; then
+        rm -f "$list"
+        fail "apt-get update failed for $(basename "$list") — source removed"
+        return 1
     fi
 }
 
-# Download a remote installer to a temp file (never piped) so a failed fetch runs nothing, then run it as $1 with shell $2; extra args go to the script.
+# add-apt-repository can leave a half-written source behind when it fails.
+add_ppa() {
+    command -v add-apt-repository &>/dev/null || apt-get install -y software-properties-common || return 1
+    if ! add-apt-repository -y "$1"; then
+        add-apt-repository -y --remove "$1" >/dev/null 2>&1 || true
+        fail "Could not add $1"
+        return 1
+    fi
+}
+
+# add_apt_repo <list-path> <key-url> <key-path> <dearmor:0|1> <repo-content>
+add_apt_repo() {
+    local list="$1" key_url="$2" key="$3" dearmor="$4" content="$5"
+    fetch_key "$key_url" "$key" "$dearmor" || { rm -f "$list" "$key"; return 1; }
+    add_apt_source "$list" "$content" || { rm -f "$key"; return 1; }
+}
+
+# Download a remote installer to a temp file (never piped) so a failed fetch runs nothing, then run it as $1 with command $2 (may be `env VAR=… sh`); extra args go to the script.
 run_remote_script() {
-    local run_user="$1" shell_cmd="$2" url="$3" script rc=0
+    local run_user="$1" url="$3" script rc=0 cmd
+    read -ra cmd <<< "$2"
     shift 3
     script=$(mktemp /tmp/remote-install-XXXXXX.sh)
-    trap 'rm -f "$script"' RETURN
     if ! curl -fsSL --retry 3 --connect-timeout 15 --max-time 300 -o "$script" "$url"; then
+        rm -f "$script"
         fail "Could not download $url"
         return 1
     fi
     chmod 644 "$script"
     if [[ "$run_user" == root ]]; then
-        "$shell_cmd" "$script" "$@" || rc=$?
+        "${cmd[@]}" "$script" "$@" || rc=$?
     else
-        su - "$run_user" -c "$(printf '%q ' "$shell_cmd" "$script" "$@")" || rc=$?
+        su - "$run_user" -c "$(printf '%q ' "${cmd[@]}" "$script" "$@")" || rc=$?
     fi
+    rm -f "$script"
     return $rc
 }
 
-# Purge packages without ever aborting the run (missing packages are fine).
+# Purge only the installed packages among $@ (one unknown name fails the whole purge) and never abort the run.
 apt_purge() {
-    DEBIAN_FRONTEND=noninteractive apt-get purge -y "$@" >/dev/null 2>&1 || true
+    local p installed=()
+    for p in "$@"; do
+        pkg_installed "$p" && installed+=("$p")
+    done
+    (( ${#installed[@]} )) || return 0
+    apt-get purge -y "${installed[@]}" >/dev/null 2>&1 || true
 }
 
 # Download a .deb to $dest, retrying on flaky networks, then verify the archive
@@ -714,38 +838,57 @@ download_deb() {
 # Runs as root but rewrites REAL_USER's files and restores ownership.
 strip_rc_block() {
     local label="$1" rc
-    for rc in "$REAL_HOME/.zshrc" "$REAL_HOME/.bashrc"; do
-        [[ -f "$rc" ]] || continue
-        sed -i "/^# --- ${label} ---\$/,/^# --- end ${label} ---\$/d" "$rc"
-        chown "$REAL_USER:$REAL_USER" "$rc" 2>/dev/null || true
+    shift
+    local files=("$@")
+    (( ${#files[@]} )) || files=("$REAL_HOME/.zshrc" "$REAL_HOME/.bashrc")
+    # An unclosed start marker is printed back untouched instead of eating the rest of the file.
+    for rc in "${files[@]}"; do
+        filter_rc "$rc" '
+            $0 == s && !open { open = 1; buf = $0 ORS; next }
+            open { buf = buf $0 ORS; if ($0 == e) { open = 0; buf = "" }; next }
+            { print }
+            END { if (open) printf "%s", buf }' -v "s=# --- $label ---" -v "e=# --- end $label ---" || return 1
     done
 }
 
-# Which shell rc should tool integrations & aliases be written to? If the user
-# installs (or already uses) zsh, target ~/.zshrc; otherwise leave zsh untouched
-# and write to ~/.bashrc so bash — the default shell — picks up the settings.
+filter_rc() {
+    local rc="$1" prog="$2" tmp
+    shift 2
+    [[ -f "$rc" ]] || return 0
+    tmp=$(mktemp)
+    if ! awk "$@" "$prog" "$rc" > "$tmp"; then
+        rm -f "$tmp"
+        return 1
+    fi
+    if ! cmp -s "$tmp" "$rc"; then
+        # One .bak per run, so several edits to the same rc still leave the pre-run copy.
+        local marker="$RUN_DIR/bak${rc//\//_}"
+        if [[ ! -e "$marker" ]]; then
+            cp -p "$rc" "$rc.bak" || { rm -f "$tmp"; return 1; }
+            mkdir -p "$RUN_DIR" && touch "$marker"
+        fi
+        cat "$tmp" > "$rc" || { cp -p "$rc.bak" "$rc"; rm -f "$tmp"; return 1; }
+        chown "$REAL_USER:$REAL_USER" "$rc" "$rc.bak" 2>/dev/null || true
+    fi
+    rm -f "$tmp"
+}
+
+# zsh installed (the Terminal Kit runs before every runtime) → ~/.zshrc, otherwise ~/.bashrc.
 resolve_shell_rc() {
-    local login_shell
-    login_shell=$(getent passwd "$REAL_USER" | cut -d: -f7)
-    if [[ "${SELECTED[terminal]:-0}" == "1" || "$login_shell" == *zsh ]]; then
+    if command -v zsh &>/dev/null; then
         echo "$REAL_HOME/.zshrc"
     else
         echo "$REAL_HOME/.bashrc"
     fi
 }
 
-# Append the shared "Tool integrations" block (PATH/env for nvm, bun, pnpm,
-# .NET, Azure CLI, Claude, cargo) to the given rc file, once. Written as root
-# then chowned back. The block is shell-agnostic: existence guards keep it inert
-# for tools that aren't installed, and the Azure completion is gated on the
-# running shell so bash never trips over zsh's `autoload`/`bashcompinit`.
-write_tool_integrations() {
-    local rc="$1"
-    [[ -n "$rc" ]] || return 0
-    touch "$rc"
-    if ! grep -q '# --- Tool integrations ---' "$rc" 2>/dev/null; then
-        cat >> "$rc" <<'TOOLEOF'
+runtimes_present() {
+    [[ -d "$REAL_HOME/.nvm" || -d "$REAL_HOME/.bun" || -x /usr/bin/dotnet || -d "$REAL_HOME/.dotnet/tools" \
+        || -x /usr/bin/az || -e "$REAL_HOME/.local/bin/claude" || -d "$REAL_HOME/.local/share/pnpm" ]]
+}
 
+tool_integrations_block() {
+    cat <<'TOOLEOF'
 # --- Tool integrations ---
 # NVM
 export NVM_DIR="$HOME/.nvm"
@@ -760,9 +903,9 @@ export PNPM_HOME="$HOME/.local/share/pnpm"
 case ":$PATH:" in *":$PNPM_HOME:"*) ;; *) export PATH="$PNPM_HOME:$PATH" ;; esac
 
 # .NET
-if [ -d "/usr/share/dotnet" ]; then
-    export DOTNET_ROOT="/usr/share/dotnet"
-    export PATH="$PATH:$DOTNET_ROOT"
+if [ -x /usr/bin/dotnet ]; then
+    DOTNET_ROOT="$(dirname "$(readlink -f /usr/bin/dotnet)")"
+    export DOTNET_ROOT
 fi
 [ -d "$HOME/.dotnet/tools" ] && export PATH="$PATH:$HOME/.dotnet/tools"
 
@@ -778,12 +921,27 @@ fi
 if [ -d "$HOME/.local/bin" ]; then
     case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH" ;; esac
 fi
-
-# Cargo / Rust
-[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
 # --- end Tool integrations ---
 TOOLEOF
+}
+
+# Write the shared Tool-integrations block into $1, replacing an existing copy in place so script updates reach old machines.
+write_tool_integrations() {
+    local rc="$1" block
+    [[ -n "$rc" ]] || return 0
+    [[ -e "$rc" ]] || touch "$rc"
+    block=$(mktemp) || return 1
+    tool_integrations_block > "$block"
+    if grep -qxF '# --- Tool integrations ---' "$rc" && grep -qxF '# --- end Tool integrations ---' "$rc"; then
+        filter_rc "$rc" '
+            $0 == s && !done { while ((getline line < f) > 0) print line; skip = 1; next }
+            skip { if ($0 == e) { skip = 0; done = 1 }; next }
+            { print }' -v "f=$block" -v "s=# --- Tool integrations ---" -v "e=# --- end Tool integrations ---" \
+            || { rm -f "$block"; return 1; }
+    else
+        { echo ""; cat "$block"; } >> "$rc" || { rm -f "$block"; return 1; }
     fi
+    rm -f "$block"
     chown "$REAL_USER:$REAL_USER" "$rc" 2>/dev/null || true
 }
 
@@ -825,13 +983,14 @@ for f in ${WAYLAND_IME_LAUNCHERS[*]}; do
         sed -i -E 's# --ozone-platform=x11\\b##g' "\$f"
     fi
     if ! grep -q -- '--enable-wayland-ime' "\$f"; then
-        sed -i -E 's#^(Exec=[^ ]+)#\\1 ${WAYLAND_IME_FLAGS}#' "\$f"
+        sed -i -E 's#^(Exec=(env( +[A-Za-z_][A-Za-z0-9_]*=[^ ]*)+ +)?[^ ]+)#\\1 ${WAYLAND_IME_FLAGS}#' "\$f"
     fi
 done
 HOOKEOF
-    chmod 755 "$WAYLAND_IME_HOOK"
+    [[ -s "$WAYLAND_IME_HOOK" ]] || return 1
+    chmod 755 "$WAYLAND_IME_HOOK" || return 1
     echo "DPkg::Post-Invoke { \"[ -x ${WAYLAND_IME_HOOK} ] && ${WAYLAND_IME_HOOK} || true\"; };" \
-        > "$WAYLAND_IME_APT_CONF"
+        > "$WAYLAND_IME_APT_CONF" || return 1
     "$WAYLAND_IME_HOOK" || true
 }
 
@@ -842,6 +1001,10 @@ remove_wayland_ime_if_unused() {
         [[ -f "$f" ]] && return 0
     done
     rm -f "$WAYLAND_IME_HOOK" "$WAYLAND_IME_APT_CONF"
+    if grep -q '^ELECTRON_OZONE_PLATFORM_HINT=' /etc/environment 2>/dev/null; then
+        sed -i '/^ELECTRON_OZONE_PLATFORM_HINT=/d' /etc/environment
+        need_reboot "/etc/environment changed (Electron Wayland hint removed)"
+    fi
 }
 
 # --- Install functions -------------------------------------------------------
@@ -849,33 +1012,53 @@ remove_wayland_ime_if_unused() {
 do_mirror() {
     info "Switching APT mirror to ${MIRROR_HOST}..."
 
-    local changed=0 f
+    local found=0 f staged changed=()
     local targets=(
         /etc/apt/sources.list                                       # legacy
         /etc/apt/sources.list.d/ubuntu.sources                      # deb822 (24.04+)
     )
 
+    step_tmpdir
     for f in "${targets[@]}"; do
-        if [[ -f "$f" ]] && grep -vE 'security\.ubuntu\.com' "$f" | grep -qE 'https?://[a-zA-Z0-9._-]+/ubuntu'; then
-            cp -n "$f" "$f.bak"
-            sed -i -E '/security\.ubuntu\.com/!s#https?://[a-zA-Z0-9._-]+/ubuntu#http://'"${MIRROR_HOST}"'/ubuntu#g' "$f"
+        if [[ -f "$f" ]] && awk '!/security\.ubuntu\.com/ && /https?:\/\/[a-zA-Z0-9._-]+\/ubuntu/ { found = 1 } END { exit !found }' "$f"; then
+            found=1
+            staged="$STEP_TMP/${f##*/}"
+            sed -E '/security\.ubuntu\.com/!s#https?://[a-zA-Z0-9._-]+/ubuntu#http://'"${MIRROR_HOST}"'/ubuntu#g' "$f" > "$staged"
+            cmp -s "$staged" "$f" && continue
+            [[ -e "$f.bak" ]] || cp -p "$f" "$f.bak"
+            cp -p "$f" "$staged.prev"
+            cat "$staged" > "$f"
+            changed+=("$f")
             success "Updated $(basename "$f") (backup: ${f##*/}.bak)"
-            changed=1
         fi
     done
 
-    if [[ $changed -eq 0 ]]; then
+    if [[ $found -eq 0 ]]; then
         warn "No Ubuntu archive entries found — mirror left unchanged"
         return
     fi
+    if [[ ${#changed[@]} -eq 0 ]]; then
+        success "APT already uses ${MIRROR_HOST}, skipping"
+        return
+    fi
 
-    apt update
+    if ! apt-get update; then
+        fail "apt-get update failed on ${MIRROR_HOST} — restoring the previous sources"
+        for f in "${changed[@]}"; do
+            cat "$STEP_TMP/${f##*/}.prev" > "$f"
+        done
+        apt-get update || true
+        return 1
+    fi
     success "APT mirror switched to ${MIRROR_HOST}"
 }
 
 do_update() {
     info "Updating system packages..."
-    apt update && apt upgrade -y && apt autoremove -y
+    apt-get update \
+        && apt-get -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade -y --with-new-pkgs \
+        && apt-get autoremove -y \
+        || return 1
     success "System updated"
 }
 
@@ -925,124 +1108,89 @@ do_swap() {
     success "swappiness=10 (persistent via $SWAPPINESS_CONF)"
 }
 
-# Create a dedicated 'administrator' account with passwordless sudo, kept as an
-# emergency recovery login for resetting a forgotten password on the main user.
-# It joins the 'sudo' group (so it still works if the drop-in is ever removed)
-# and gets a NOPASSWD rule via a validated /etc/sudoers.d drop-in.
-do_adminuser() {
-    local admin="administrator"
-    local sudoers="/etc/sudoers.d/$admin"
-    info "Setting up recovery account '$admin' with passwordless sudo..."
-
-    if id "$admin" &>/dev/null; then
-        success "User '$admin' already exists — refreshing sudo access"
-    else
-        useradd -m -s /bin/bash -c "Recovery Administrator" "$admin"
-        success "Created user '$admin'"
+# zsh-syntax-highlighting must load last or it misses widgets defined by later plugins.
+ensure_zsh_plugins() {
+    local zshrc="$1" line p have=() missing=() want=()
+    shift
+    line=$(grep -m1 -E '^plugins=\(.*\)[[:space:]]*$' "$zshrc" 2>/dev/null || true)
+    if [[ -z "$line" ]]; then
+        warn "No single-line plugins=(…) in $(basename "$zshrc") — add $* manually"
+        return 0
     fi
-
-    # Keep it in the sudo group too, so it stays privileged even if the
-    # sudoers.d drop-in below is ever deleted.
-    usermod -aG sudo "$admin"
-
-    # Prompt for a login password so the account can actually be used at the
-    # login screen. A blank answer (or no terminal) falls back to a default
-    # password that must be changed at first login.
-    local pw1="" pw2=""
-    if [[ -r /dev/tty ]]; then
-        while true; do
-            printf "  ${CYAN}?${NC} Set a password for '%s' (blank = default 'administrator'): " "$admin"
-            if ! read -rs pw1 </dev/tty; then pw1=""; echo; break; fi
-            echo
-            [[ -z "$pw1" ]] && break
-            printf "  ${CYAN}?${NC} Confirm password: "
-            if ! read -rs pw2 </dev/tty; then pw2=""; echo; fi
-            echo
-            [[ "$pw1" == "$pw2" ]] && break
-            warn "Passwords did not match — try again"
-        done
+    read -ra have <<< "$(sed -E 's/^plugins=\((.*)\)[[:space:]]*$/\1/' <<< "$line")"
+    for p in "$@"; do
+        [[ " ${have[*]} " == *" $p "* ]] || missing+=("$p")
+    done
+    if [[ ${#missing[@]} -eq 0 ]]; then
+        success "Oh My Zsh plugins already enabled: ${have[*]}"
+        return 0
     fi
-
-    if [[ -n "$pw1" ]]; then
-        echo "$admin:$pw1" | chpasswd
-        success "Password set for '$admin'"
-    else
-        echo "$admin:$admin" | chpasswd
-        chage -d 0 "$admin"   # force a password change at first login
-        warn "Default password 'administrator' set — you'll be forced to change it at first login"
-    fi
-
-    # Passwordless sudo via a dedicated drop-in (never edit /etc/sudoers directly)
-    # and validate before leaving it in place — a broken sudoers file can lock
-    # everyone out of sudo.
-    printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$admin" > "$sudoers"
-    chmod 440 "$sudoers"
-    if visudo -c -f "$sudoers" >/dev/null 2>&1; then
-        success "Passwordless sudo enabled for '$admin' ($sudoers)"
-    else
-        rm -f "$sudoers"
-        fail "sudoers syntax check failed — removed $sudoers (NOPASSWD not applied)"
-    fi
+    for p in "${have[@]}" "${missing[@]}"; do
+        [[ "$p" == zsh-syntax-highlighting ]] || want+=("$p")
+    done
+    [[ " ${have[*]} ${missing[*]} " == *" zsh-syntax-highlighting "* ]] && want+=(zsh-syntax-highlighting)
+    filter_rc "$zshrc" '!done && $0 == old { print new; done = 1; next } { print }' \
+        -v "old=$line" -v "new=plugins=(${want[*]})"
+    success "Oh My Zsh plugins: ${want[*]}"
 }
 
 do_terminal() {
     info "Installing terminal utilities..."
 
-    apt install -y zsh tmux htop jq ripgrep fzf git curl
-
-    if ! command -v batcat &>/dev/null && ! command -v bat &>/dev/null; then
-        apt install -y bat 2>/dev/null || apt install -y batcat 2>/dev/null || true
+    local p missing=()
+    for p in zsh tmux htop jq ripgrep fzf git curl bat; do
+        pkg_installed "$p" || missing+=("$p")
+    done
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        apt-get install -y "${missing[@]}"
     fi
     if command -v batcat &>/dev/null && ! command -v bat &>/dev/null; then
-        ln -sf "$(which batcat)" /usr/local/bin/bat
+        ln -sf "$(command -v batcat)" /usr/local/bin/bat
     fi
 
     if ! command -v yq &>/dev/null; then
         info "Installing yq..."
-        local yq_tmp
-        yq_tmp=$(mktemp /tmp/yq-XXXXXX)
-        if wget -q --tries=3 --timeout=30 -O "$yq_tmp" "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64"; then
-            install -m 755 "$yq_tmp" /usr/local/bin/yq
+        step_tmpdir
+        if wget -q --tries=3 --timeout=30 -O "$STEP_TMP/yq" "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" \
+            && [[ -s "$STEP_TMP/yq" ]]; then
+            install -m 755 "$STEP_TMP/yq" /usr/local/bin/yq
         else
             warn "Could not download yq, skipping"
         fi
-        rm -f "$yq_tmp"
     fi
 
-    info "Configuring Oh My Zsh + plugins for '$REAL_USER'..."
-    local setup_script
-    setup_script=$(mktemp /tmp/zsh-setup-XXXXXX.sh)
-    cat > "$setup_script" << 'SETUP_EOF'
-if [ ! -d "$HOME/.oh-my-zsh" ]; then
-    export RUNZSH=no CHSH=no
-    bash -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-fi
+    if [[ -d "$REAL_HOME/.oh-my-zsh" ]]; then
+        success "Oh My Zsh already installed for '$REAL_USER'"
+    else
+        info "Installing Oh My Zsh for '$REAL_USER'..."
+        # --unattended implies RUNZSH=no CHSH=no, which `su -` would otherwise strip from the environment.
+        run_remote_script "$REAL_USER" sh https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh --unattended \
+            || { fail "Oh My Zsh install failed"; return 1; }
+    fi
 
-ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
-
-git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions" 2>/dev/null || true
-git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" 2>/dev/null || true
-
-# Minimal, sane defaults. zsh-syntax-highlighting MUST be last.
-sed -i 's/^plugins=.*/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/' "$HOME/.zshrc"
-SETUP_EOF
-    chmod a+rx "$setup_script"
-    su - "$REAL_USER" -c "bash $setup_script"
-    rm -f "$setup_script"
+    local plugin
+    for plugin in zsh-autosuggestions zsh-syntax-highlighting; do
+        [[ -d "$REAL_HOME/.oh-my-zsh/custom/plugins/$plugin" ]] && continue
+        su - "$REAL_USER" -c "git clone --depth 1 https://github.com/zsh-users/$plugin \"\$HOME/.oh-my-zsh/custom/plugins/$plugin\"" \
+            || { fail "Could not clone $plugin"; return 1; }
+    done
+    ensure_zsh_plugins "$REAL_HOME/.zshrc" git zsh-autosuggestions zsh-syntax-highlighting
 
     # PATH/env for the runtimes lives in the shared Tool-integrations block.
     write_tool_integrations "$REAL_HOME/.zshrc"
 
-    local cur_shell
+    local cur_shell zsh_bin
     cur_shell=$(getent passwd "$REAL_USER" | cut -d: -f7)
-    if [[ "$cur_shell" == "$(which zsh)" ]]; then
+    zsh_bin=$(command -v zsh)
+    if [[ "$cur_shell" == "$zsh_bin" ]]; then
         success "zsh is already the default shell for '$REAL_USER'"
     else
         local set_default="n"
         printf "  ${CYAN}?${NC} Set zsh as the default shell for '%s'? [y/N] " "$REAL_USER"
         read -r set_default </dev/tty || set_default="n"
         if [[ "$set_default" =~ ^[Yy]$ ]]; then
-            chsh -s "$(which zsh)" "$REAL_USER"
+            chsh -s "$zsh_bin" "$REAL_USER"
+            need_reboot "login shell changed to zsh"
             success "Default shell changed to zsh (re-login to apply)"
         else
             warn "Keeping current shell. zsh is installed — run 'zsh' anytime to use it"
@@ -1098,7 +1246,7 @@ install_vn_web_fonts() {
         return
     fi
     info "Installing Vietnamese web fonts: ${missing[*]}"
-    if apt install -y "${missing[@]}" >/dev/null 2>&1 || apt install -y "${missing[@]}"; then
+    if apt-get install -y "${missing[@]}" >/dev/null 2>&1 || apt-get install -y "${missing[@]}"; then
         fc-cache -f >/dev/null 2>&1 || true
         success "Vietnamese web fonts installed — Facebook/browser diacritics fixed"
     else
@@ -1117,23 +1265,29 @@ install_vn_web_fonts() {
 # Each part guards its own already-installed state, so this is safe to re-run.
 do_msfonts() {
     # fontconfig provides fc-list / fc-cache — required for the accurate checks.
-    apt install -y fontconfig >/dev/null 2>&1 || apt install -y fontconfig
+    apt-get install -y fontconfig >/dev/null 2>&1 || apt-get install -y fontconfig
 
     # --- Core fonts: Arial, Times New Roman, … (ttf-mscorefonts-installer) ---
-    if fc-list 2>/dev/null | grep -qi 'Times New Roman'; then
+    if has_font 'Times New Roman'; then
         success "MS core fonts already installed (Arial / Times New Roman / …)"
     else
         info "Installing MS core fonts (Arial, Times New Roman, Courier New, Georgia, Verdana…)..."
         # The package lives in the `multiverse` component — enable it if missing.
         if ! apt-cache policy ttf-mscorefonts-installer 2>/dev/null | grep -q 'Candidate: [0-9]'; then
             add-apt-repository -y multiverse >/dev/null 2>&1 || true
-            apt update >/dev/null 2>&1 || true
+            apt-get update >/dev/null 2>&1 || true
         fi
         # Pre-accept the EULA so apt doesn't stop for the interactive prompt.
         echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true \
             | debconf-set-selections 2>/dev/null || true
-        if DEBIAN_FRONTEND=noninteractive apt install -y ttf-mscorefonts-installer >/dev/null 2>&1 \
-           || DEBIAN_FRONTEND=noninteractive apt install -y ttf-mscorefonts-installer; then
+        local reinstall=()
+        if pkg_installed ttf-mscorefonts-installer; then
+            # The package downloads the fonts in its postinst; a failed fetch leaves it installed with no fonts.
+            info "ttf-mscorefonts-installer is installed but its fonts are missing — reinstalling..."
+            reinstall=(--reinstall)
+        fi
+        if apt-get install -y "${reinstall[@]}" ttf-mscorefonts-installer >/dev/null 2>&1 \
+           || apt-get install -y "${reinstall[@]}" ttf-mscorefonts-installer; then
             fc-cache -f >/dev/null 2>&1 || true
             success "MS core fonts installed (Arial, Times New Roman, Courier New, Georgia, Verdana, …)"
         else
@@ -1142,14 +1296,15 @@ do_msfonts() {
     fi
 
     # --- Calibri + ClearType faces, extracted from PowerPoint Viewer 2007 ---
-    if fc-list 2>/dev/null | grep -qi 'Calibri'; then
+    if has_font 'Calibri'; then
         success "Calibri & ClearType fonts already installed"
         return
     fi
     info "Installing Calibri + ClearType fonts (Cambria, Consolas, Candara, Constantia, Corbel)..."
-    apt install -y cabextract wget >/dev/null 2>&1 || apt install -y cabextract wget
+    apt-get install -y cabextract wget >/dev/null 2>&1 || apt-get install -y cabextract wget
     local vista_dir="/usr/local/share/fonts/vista"
-    local tmp; tmp=$(mktemp -d /tmp/vistafonts-XXXXXX)
+    step_tmpdir
+    local tmp="$STEP_TMP"
     local ppv="$tmp/PowerPointViewer.exe"
     # SourceForge mirror of the original MS installer (Microsoft pulled its own).
     if wget -q -O "$ppv" "https://master.dl.sourceforge.net/project/mscorefonts2/cabs/PowerPointViewer.exe?viasf=1"; then
@@ -1159,7 +1314,7 @@ do_msfonts() {
            && cabextract -L -F '*.tt?' -d "$vista_dir" "$tmp/ppviewer.cab" >/dev/null 2>&1; then
             chmod 644 "$vista_dir"/*.tt? 2>/dev/null || true
             fc-cache -f >/dev/null 2>&1 || true
-            if fc-list 2>/dev/null | grep -qi 'Calibri'; then
+            if has_font 'Calibri'; then
                 success "Calibri & ClearType fonts installed (Cambria, Consolas, Candara, Constantia, Corbel)"
             else
                 success "Calibri fonts extracted to $vista_dir; fontconfig cache refreshes on next login"
@@ -1170,33 +1325,37 @@ do_msfonts() {
     else
         warn "Could not download PowerPoint Viewer for Calibri fonts (check network)"
     fi
-    rm -rf "$tmp"
 }
 
 do_font() {
     info "Installing fonts (Nerd Font + Vietnamese web fonts)..."
 
     # fontconfig provides fc-list / fc-cache — required for an accurate check.
-    apt install -y fontconfig wget >/dev/null 2>&1 || apt install -y fontconfig wget
+    apt-get install -y fontconfig wget >/dev/null 2>&1 || apt-get install -y fontconfig wget
 
     # Web fonts run regardless of Nerd Font state (Nerd Font has an early return).
     install_vn_web_fonts
 
-    if fc-list 2>/dev/null | grep -qi 'MesloLGS NF'; then
-        success "MesloLGS Nerd Font already installed, skipping ($(fc-list 2>/dev/null | grep -ci 'MesloLGS NF') faces)"
+    local font_dir="/usr/local/share/fonts/MesloLGS-NF" font missing=()
+    local faces_all=("MesloLGS NF Regular.ttf" "MesloLGS NF Bold.ttf" "MesloLGS NF Italic.ttf" "MesloLGS NF Bold Italic.ttf")
+    for font in "${faces_all[@]}"; do
+        [[ -s "$font_dir/$font" ]] || missing+=("$font")
+    done
+    if [[ ${#missing[@]} -eq 0 ]]; then
+        success "MesloLGS Nerd Font already installed, skipping (${#faces_all[@]} faces)"
         apply_terminal_font
         return
     fi
 
-    local font_dir="/usr/local/share/fonts/MesloLGS-NF"
     mkdir -p "$font_dir"
+    step_tmpdir
     local base_url="https://github.com/romkatv/powerlevel10k-media/raw/master"
-    local font ok=1
-    for font in "MesloLGS NF Regular.ttf" "MesloLGS NF Bold.ttf" \
-                "MesloLGS NF Italic.ttf" "MesloLGS NF Bold Italic.ttf"; do
-        if ! wget -q -O "$font_dir/$font" "$base_url/${font// /%20}"; then
-            warn "Failed to download: $font"
-            ok=0
+    for font in "${missing[@]}"; do
+        if wget -q -O "$STEP_TMP/face.ttf" "$base_url/${font// /%20}" && [[ -s "$STEP_TMP/face.ttf" ]]; then
+            install -m 644 "$STEP_TMP/face.ttf" "$font_dir/$font"
+        else
+            fail "Failed to download: $font"
+            return 1
         fi
     done
     # Rebuild the WHOLE font cache, not just "$font_dir": caching a single
@@ -1210,53 +1369,33 @@ do_font() {
     # hasn't caught up (icons will render once the cache settles).
     local faces=0 i
     for i in 1 2 3; do
-        faces=$(fc-list 2>/dev/null | grep -ci 'MesloLGS NF')
+        faces=$(fc-list 2>/dev/null | grep -ci 'MesloLGS NF' || true)
         [[ $faces -gt 0 ]] && break
         fc-cache -f >/dev/null 2>&1 || true
     done
-    local on_disk
-    on_disk=$(find "$font_dir" -maxdepth 1 -iname 'MesloLGS NF*.ttf' 2>/dev/null | wc -l)
 
     if [[ $faces -gt 0 ]]; then
         success "MesloLGS Nerd Font installed & verified ($faces faces)"
-        apply_terminal_font
-    elif [[ $ok -eq 1 && $on_disk -gt 0 ]]; then
-        success "MesloLGS Nerd Font installed ($on_disk files); fontconfig cache will refresh on next login"
-        apply_terminal_font
     else
-        [[ $ok -eq 0 ]] && fail "Some font files failed to download"
-        fail "Nerd Font not detected after install — eza/terminal icons may not render"
-        return 1
+        success "MesloLGS Nerd Font installed (${#faces_all[@]} files); fontconfig cache will refresh on next login"
     fi
+    apply_terminal_font
 }
 
 do_eza() {
     info "Installing eza..."
 
-    if ! command -v eza &>/dev/null; then
-        if apt install -y eza 2>/dev/null; then
-            success "eza installed via apt"
-        else
-            apt install -y gpg
-            mkdir -p /etc/apt/keyrings
-            wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc \
-                | gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
-            chmod 644 /etc/apt/keyrings/gierens.gpg
-            echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" \
-                > /etc/apt/sources.list.d/gierens.list
-            chmod 644 /etc/apt/sources.list.d/gierens.list
-            apt update
-            apt install -y eza
-            success "eza installed via deb repo"
-        fi
-    else
+    if command -v eza &>/dev/null; then
         success "eza already installed, skipping"
+    else
+        apt-get install -y eza
+        success "eza installed via apt"
     fi
 
     # Aliases go to whichever rc the user's shell reads (.zshrc with zsh, else
     # .bashrc) so they take effect even when the Terminal Kit / zsh isn't chosen.
     local rc; rc=$(resolve_shell_rc)
-    touch "$rc"
+    [[ -e "$rc" ]] || touch "$rc"
     if ! grep -q '# --- eza aliases ---' "$rc" 2>/dev/null; then
         cat >> "$rc" <<'EZAEOF'
 
@@ -1280,49 +1419,65 @@ do_fastfetch() {
     fi
 
     info "Installing Fastfetch..."
-    # Not in the noble archive (fastfetch landed in Ubuntu 24.10) — try apt first
-    # in case a newer release / PPA carries it, else grab the official GitHub
-    # release .deb.
-    if apt install -y fastfetch 2>/dev/null; then
-        success "Fastfetch installed via apt"
-        return
-    fi
+    apt-get install -y fastfetch
+    success "Fastfetch installed via apt"
+}
 
-    local tmp
-    tmp=$(mktemp /tmp/fastfetch-XXXXXX.deb)
-    if ! download_deb "https://github.com/fastfetch-cli/fastfetch/releases/latest/download/fastfetch-linux-amd64.deb" "$tmp"; then
-        rm -f "$tmp"
-        return 1
-    fi
-    apt install -y "$tmp"
-    rm -f "$tmp"
-    success "Fastfetch installed (GitHub release .deb)"
+# nvm is not `set -e` safe, so su blocks source it first and switch -e on afterwards.
+NVM_LOAD='export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"'
+
+# Skip key is the current LTS major, so a patch release doesn't trigger a reinstall but the next LTS line does.
+nvm_lts_installed() {
+    su - "$REAL_USER" -c "$NVM_LOAD"'
+        command -v nvm >/dev/null 2>&1 || exit 1
+        lts=$(nvm version-remote --lts 2>/dev/null) || exit 1
+        major=${lts#v}; major=${major%%.*}
+        [ -n "$major" ] && [ "$(nvm version "$major")" != N/A ]
+    ' &>/dev/null
+}
+
+# nvm's installer appends unmarked loader lines; the marked Tool-integrations block is the only wiring kept.
+strip_nvm_installer_lines() {
+    local rc
+    for rc in "$REAL_HOME/.bashrc" "$REAL_HOME/.zshrc"; do
+        [[ -f "$rc" ]] && grep -q '# This loads nvm' "$rc" || continue
+        filter_rc "$rc" '
+            $0 == s { inblock = 1 }
+            $0 == e { inblock = 0 }
+            !inblock && ($0 ~ /^export NVM_DIR=/ || $0 ~ /# This loads nvm/) { next }
+            { print }' -v "s=# --- Tool integrations ---" -v "e=# --- end Tool integrations ---"
+        grep -qxF '# --- Tool integrations ---' "$rc" || write_tool_integrations "$rc"
+        success "Removed nvm installer lines from $(basename "$rc") (the Tool-integrations block loads nvm)"
+    done
 }
 
 do_nvm() {
-    if [[ -s "$REAL_HOME/.nvm/nvm.sh" ]]; then
-        success "NVM already installed, skipping"
+    strip_nvm_installer_lines
+    if nvm_lts_installed; then
+        success "Node.js LTS already installed via nvm, skipping"
         return
     fi
 
-    info "Installing NVM + Node.js 24 for user '$REAL_USER'..."
-    apt install -y curl
+    info "Installing NVM + Node.js LTS for user '$REAL_USER'..."
+    command -v curl &>/dev/null || apt-get install -y curl
 
-    local nvm_tag
-    nvm_tag=$(curl -fsSL --connect-timeout 10 --max-time 20 https://api.github.com/repos/nvm-sh/nvm/releases/latest 2>/dev/null \
-        | grep -oP '"tag_name":\s*"\Kv[0-9.]+' | head -1 || true)
-    nvm_tag="${nvm_tag:-v0.40.8}"
-    info "Using nvm $nvm_tag"
+    if [[ ! -s "$REAL_HOME/.nvm/nvm.sh" ]]; then
+        local nvm_tag
+        nvm_tag=$(curl -fsSL --connect-timeout 10 --max-time 20 https://api.github.com/repos/nvm-sh/nvm/releases/latest 2>/dev/null \
+            | grep -oP '"tag_name":\s*"\Kv[0-9.]+' | head -1 || true)
+        nvm_tag="${nvm_tag:-v0.40.8}"
+        info "Using nvm $nvm_tag"
+        run_remote_script "$REAL_USER" "env PROFILE=/dev/null bash" "https://raw.githubusercontent.com/nvm-sh/nvm/$nvm_tag/install.sh" \
+            || { fail "nvm installer failed"; return 1; }
+    fi
 
-    run_remote_script "$REAL_USER" bash "https://raw.githubusercontent.com/nvm-sh/nvm/$nvm_tag/install.sh"
-    su - "$REAL_USER" -c '
-        export NVM_DIR="$HOME/.nvm"
-        . "$NVM_DIR/nvm.sh"
-        nvm install 24
-        nvm alias default 24
-    '
+    su - "$REAL_USER" -c "$NVM_LOAD"'
+        from=""
+        case "$(nvm current)" in none|system) ;; *) from="--reinstall-packages-from=current" ;; esac
+        nvm install --lts $from && nvm alias default "lts/*"
+    ' || { fail "nvm install --lts failed"; return 1; }
 
-    success "NVM + Node.js 24 installed for '$REAL_USER'"
+    success "NVM + Node.js LTS installed for '$REAL_USER' (default: lts/*)"
 }
 
 do_bun() {
@@ -1333,7 +1488,7 @@ do_bun() {
 
     info "Installing Bun for user '$REAL_USER'..."
     # The installer downloads a zip and needs unzip; curl to fetch install.sh.
-    apt install -y curl unzip
+    apt-get install -y curl unzip
 
     # Official per-user installer (into ~/.bun). PATH is wired up by the
     # Bun block in the Tool-integrations section of .zshrc (added by do_terminal).
@@ -1347,112 +1502,89 @@ do_bun() {
     fi
 }
 
+# Steps run in subshells, so the npm registry lookup is cached per run; empty when offline.
+corepack_latest() {
+    local cache="$RUN_DIR/corepack-latest"
+    if [[ ! -s "$cache" ]]; then
+        mkdir -p "$RUN_DIR"
+        su - "$REAL_USER" -c "$NVM_LOAD"'; npm view corepack version' 2>/dev/null > "$cache" || rm -f "$cache"
+    fi
+    cat "$cache" 2>/dev/null || true
+}
+
+# Node ≥ 25 no longer bundles corepack, so pnpm/yarn come from the standalone corepack npm package (its bins provide both).
+ensure_corepack() {
+    local latest
+    latest=$(corepack_latest)
+    [[ -n "$latest" ]] || { fail "Could not query the corepack version from npm (offline, or Node.js missing?)"; return 1; }
+    su - "$REAL_USER" -c "$NVM_LOAD"'
+        command -v npm >/dev/null 2>&1 || { echo "npm not found — select Node.js (nvm) too" >&2; exit 1; }
+        set -e
+        [ "$(corepack --version 2>/dev/null)" = "'"$latest"'" ] && exit 0
+        npm install -g "corepack@'"$latest"'"
+    '
+}
+
+corepack_pm_version() {
+    local latest
+    latest=$(corepack_latest)
+    su - "$REAL_USER" -c "$NVM_LOAD"'
+        latest="'"$latest"'"
+        command -v corepack >/dev/null 2>&1 || exit 1
+        [ -z "$latest" ] || [ "$(corepack --version 2>/dev/null)" = "$latest" ] || exit 1
+        bin=$(command -v '"$1"') || exit 1
+        case "$(readlink -f "$bin")" in */node_modules/corepack/*) ;; *) exit 1 ;; esac
+        COREPACK_ENABLE_DOWNLOAD_PROMPT=0 '"$1"' --version
+    ' 2>/dev/null
+}
+
+corepack_install_pm() {
+    local label="$1" spec="$2"
+    info "Installing $label via corepack for user '$REAL_USER'..."
+    ensure_corepack || { fail "Could not install the corepack npm package (Node.js/npm required)"; return 1; }
+    su - "$REAL_USER" -c "$NVM_LOAD"'
+        set -e
+        export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+        corepack install -g '"$spec" || { fail "corepack install -g $spec failed"; return 1; }
+    success "$label installed for '$REAL_USER' via corepack (open a new shell to use it)"
+}
+
 do_pnpm() {
-    if su - "$REAL_USER" -c 'command -v pnpm' &>/dev/null; then
-        success "pnpm already installed, skipping"
+    local ver
+    if ver=$(corepack_pm_version pnpm); then
+        success "pnpm $ver already installed via corepack, skipping"
         return
     fi
-
-    info "Installing pnpm for user '$REAL_USER'..."
-    apt install -y curl
-
-    # Preferred path: corepack (bundled with Node ≥16.9) — it shims pnpm against
-    # the user's nvm-managed Node. Falls back to pnpm's standalone installer when
-    # Node/corepack isn't present.
-    local ok=0
-    if su - "$REAL_USER" -c '
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        command -v corepack >/dev/null 2>&1
-    '; then
-        su - "$REAL_USER" -c '
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            corepack enable pnpm 2>/dev/null || corepack enable
-            corepack prepare pnpm@latest --activate
-        ' && ok=1
-    fi
-
-    if [[ $ok -eq 0 ]]; then
-        warn "corepack unavailable (install Node.js first for the cleanest setup) — using the standalone pnpm installer"
-        run_remote_script "$REAL_USER" sh https://get.pnpm.io/install.sh && ok=1
-    fi
-
-    if [[ $ok -eq 1 ]]; then
-        success "pnpm installed for '$REAL_USER' (open a new shell to use it)"
-    else
-        fail "pnpm install failed"
-        return 1
-    fi
+    corepack_install_pm pnpm pnpm@latest
 }
 
 do_yarn() {
-    if su - "$REAL_USER" -c 'command -v yarn' &>/dev/null; then
-        success "Yarn already installed, skipping"
+    local ver
+    if ver=$(corepack_pm_version yarn) && [[ "$ver" =~ ^([0-9]+)\. ]] && (( BASH_REMATCH[1] >= 4 )); then
+        success "Yarn $ver already installed via corepack, skipping"
         return
     fi
-
-    info "Installing Yarn for user '$REAL_USER'..."
-    apt install -y curl
-
-    # Preferred path: corepack (bundled with Node ≥16.9) — it shims yarn against
-    # the user's nvm-managed Node. Falls back to `npm install -g yarn` when
-    # corepack isn't present.
-    local ok=0
-    if su - "$REAL_USER" -c '
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        command -v corepack >/dev/null 2>&1
-    '; then
-        su - "$REAL_USER" -c '
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            corepack enable yarn 2>/dev/null || corepack enable
-            corepack prepare yarn@stable --activate
-        ' && ok=1
-    fi
-
-    if [[ $ok -eq 0 ]]; then
-        warn "corepack unavailable (install Node.js first for the cleanest setup) — falling back to npm"
-        su - "$REAL_USER" -c '
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            command -v npm >/dev/null 2>&1 && npm install -g yarn
-        ' && ok=1
-    fi
-
-    if [[ $ok -eq 1 ]]; then
-        success "Yarn installed for '$REAL_USER' (open a new shell to use it)"
-    else
-        fail "Yarn install failed (Node.js/npm required)"
-        return 1
-    fi
+    corepack_install_pm "Yarn 4" yarn@stable
 }
 
+DOTNET_ENV='export PATH="$PATH:$HOME/.dotnet/tools"; [ -x /usr/bin/dotnet ] && export DOTNET_ROOT="$(dirname "$(readlink -f /usr/bin/dotnet)")"'
+
 do_abp() {
-    if ! su - "$REAL_USER" -c '
-        export DOTNET_ROOT="/usr/share/dotnet"
-        export PATH="$PATH:$DOTNET_ROOT:$HOME/.dotnet/tools"
-        command -v dotnet >/dev/null 2>&1
-    '; then
+    if ! su - "$REAL_USER" -c "$DOTNET_ENV"'; command -v dotnet >/dev/null 2>&1'; then
         warn "ABP CLI needs the .NET SDK — select .NET SDK too, then re-run"
         return 1
     fi
 
     # `abp` is provided by the Volo.Abp.Studio.Cli dotnet global tool (into
     # ~/.dotnet/tools, already on PATH via the Tool-integrations block).
-    if su - "$REAL_USER" -c '
-        export PATH="$PATH:$HOME/.dotnet/tools"
-        command -v abp
-    ' &>/dev/null; then
+    if su - "$REAL_USER" -c "$DOTNET_ENV"'; command -v abp' &>/dev/null; then
         success "ABP CLI already installed, skipping"
         return
     fi
 
     info "Installing ABP CLI (Volo.Abp.Studio.Cli) for user '$REAL_USER'..."
-    if su - "$REAL_USER" -c '
-        export DOTNET_ROOT="/usr/share/dotnet"
-        export PATH="$PATH:$DOTNET_ROOT:$HOME/.dotnet/tools"
+    if su - "$REAL_USER" -c "$DOTNET_ENV"'
+        set -e
         dotnet tool install -g Volo.Abp.Studio.Cli
     '; then
         success "ABP CLI installed for '$REAL_USER' (open a new shell, then run: abp)"
@@ -1462,64 +1594,46 @@ do_abp() {
     fi
 }
 
+DOTNET_PPA=ppa:dotnet/backports
+DOTNET_PPA_MARKER="$STATE_DIR/dotnet-backports.added"
+
 do_dotnet() {
-    info "Installing .NET SDK (versions: ${DOTNET_VERSIONS[*]})..."
-
-    local codename
-    codename=$(get_ubuntu_codename)
-    local ubuntu_ver
-    ubuntu_ver=$(get_ubuntu_version)
-
-    # Ubuntu >=24.04 ships .NET in its own archive; the Microsoft prod repo has no dotnet packages there and only risks breaking apt update.
-    if dpkg --compare-versions "$ubuntu_ver" lt 24.04; then
-        ensure_microsoft_gpg
-        # Skip dotnet.list if the prod repo is already declared elsewhere, to avoid "Conflicting values set for option Signed-By".
-        if grep -rqsl "packages.microsoft.com/ubuntu/$ubuntu_ver/prod" \
-            /etc/apt/sources.list.d/ --include='*.list' --exclude='dotnet.list'; then
-            info "Microsoft prod repo already configured, skipping dotnet.list"
-            rm -f /etc/apt/sources.list.d/dotnet.list
-        else
-            echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/$ubuntu_ver/prod $codename main" \
-                > /etc/apt/sources.list.d/dotnet.list
-        fi
-    else
-        # Drop a leftover dotnet.list from a pre-24.04 install to avoid a package mix-up with the Ubuntu repo.
-        rm -f /etc/apt/sources.list.d/dotnet.list
-    fi
-    apt update
-
-    local installed=()
-    local failed_ver=()
-
+    local ver missing=() installed=() failed=() need_ppa=0
     for ver in "${DOTNET_VERSIONS[@]}"; do
-        local pkg="dotnet-sdk-${ver}.0"
-        if dpkg -s "$pkg" &>/dev/null; then
-            success "$pkg already installed, skipping"
-            installed+=("$ver")
-            continue
-        fi
-        info "Installing $pkg..."
-        if apt install -y "$pkg" 2>/dev/null; then
-            installed+=("$ver")
-        else
-            warn "$pkg not found in repo, trying install script..."
-            if run_remote_script root bash https://dot.net/v1/dotnet-install.sh --channel "$ver.0" --install-dir /usr/share/dotnet; then
-                installed+=("$ver")
-            else
-                failed_ver+=("$ver")
-            fi
-        fi
+        if pkg_installed "dotnet-sdk-${ver}.0"; then installed+=("$ver"); else missing+=("$ver"); fi
+    done
+    if [[ ${#missing[@]} -eq 0 ]]; then
+        success ".NET SDK ${installed[*]} already installed, skipping"
+        return
+    fi
+
+    info "Installing .NET SDK (versions: ${missing[*]})..."
+    # .NET 10 ships in the 26.04 archive; 8 and 9 only in the backports PPA. The old Microsoft repo list is dropped.
+    rm -f /etc/apt/sources.list.d/dotnet.list
+    for ver in "${missing[@]}"; do
+        [[ "$ver" == 10 ]] || need_ppa=1
+    done
+    if [[ $need_ppa -eq 1 ]] && ! grep -rqs 'dotnet/backports' /etc/apt/sources.list.d/; then
+        add_ppa "$DOTNET_PPA" || return 1
+        mkdir -p "$STATE_DIR"
+        touch "$DOTNET_PPA_MARKER"
+    else
+        apt-get update
+    fi
+
+    for ver in "${missing[@]}"; do
+        if apt-get install -y "dotnet-sdk-${ver}.0"; then installed+=("$ver"); else failed+=("$ver"); fi
     done
 
-    if [[ ! -L /usr/bin/dotnet && -f /usr/share/dotnet/dotnet ]]; then
-        ln -sf /usr/share/dotnet/dotnet /usr/bin/dotnet
+    if [[ -d /usr/share/dotnet ]]; then
+        warn "/usr/share/dotnet is left over from an older dotnet-install.sh run — .NET now lives in /usr/lib/dotnet"
     fi
-
     if [[ ${#installed[@]} -gt 0 ]]; then
         success ".NET SDK installed: ${installed[*]}"
     fi
-    if [[ ${#failed_ver[@]} -gt 0 ]]; then
-        warn ".NET SDK failed: ${failed_ver[*]}"
+    if [[ ${#failed[@]} -gt 0 ]]; then
+        fail ".NET SDK failed: ${failed[*]}"
+        return 1
     fi
 }
 
@@ -1530,14 +1644,9 @@ do_chrome() {
     fi
 
     info "Installing Google Chrome..."
-    local tmp
-    tmp=$(mktemp /tmp/chrome-XXXXXX.deb)
-    if ! download_deb "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" "$tmp"; then
-        rm -f "$tmp"
-        return 1
-    fi
-    apt install -y "$tmp"
-    rm -f "$tmp"
+    step_tmpdir
+    download_deb "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" "$STEP_TMP/chrome.deb" || return 1
+    apt-get install -y "$STEP_TMP/chrome.deb"
     success "Google Chrome installed"
 }
 
@@ -1548,11 +1657,10 @@ do_edge() {
     fi
 
     info "Installing Microsoft Edge..."
-    ensure_microsoft_gpg
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/edge stable main" \
-        > /etc/apt/sources.list.d/microsoft-edge.list
-    apt update
-    apt install -y microsoft-edge-stable
+    ensure_microsoft_gpg || return 1
+    add_apt_source /etc/apt/sources.list.d/microsoft-edge.list \
+        "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/edge stable main" || return 1
+    apt-get install -y microsoft-edge-stable
     success "Microsoft Edge installed"
 }
 
@@ -1561,34 +1669,28 @@ TEAMS_KEY=/etc/apt/keyrings/teams-for-linux.asc
 
 ensure_teams_repo() {
     [[ -f "$TEAMS_REPO" && -s "$TEAMS_KEY" ]] && return 0
-    command -v wget &>/dev/null || apt install -y wget
-    mkdir -p /etc/apt/keyrings
-    wget -qO "$TEAMS_KEY" https://repo.teamsforlinux.de/teams-for-linux.asc \
-        || { rm -f "$TEAMS_KEY"; fail "Could not download the Teams for Linux repo key"; return 1; }
-    cat > "$TEAMS_REPO" <<EOF
-Types: deb
+    add_apt_repo "$TEAMS_REPO" https://repo.teamsforlinux.de/teams-for-linux.asc "$TEAMS_KEY" 0 "Types: deb
 URIs: https://repo.teamsforlinux.de/debian/
 Suites: stable
 Components: main
 Signed-By: $TEAMS_KEY
-Architectures: amd64
-EOF
-    # Roll back so a broken repo doesn't fail every later apt update and the next run retries cleanly.
-    apt update || { rm -f "$TEAMS_REPO" "$TEAMS_KEY"; fail "apt update failed after adding the Teams for Linux repo"; return 1; }
+Architectures: amd64"
 }
 
 do_teams() {
     ensure_teams_repo || return 1
 
-    if dpkg -s teams-for-linux &>/dev/null; then
-        # Older runs installed the GitHub .deb, which never updates; this moves it onto the apt repo (no-op when current).
-        apt install -y teams-for-linux || return 1
-        success "Teams for Linux already installed (updates via apt)"
+    if pkg_up_to_date teams-for-linux; then
+        success "Teams for Linux already installed (updates via apt), skipping"
         return
     fi
-
-    info "Installing Teams for Linux..."
-    apt install -y teams-for-linux || return 1
+    if pkg_installed teams-for-linux; then
+        # Older runs installed the GitHub .deb, which never updates; this moves it onto the apt repo.
+        info "Moving Teams for Linux onto its apt repo..."
+    else
+        info "Installing Teams for Linux..."
+    fi
+    apt-get install -y teams-for-linux
     success "Teams for Linux installed"
 }
 
@@ -1611,29 +1713,40 @@ do_vscode() {
     fi
 
     info "Installing Visual Studio Code..."
-    ensure_microsoft_gpg
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
-        > /etc/apt/sources.list.d/vscode.list
-    apt update
-    apt install -y code
+    ensure_microsoft_gpg || return 1
+    add_apt_source /etc/apt/sources.list.d/vscode.list \
+        "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" || return 1
+    apt-get install -y code
     success "VS Code installed"
 }
 
+TRAE_URL_FILE="$STATE_DIR/trae.url"
+
+# The version fields of the API, the URL and the package disagree, so the download URL is the update key.
+trae_latest_url() {
+    curl -fsSL --retry 3 --connect-timeout 15 --max-time 30 https://api.trae.ai/icube/api/v1/native/version/trae/latest \
+        | jq -r '.data.manifest.linux.download | (map(select(.region == "va")) + map(select(.region != "cn")))[0]["x64.deb"] // empty'
+}
+
 do_trae() {
-    if command -v trae &>/dev/null; then
-        success "Trae IDE already installed, skipping"
+    command -v jq &>/dev/null || apt-get install -y jq
+    local url
+    url=$(trae_latest_url || true)
+    if [[ -z "$url" ]]; then
+        fail "Could not resolve the Trae download URL from api.trae.ai"
+        return 1
+    fi
+    if pkg_installed trae && [[ "$(cat "$TRAE_URL_FILE" 2>/dev/null)" == "$url" ]]; then
+        success "Trae IDE already at the latest release, skipping"
         return
     fi
 
-    info "Installing Trae IDE..."
-    local tmp
-    tmp=$(mktemp /tmp/trae-XXXXXX.deb)
-    if ! download_deb "https://lf-cdn.trae.ai/obj/trae-ai-us/pkg/Trae_latest_linux_x64.deb" "$tmp"; then
-        rm -f "$tmp"
-        return 1
-    fi
-    apt install -y "$tmp"
-    rm -f "$tmp"
+    info "Installing Trae IDE ($url)..."
+    step_tmpdir
+    download_deb "$url" "$STEP_TMP/trae.deb" || return 1
+    apt-get install -y --allow-downgrades "$STEP_TMP/trae.deb"
+    mkdir -p "$STATE_DIR"
+    echo "$url" > "$TRAE_URL_FILE"
     success "Trae IDE installed"
 }
 
@@ -1644,16 +1757,13 @@ do_terraform() {
     fi
 
     info "Installing Terraform..."
-    apt install -y gnupg software-properties-common curl
+    apt-get install -y gnupg curl
 
     local codename
     codename=$(get_ubuntu_codename)
-
-    curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp.gpg
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $codename main" \
-        > /etc/apt/sources.list.d/hashicorp.list
-    apt update
-    apt install -y terraform
+    add_apt_repo /etc/apt/sources.list.d/hashicorp.list https://apt.releases.hashicorp.com/gpg /usr/share/keyrings/hashicorp.gpg 1 \
+        "deb [arch=amd64 signed-by=/usr/share/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $codename main" || return 1
+    apt-get install -y terraform
 
     success "Terraform $(terraform --version | head -1) installed"
 }
@@ -1669,10 +1779,10 @@ azcli_codename() {
 }
 
 write_azcli_repo() {
-    ensure_microsoft_gpg
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $1 main" \
-        > /etc/apt/sources.list.d/azure-cli.list
-    apt update && apt install -y azure-cli
+    ensure_microsoft_gpg || return 1
+    add_apt_source /etc/apt/sources.list.d/azure-cli.list \
+        "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $1 main" || return 1
+    apt-get install -y azure-cli
 }
 
 do_azcli() {
@@ -1692,7 +1802,7 @@ do_azcli() {
     fi
 
     info "Installing Azure CLI..."
-    apt install -y ca-certificates curl apt-transport-https lsb-release gnupg
+    apt-get install -y ca-certificates curl lsb-release gnupg
     local host_codename
     host_codename=$(get_ubuntu_codename)
     [[ "$codename" == "$host_codename" ]] \
@@ -1709,56 +1819,54 @@ do_azcopy() {
     fi
 
     info "Installing AzCopy..."
-    apt install -y wget tar
+    apt-get install -y wget tar
 
-    local tmp_dir
-    tmp_dir=$(mktemp -d /tmp/azcopy-XXXXXX)
+    step_tmpdir
     # aka.ms link always redirects to the latest v10 linux tarball
-    wget -q -O "$tmp_dir/azcopy.tar.gz" "https://aka.ms/downloadazcopy-v10-linux"
+    if ! wget -q -O "$STEP_TMP/azcopy.tar.gz" "https://aka.ms/downloadazcopy-v10-linux" || [[ ! -s "$STEP_TMP/azcopy.tar.gz" ]]; then
+        fail "Could not download AzCopy"
+        return 1
+    fi
     # tarball nests the binary in azcopy_linux_amd64_x.y.z/ — flatten with --strip-components
-    tar -xzf "$tmp_dir/azcopy.tar.gz" -C "$tmp_dir" --strip-components=1
-    install -m 755 "$tmp_dir/azcopy" /usr/local/bin/azcopy
-    rm -rf "$tmp_dir"
+    tar -xzf "$STEP_TMP/azcopy.tar.gz" -C "$STEP_TMP" --strip-components=1
+    install -m 755 "$STEP_TMP/azcopy" /usr/local/bin/azcopy
 
     success "AzCopy $(azcopy --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1 || echo 'ready') installed"
 }
 
 do_docker() {
-    if command -v docker &>/dev/null; then
+    if pkg_installed docker-ce; then
         success "Docker already installed, skipping"
         return
     fi
 
     info "Installing Docker + Docker Compose..."
+    # Docker's install docs: distro packages with these names conflict with docker-ce.
+    apt_purge docker.io docker-compose docker-compose-v2 docker-doc docker-buildx podman-docker containerd runc
 
-    apt install -y ca-certificates curl gnupg
-
+    apt-get install -y ca-certificates curl gnupg
     install -m 0755 -d /etc/apt/keyrings
-    local distro="ubuntu"
 
     local codename
     codename=$(get_ubuntu_codename)
-
-    curl -fsSL "https://download.docker.com/linux/$distro/gpg" | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    chmod a+r /etc/apt/keyrings/docker.gpg
 
     # Remove any conflicting deb822-style source / armored key left by a prior
     # install. apt refuses to read sources when the same repo is declared twice
     # with different Signed-By values (docker.gpg vs docker.asc).
     rm -f /etc/apt/sources.list.d/docker.sources /etc/apt/keyrings/docker.asc
 
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$distro $codename stable" \
-        > /etc/apt/sources.list.d/docker.list
+    add_apt_repo /etc/apt/sources.list.d/docker.list https://download.docker.com/linux/ubuntu/gpg /etc/apt/keyrings/docker.gpg 1 \
+        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $codename stable" \
+        || return 1
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-    apt update
-    apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    if ! id -nG "$REAL_USER" | grep -qw docker; then
+        usermod -aG docker "$REAL_USER"
+        need_reboot "'$REAL_USER' added to the docker group"
+    fi
+    systemctl enable --now docker
 
-    usermod -aG docker "$REAL_USER"
-
-    systemctl enable docker
-    systemctl start docker
-
-    success "Docker + Compose installed (user '$REAL_USER' added to docker group — re-login to apply)"
+    success "Docker + Compose installed (user '$REAL_USER' is in the docker group)"
 }
 
 do_browserstack() {
@@ -1768,47 +1876,61 @@ do_browserstack() {
     fi
 
     info "Installing BrowserStack Local..."
-    apt install -y wget unzip
+    apt-get install -y wget unzip
 
-    local tmp
-    tmp=$(mktemp /tmp/bstack-XXXXXX.zip)
-    wget -q -O "$tmp" "https://local-downloads.browserstack.com/BrowserStackLocal-linux-x64.zip"
+    step_tmpdir
+    local zip="$STEP_TMP/bstack.zip"
+    if ! wget -q -O "$zip" "https://local-downloads.browserstack.com/BrowserStackLocal-linux-x64.zip" || [[ ! -s "$zip" ]]; then
+        fail "Could not download BrowserStack Local"
+        return 1
+    fi
     # -o overwrite, -j junk paths (the zip holds a single bare binary).
-    unzip -o -j "$tmp" BrowserStackLocal -d /usr/local/bin
-    rm -f "$tmp"
+    unzip -o -j "$zip" BrowserStackLocal -d /usr/local/bin
     chmod +x /usr/local/bin/BrowserStackLocal
 
     success "BrowserStack Local installed (run 'BrowserStackLocal --key <ACCESS_KEY>')"
 }
 
 do_mysqlclient() {
+    if pkg_installed mysql-client; then
+        success "MySQL Client already installed, skipping"
+        return
+    fi
     info "Installing MySQL Client..."
-    apt install -y mysql-client
+    apt-get install -y mysql-client
     success "MySQL Client installed (mysqldump $(mysqldump --version 2>/dev/null | grep -oP 'Distrib \K[^,]+' || echo 'ready'))"
 }
 
 do_pgclient() {
+    if pkg_installed postgresql-client; then
+        success "PostgreSQL Client already installed, skipping"
+        return
+    fi
     info "Installing PostgreSQL Client..."
-    apt install -y postgresql-client
+    apt-get install -y postgresql-client
     success "PostgreSQL Client installed (pg_dump $(pg_dump --version 2>/dev/null | grep -oP '\d+\.\d+' || echo 'ready'))"
 }
 
+DBEAVER_LIST=/etc/apt/sources.list.d/dbeaver.list
+DBEAVER_KEY=/usr/share/keyrings/dbeaver.gpg.key
+
 do_dbeaver() {
-    if command -v dbeaver &>/dev/null; then
-        success "DBeaver already installed, skipping"
+    if [[ -f "$DBEAVER_LIST" ]] && pkg_up_to_date dbeaver-ce; then
+        success "DBeaver already installed (updates via apt), skipping"
         return
     fi
 
-    info "Installing DBeaver Community..."
-    local tmp
-    tmp=$(mktemp /tmp/dbeaver-XXXXXX.deb)
-    if ! download_deb "https://dbeaver.io/files/dbeaver-ce_latest_amd64.deb" "$tmp"; then
-        rm -f "$tmp"
-        return 1
+    if [[ ! -f "$DBEAVER_LIST" || ! -s "$DBEAVER_KEY" ]]; then
+        add_apt_repo "$DBEAVER_LIST" https://dbeaver.io/debs/dbeaver.gpg.key "$DBEAVER_KEY" 1 \
+            "deb [signed-by=$DBEAVER_KEY] https://dbeaver.io/debs/dbeaver-ce /" || return 1
     fi
-    apt install -y "$tmp"
-    rm -f "$tmp"
-    success "DBeaver Community installed"
+    if pkg_installed dbeaver-ce; then
+        info "Moving DBeaver Community onto its apt repo..."
+    else
+        info "Installing DBeaver Community..."
+    fi
+    apt-get install -y dbeaver-ce
+    success "DBeaver Community installed (updates via apt)"
 }
 
 remove_navicat_user_entries() {
@@ -1824,7 +1946,7 @@ do_navicat() {
     # SQL Server needs the unversioned libodbc.so, shipped only by unixodbc-dev
     if ! dpkg -s unixodbc-dev >/dev/null 2>&1; then
         info "Installing unixODBC for Navicat SQL Server connections..."
-        apt install -y unixodbc-dev >/dev/null 2>&1 || apt install -y unixodbc-dev
+        apt-get install -y unixodbc-dev >/dev/null 2>&1 || apt-get install -y unixodbc-dev
     fi
 
     if [[ "$(cat "$install_dir/VERSION" 2>/dev/null)" == "$version" ]]; then
@@ -1838,11 +1960,15 @@ do_navicat() {
     fi
 
     info "Installing Navicat Premium Lite $version..."
-    local tmp_dir
-    tmp_dir=$(mktemp -d /tmp/navicat-XXXXXX)
+    step_tmpdir
+    local tmp_dir="$STEP_TMP"
 
     local download="$tmp_dir/navicat.AppImage"
-    wget -q -O "$download" "https://download.navicat.com/download/navicat${version}-premium-lite-en-x86_64.AppImage"
+    if ! wget -q -O "$download" "https://download.navicat.com/download/navicat${version}-premium-lite-en-x86_64.AppImage" \
+        || [[ ! -s "$download" ]]; then
+        fail "Could not download Navicat Premium Lite $version"
+        return 1
+    fi
     chmod +x "$download"
 
     if [[ -f "$appimage" ]]; then
@@ -1859,7 +1985,6 @@ do_navicat() {
 
     mkdir -p "$install_dir"
     mv "$download" "$appimage"
-    echo "$version" > "$install_dir/VERSION"
     (cd "$tmp_dir" && "$appimage" --appimage-extract icon.png >/dev/null 2>&1 \
         && install -Dm 644 squashfs-root/icon.png /usr/share/icons/hicolor/256x256/apps/navicat-premium-lite.png) \
         || warn "Could not extract the Navicat icon"
@@ -1880,54 +2005,52 @@ StartupWMClass=AppRun
 DEOF
 
     ln -sf "$appimage" /usr/local/bin/navicat
+    echo "$version" > "$install_dir/VERSION"
 
-    rm -rf "$tmp_dir"
     success "Navicat Premium Lite $version installed (run 'navicat' or from app menu)"
 }
 
 do_fcitx5() {
-    info "Installing Fcitx5 with Vietnamese input (engine: ${IME_ENGINE})..."
+    # Per-engine package, plus the IM addon name written into the fcitx5 profile.
+    local im_name="$IME_ENGINE" engine_pkg
+    case "$IME_ENGINE" in
+        bamboo|lotus) engine_pkg="fcitx5-$IME_ENGINE" ;;
+        *)            im_name="unikey"; engine_pkg="fcitx5-unikey" ;;
+    esac
+
+    if pkg_installed fcitx5 && pkg_installed "$engine_pkg" \
+        && grep -qx 'GTK_IM_MODULE=fcitx' /etc/environment \
+        && grep -qx "Name=${im_name}" "$REAL_HOME/.config/fcitx5/profile" 2>/dev/null; then
+        success "Fcitx5 + ${im_name} already installed & configured, skipping"
+        return
+    fi
+
+    info "Installing Fcitx5 with Vietnamese input (engine: ${im_name})..."
 
     # Base fcitx5 runtime + GTK/Qt frontends — shared across every engine.
-    apt install -y fcitx5 fcitx5-config-qt \
+    apt-get install -y fcitx5 fcitx5-config-qt \
         fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5
 
-    # Per-engine package, plus the IM addon name written into the fcitx5 profile.
-    local im_name
-    case "$IME_ENGINE" in
-        bamboo)
-            apt install -y fcitx5-bamboo
-            im_name="bamboo"
-            ;;
-        lotus)
-            # Lotus is a third-party fcitx5 addon distributed via its own signed
-            # apt repo (not in Ubuntu's archive), keyed per release codename.
-            install -m 0755 -d /etc/apt/keyrings
-            if [[ ! -f /etc/apt/keyrings/fcitx5-lotus.gpg ]]; then
-                wget -qO- https://fcitx5-lotus.pages.dev/pubkey.gpg \
-                    | gpg --dearmor -o /etc/apt/keyrings/fcitx5-lotus.gpg
-                chmod a+r /etc/apt/keyrings/fcitx5-lotus.gpg
-            fi
-            local lotus_codename
-            lotus_codename=$(get_ubuntu_codename)
-            echo "deb [signed-by=/etc/apt/keyrings/fcitx5-lotus.gpg] https://fcitx5-lotus.pages.dev/apt/${lotus_codename} ${lotus_codename} main" \
-                > /etc/apt/sources.list.d/fcitx5-lotus.list
-            apt update
-            apt install -y fcitx5-lotus
-            im_name="lotus"
-            ;;
-        *)
-            apt install -y fcitx5-unikey
-            im_name="unikey"
-            ;;
-    esac
+    if [[ "$im_name" == lotus ]]; then
+        # Lotus is a third-party fcitx5 addon distributed via its own signed
+        # apt repo (not in Ubuntu's archive), keyed per release codename.
+        local lotus_list=/etc/apt/sources.list.d/fcitx5-lotus.list lotus_key=/etc/apt/keyrings/fcitx5-lotus.gpg lotus_codename
+        lotus_codename=$(get_ubuntu_codename)
+        if [[ ! -f "$lotus_list" || ! -s "$lotus_key" ]]; then
+            add_apt_repo "$lotus_list" https://fcitx5-lotus.pages.dev/pubkey.gpg "$lotus_key" 1 \
+                "deb [arch=amd64 signed-by=$lotus_key] https://fcitx5-lotus.pages.dev/apt/${lotus_codename} ${lotus_codename} main" \
+                || return 1
+        fi
+    fi
+    apt-get install -y "$engine_pkg"
 
     # ── IM environment variables ──────────────────────────────────────────
     # Ubuntu 24.04 dropped PAM's reading of ~/.pam_environment, and on Wayland
     # (GNOME default) ~/.xprofile is never sourced. /etc/environment is read by
     # pam_env for every login session — X11 *and* Wayland — so it's the one
     # reliable place for IM vars.
-    local env_file="/etc/environment"
+    local env_file="/etc/environment" env_before
+    env_before=$(cksum < "$env_file")
     sed -i -E '/^(GTK_IM_MODULE|QT_IM_MODULE|XMODIFIERS|SDL_IM_MODULE|GLFW_IM_MODULE)=/d' "$env_file"
     cat >> "$env_file" <<'ENVEOF'
 GTK_IM_MODULE=fcitx
@@ -1936,6 +2059,7 @@ XMODIFIERS=@im=fcitx
 SDL_IM_MODULE=fcitx
 GLFW_IM_MODULE=ibus
 ENVEOF
+    [[ "$(cksum < "$env_file")" == "$env_before" ]] || need_reboot "/etc/environment changed (fcitx5 input-method variables)"
 
     # ── Autostart on login (X11 + Wayland) ────────────────────────────────
     # The fcitx5 package ships a system autostart entry; we add a per-user one
@@ -1988,19 +2112,27 @@ PROFEOF
 
 do_postman() {
     if [[ -x /opt/Postman/Postman ]]; then
+        # Older runs kept the tarball's owner (uid 1001, no such user here).
+        if [[ -n "$(find /opt/Postman ! -user root -print -quit)" ]]; then
+            chown -R root:root /opt/Postman
+            success "Fixed /opt/Postman ownership (root:root)"
+        fi
         success "Postman already installed, skipping"
         return
     fi
 
     info "Installing Postman..."
-    apt install -y wget
+    apt-get install -y wget
 
-    local tmp
-    tmp=$(mktemp /tmp/postman-XXXXXX.tar.gz)
-    wget -q -O "$tmp" "https://dl.pstmn.io/download/latest/linux_64"
+    step_tmpdir
+    local tarball="$STEP_TMP/postman.tar.gz"
+    if ! wget -q -O "$tarball" "https://dl.pstmn.io/download/latest/linux_64" || [[ ! -s "$tarball" ]]; then
+        fail "Could not download Postman"
+        return 1
+    fi
     rm -rf /opt/Postman
-    tar -xzf "$tmp" -C /opt          # unpacks into /opt/Postman
-    rm -f "$tmp"
+    tar --no-same-owner -xzf "$tarball" -C /opt          # unpacks into /opt/Postman
+    chown -R root:root /opt/Postman
     ln -sf /opt/Postman/Postman /usr/local/bin/postman
 
     cat > /usr/share/applications/postman.desktop <<'DEOF'
@@ -2026,21 +2158,26 @@ do_waydroid() {
     fi
 
     info "Installing Waydroid..."
-    apt install -y curl ca-certificates
+    apt-get install -y curl ca-certificates
 
-    # Official Waydroid apt repo — the helper detects the release codename and
-    # writes the source + key for us.
-    run_remote_script root bash https://repo.waydro.id
+    local codename
+    codename=$(get_ubuntu_codename)
+    add_apt_repo /etc/apt/sources.list.d/waydroid.list https://repo.waydro.id/waydroid.gpg /usr/share/keyrings/waydroid.gpg 0 \
+        "deb [signed-by=/usr/share/keyrings/waydroid.gpg] https://repo.waydro.id/ $codename main" || return 1
 
-    apt install -y waydroid
+    apt-get install -y waydroid
 
     warn "Waydroid needs a Wayland session and the kernel 'binder' module. Run 'waydroid init' once, then launch it from your app menu."
     success "Waydroid installed"
 }
 
 do_vlc() {
+    if pkg_installed vlc; then
+        success "VLC already installed, skipping"
+        return
+    fi
     info "Installing VLC..."
-    apt install -y vlc
+    apt-get install -y vlc
     success "VLC installed"
 }
 
@@ -2052,9 +2189,8 @@ do_obs() {
     info "Installing OBS Studio..."
     # Official OBS PPA — newest builds with PipeWire screen capture for Wayland.
     # `add-apt-repository -y` refreshes the apt cache itself, so no extra update.
-    command -v add-apt-repository &>/dev/null || apt install -y software-properties-common
-    add-apt-repository -y ppa:obsproject/obs-studio
-    apt install -y obs-studio
+    add_ppa ppa:obsproject/obs-studio || return 1
+    apt-get install -y obs-studio
     success "OBS Studio installed"
 }
 
@@ -2065,16 +2201,13 @@ do_anydesk() {
     fi
 
     info "Installing AnyDesk..."
-    apt install -y wget gpg ca-certificates apt-transport-https
+    apt-get install -y gpg ca-certificates
 
     # Official AnyDesk apt repo. The repo is single-arch (amd64) and uses the
     # legacy `all main` suite regardless of Ubuntu codename.
-    wget -qO- https://keys.anydesk.com/repos/DEB-GPG-KEY \
-        | gpg --dearmor -o /usr/share/keyrings/anydesk.gpg
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/anydesk.gpg] http://deb.anydesk.com/ all main" \
-        > /etc/apt/sources.list.d/anydesk.list
-    apt update
-    apt install -y anydesk
+    add_apt_repo /etc/apt/sources.list.d/anydesk.list https://keys.anydesk.com/repos/DEB-GPG-KEY /usr/share/keyrings/anydesk.gpg 1 \
+        "deb [arch=amd64 signed-by=/usr/share/keyrings/anydesk.gpg] https://deb.anydesk.com/ all main" || return 1
+    apt-get install -y anydesk
     success "AnyDesk installed"
 }
 
@@ -2085,27 +2218,26 @@ do_teamviewer() {
     fi
 
     info "Installing TeamViewer..."
-    apt install -y wget
+    apt-get install -y wget
 
-    local tmp
-    tmp=$(mktemp /tmp/teamviewer-XXXXXX.deb)
-    if ! download_deb "https://download.teamviewer.com/download/linux/teamviewer_amd64.deb" "$tmp"; then
-        rm -f "$tmp"
-        return 1
-    fi
-    apt install -y "$tmp"
-    rm -f "$tmp"
+    step_tmpdir
+    download_deb "https://download.teamviewer.com/download/linux/teamviewer_amd64.deb" "$STEP_TMP/teamviewer.deb" || return 1
+    apt-get install -y "$STEP_TMP/teamviewer.deb"
     success "TeamViewer installed"
 }
 
 do_claude() {
-    if su - "$REAL_USER" -c 'command -v claude' &>/dev/null; then
+    if [[ -x "$REAL_HOME/.local/bin/claude" ]]; then
         success "Claude Code already installed, skipping"
         return
     fi
 
     info "Installing Claude Code..."
-    run_remote_script "$REAL_USER" bash https://claude.ai/install.sh
+    run_remote_script "$REAL_USER" bash https://claude.ai/install.sh || { fail "Claude Code installer failed"; return 1; }
+    if [[ ! -x "$REAL_HOME/.local/bin/claude" ]]; then
+        fail "Claude Code installer did not produce ~/.local/bin/claude"
+        return 1
+    fi
     success "Claude Code installed (run 'claude' to start)"
 }
 
@@ -2129,7 +2261,7 @@ undo_mirror() {
         fi
     done
     if [[ $restored -eq 1 ]]; then
-        apt update || true
+        apt-get update || true
         success "Original APT mirror restored"
     else
         warn "No mirror backup (*.bak) found — nothing to restore"
@@ -2153,21 +2285,6 @@ undo_swap() {
     fi
 }
 
-undo_adminuser() {
-    local admin="administrator"
-    info "Removing recovery account '$admin'..."
-    rm -f "/etc/sudoers.d/$admin"
-    if id "$admin" &>/dev/null; then
-        # Terminate any live sessions before deleting the account.
-        pkill -KILL -u "$admin" 2>/dev/null || true
-        deluser --remove-home "$admin" >/dev/null 2>&1 \
-            || userdel -r "$admin" >/dev/null 2>&1 || true
-        success "User '$admin' and its home directory removed"
-    else
-        warn "User '$admin' not found — only the sudoers drop-in was cleared"
-    fi
-}
-
 undo_terminal() {
     info "Removing terminal tools..."
 
@@ -2176,16 +2293,27 @@ undo_terminal() {
     cur_shell=$(getent passwd "$REAL_USER" | cut -d: -f7)
     if [[ "$cur_shell" == *zsh ]]; then
         chsh -s "$(command -v bash)" "$REAL_USER" 2>/dev/null || true
+        need_reboot "login shell reverted to bash"
         success "Default shell reverted to bash (re-login to apply)"
     fi
 
     # git/curl are intentionally kept — too many other things depend on them.
-    apt_purge zsh tmux htop jq ripgrep fzf bat batcat
+    apt_purge zsh tmux htop jq ripgrep fzf bat
     rm -f /usr/local/bin/yq /usr/local/bin/bat
 
     su - "$REAL_USER" -c 'rm -rf "$HOME/.oh-my-zsh"' 2>/dev/null || true
-    strip_rc_block "Tool integrations"
-    warn "Shell rc files left in place (Tool-integrations block removed)"
+    strip_rc_block "Tool integrations" "$REAL_HOME/.zshrc"
+    if runtimes_present; then
+        write_tool_integrations "$REAL_HOME/.bashrc"
+        info "Tool-integrations block kept in .bashrc — other runtimes still use it"
+    else
+        strip_rc_block "Tool integrations" "$REAL_HOME/.bashrc"
+    fi
+    if [[ -f "$REAL_HOME/.zshrc.pre-oh-my-zsh" ]]; then
+        mv -f "$REAL_HOME/.zshrc.pre-oh-my-zsh" "$REAL_HOME/.zshrc"
+        success "Restored ~/.zshrc from .zshrc.pre-oh-my-zsh"
+    fi
+    warn "Shell rc files left in place (Tool-integrations block removed from .zshrc)"
     success "Terminal tools removed (kept git & curl)"
 }
 
@@ -2262,33 +2390,46 @@ undo_nvm() {
 undo_bun() {
     info "Removing Bun..."
     su - "$REAL_USER" -c 'rm -rf "$HOME/.bun"' 2>/dev/null || true
-    # Strip the block the Bun installer appends to the user's rc files (our own
-    # Bun line lives in the Tool-integrations block and is conditional/harmless).
+    # Strip exactly the lines the Bun installer appends; our own Bun line lives in the Tool-integrations block.
     local rc
     for rc in "$REAL_HOME/.bashrc" "$REAL_HOME/.zshrc"; do
-        [[ -f "$rc" ]] || continue
-        sed -i '/^# bun$/,/\.bun\/bin/d' "$rc"
-        chown "$REAL_USER:$REAL_USER" "$rc" 2>/dev/null || true
+        filter_rc "$rc" '
+            $0 == ts { intool = 1 }
+            $0 == te { intool = 0 }
+            intool { print; next }
+            $0 == "# bun" { inbun = 1; next }
+            inbun && ($0 ~ /^export BUN_INSTALL=/ || $0 == "export PATH=\"$BUN_INSTALL/bin:$PATH\"") { next }
+            { inbun = 0 }
+            $0 == "# bun completions" { incomp = 1; next }
+            incomp && /\.bun\/_bun/ { incomp = 0; next }
+            { incomp = 0; print }' -v "ts=# --- Tool integrations ---" -v "te=# --- end Tool integrations ---"
     done
     success "Bun removed (.bun dir & installer rc block cleaned)"
 }
 
 undo_pnpm() {
     info "Removing pnpm..."
-    su - "$REAL_USER" -c '
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    su - "$REAL_USER" -c "$NVM_LOAD"'
         command -v corepack >/dev/null 2>&1 && corepack disable pnpm
     ' 2>/dev/null || true
     su - "$REAL_USER" -c 'rm -rf "$HOME/.local/share/pnpm" "$HOME/.config/pnpm"' 2>/dev/null || true
-    success "pnpm removed (corepack shim disabled, pnpm dirs cleaned)"
+    # Older runs used get.pnpm.io, which appends a `# pnpm` … `# pnpm end` block (our block has a `# pnpm` line too).
+    local rc
+    for rc in "$REAL_HOME/.bashrc" "$REAL_HOME/.zshrc"; do
+        filter_rc "$rc" '
+            $0 == ts { intool = 1 }
+            $0 == te { intool = 0 }
+            !intool && !open && $0 == "# pnpm" { open = 1; buf = $0 ORS; next }
+            open { buf = buf $0 ORS; if ($0 == "# pnpm end") { open = 0; buf = "" }; next }
+            { print }
+            END { if (open) printf "%s", buf }' -v "ts=# --- Tool integrations ---" -v "te=# --- end Tool integrations ---"
+    done
+    success "pnpm removed (corepack shim disabled, pnpm dirs & get.pnpm.io rc block cleaned)"
 }
 
 undo_yarn() {
     info "Removing Yarn..."
-    su - "$REAL_USER" -c '
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    su - "$REAL_USER" -c "$NVM_LOAD"'
         command -v corepack >/dev/null 2>&1 && corepack disable yarn
         command -v npm >/dev/null 2>&1 && npm uninstall -g yarn
     ' 2>/dev/null || true
@@ -2298,9 +2439,7 @@ undo_yarn() {
 
 undo_abp() {
     info "Removing ABP CLI..."
-    su - "$REAL_USER" -c '
-        export DOTNET_ROOT="/usr/share/dotnet"
-        export PATH="$PATH:$DOTNET_ROOT:$HOME/.dotnet/tools"
+    su - "$REAL_USER" -c "$DOTNET_ENV"'
         command -v dotnet >/dev/null 2>&1 && dotnet tool uninstall -g Volo.Abp.Studio.Cli
     ' 2>/dev/null || true
     success "ABP CLI removed"
@@ -2309,15 +2448,24 @@ undo_abp() {
 undo_dotnet() {
     info "Removing .NET SDK..."
     local pkgs
-    pkgs=$(dpkg-query -W -f='${Package}\n' 'dotnet-sdk-*' 'dotnet-runtime-*' 'dotnet-host*' 'aspnetcore-runtime-*' 2>/dev/null || true)
+    pkgs=$(dpkg-query -W -f='${Package}\n' 'dotnet-sdk-*' 'dotnet-runtime-*' 'dotnet-host*' 'dotnet-apphost-pack-*' \
+        'dotnet-targeting-pack-*' 'dotnet-templates-*' 'aspnetcore-runtime-*' 'aspnetcore-targeting-pack-*' \
+        'netstandard-targeting-pack-*' 2>/dev/null || true)
     if [[ -n "$pkgs" ]]; then
         # shellcheck disable=SC2086
         apt_purge $pkgs
     fi
     rm -f /etc/apt/sources.list.d/dotnet.list
+    if [[ -f "$DOTNET_PPA_MARKER" ]]; then
+        add-apt-repository -y --remove "$DOTNET_PPA" >/dev/null 2>&1 || true
+        rm -f "$DOTNET_PPA_MARKER"
+        success "Removed $DOTNET_PPA"
+    fi
     rm -rf /usr/share/dotnet
-    [[ -L /usr/bin/dotnet ]] && rm -f /usr/bin/dotnet
-    success ".NET SDK removed (packages, repo & symlink)"
+    if [[ -L /usr/bin/dotnet && ! -e /usr/bin/dotnet ]]; then
+        rm -f /usr/bin/dotnet
+    fi
+    success ".NET SDK removed (packages, PPA & leftovers)"
 }
 
 undo_chrome() {
@@ -2345,13 +2493,14 @@ undo_teams() {
 undo_vscode() {
     info "Removing VS Code..."
     apt_purge code
-    rm -f /etc/apt/sources.list.d/vscode.list
+    rm -f /etc/apt/sources.list.d/vscode.{list,sources}
     success "VS Code removed"
 }
 
 undo_trae() {
     info "Removing Trae IDE..."
     apt_purge trae
+    rm -f "$TRAE_URL_FILE"
     success "Trae IDE removed"
 }
 
@@ -2381,7 +2530,7 @@ undo_docker() {
     rm -f /etc/apt/sources.list.d/docker.list /etc/apt/sources.list.d/docker.sources \
           /etc/apt/keyrings/docker.gpg /etc/apt/keyrings/docker.asc
     gpasswd -d "$REAL_USER" docker 2>/dev/null || true
-    warn "/var/lib/docker (images, volumes, containers) left intact — remove manually if desired"
+    warn "/var/lib/docker, /var/lib/containerd and /etc/docker (images, volumes, config) left intact — remove manually if desired"
     success "Docker removed (packages, repo, key & group membership)"
 }
 
@@ -2406,7 +2555,8 @@ undo_pgclient() {
 undo_dbeaver() {
     info "Removing DBeaver Community..."
     apt_purge dbeaver-ce
-    success "DBeaver removed"
+    rm -f "$DBEAVER_LIST" "$DBEAVER_KEY"
+    success "DBeaver removed (package, repo & key)"
 }
 
 undo_navicat() {
@@ -2416,6 +2566,7 @@ undo_navicat() {
     rm -f /usr/local/bin/navicat /usr/share/icons/hicolor/256x256/apps/navicat-premium-lite.png
     gtk-update-icon-cache -q /usr/share/icons/hicolor 2>/dev/null || true
     remove_navicat_user_entries
+    info "unixodbc-dev stays installed — other ODBC tools may use it (apt purge unixodbc-dev to drop it)"
     success "Navicat Premium Lite removed"
 }
 
@@ -2429,6 +2580,7 @@ undo_fcitx5() {
     rm -f /etc/apt/sources.list.d/fcitx5-lotus.list /etc/apt/keyrings/fcitx5-lotus.gpg
 
     # Strip the IM vars from /etc/environment (leave the rest untouched).
+    grep -qE '^(GTK_IM_MODULE|QT_IM_MODULE|XMODIFIERS)=' /etc/environment && need_reboot "/etc/environment changed (fcitx5 variables removed)"
     sed -i -E '/^(GTK_IM_MODULE|QT_IM_MODULE|XMODIFIERS|SDL_IM_MODULE|GLFW_IM_MODULE)=/d' /etc/environment
 
     # Remove the config + autostart entry this script created.
@@ -2494,20 +2646,17 @@ undo_teamviewer() {
     apt_purge teamviewer
     # The teamviewer .deb drops its own apt repo + key; clear both.
     rm -f /etc/apt/sources.list.d/teamviewer.list \
-          /etc/apt/trusted.gpg.d/teamviewer*.asc
+          /usr/share/keyrings/teamviewer-keyring.gpg
     su - "$REAL_USER" -c 'rm -rf "$HOME/.config/teamviewer"' 2>/dev/null || true
     success "TeamViewer removed"
 }
 
 undo_claude() {
     info "Removing Claude Code..."
-    if su - "$REAL_USER" -c 'command -v claude' &>/dev/null; then
-        su - "$REAL_USER" -c 'claude uninstall --yes' 2>/dev/null \
-            || su - "$REAL_USER" -c 'claude uninstall' 2>/dev/null || true
-    fi
-    su - "$REAL_USER" -c 'rm -f "$HOME/.claude/bin/claude" "$HOME/.local/bin/claude"' 2>/dev/null || true
-    warn "~/.claude config directory left intact — remove manually if desired"
-    success "Claude Code removed"
+    rm -f "$REAL_HOME/.local/bin/claude"
+    rm -rf "$REAL_HOME/.local/share/claude"
+    warn "$REAL_HOME/.claude config directory left intact — remove manually if desired"
+    success "Claude Code removed (~/.local/bin/claude & ~/.local/share/claude)"
 }
 
 # --- Main --------------------------------------------------------------------
@@ -2530,6 +2679,123 @@ lacks the glyphs. Set it to a Nerd Font (e.g. "MesloLGS NF"), or run with
 EOF
 }
 
+RUN_SUCCEEDED=0
+RUN_START=0
+RUN_FAILED=()
+RUN_FAILED_WHY=()
+TEE_PID=""
+STEP_RC=0
+CURRENT_STEP=""
+
+start_logging() {
+    mkdir -p "$LOG_DIR"
+    LOG_FILE="$LOG_DIR/$(date +%Y%m%d-%H%M%S).log"
+    find "$LOG_DIR" -maxdepth 1 -name '*.log' -printf '%T@ %p\n' | sort -rn | tail -n +20 | cut -d' ' -f2- | xargs -r rm -f
+    exec 3>&1 4>&2
+    # tee ignores INT/TERM so a Ctrl-C summary still reaches the terminal and the log.
+    exec > >(trap '' INT TERM; exec tee -a "$LOG_FILE") 2>&1
+    TEE_PID=$!
+}
+
+cleanup_run() {
+    rm -f "$APT_RUN_CONF"
+    [[ -n "$TEE_PID" ]] || return 0
+    exec 1>&3 2>&4 3>&- 4>&-
+    # A daemon started by a postinst can inherit stdout and keep tee alive forever.
+    local i
+    for i in {1..50}; do
+        kill -0 "$TEE_PID" 2>/dev/null || break
+        sleep 0.1
+    done
+    kill "$TEE_PID" 2>/dev/null || true
+    TEE_PID=""
+}
+
+print_summary() {
+    local headline="$1" elapsed=$(( SECONDS - RUN_START ))
+    local border; border=$(ui_rep 53 "$RB_H")
+    echo ""
+    echo ""
+    echo -e "  ${DIM}${RB_TL}${border}${RB_TR}${NC}"
+    echo -e "  ${DIM}${RB_V}${NC}                                                     ${DIM}${RB_V}${NC}"
+    if [[ "$headline" == interrupted ]]; then
+        printf "  ${DIM}${RB_V}${NC}   ${YELLOW}${G_WARN}${NC}  ${BOLD}%-46s${NC}${DIM}${RB_V}${NC}\n" "Interrupted"
+    elif [[ ${#RUN_FAILED[@]} -eq 0 ]]; then
+        echo -e "  ${DIM}${RB_V}${NC}   ${MINT}${G_OK}${NC}  ${BOLD}${WHITE}All done!${NC}                                      ${DIM}${RB_V}${NC}"
+    else
+        echo -e "  ${DIM}${RB_V}${NC}   ${YELLOW}${G_WARN}${NC}  ${BOLD}Completed with errors${NC}                           ${DIM}${RB_V}${NC}"
+    fi
+    echo -e "  ${DIM}${RB_V}${NC}                                                     ${DIM}${RB_V}${NC}"
+    local stats="${RUN_SUCCEEDED} ${ACTION_PAST}"
+    [[ ${#RUN_FAILED[@]} -gt 0 ]] && stats="${stats}  ${#RUN_FAILED[@]} failed"
+    printf "  ${DIM}${RB_V}${NC}   ${MINT}${G_ON}${NC} %-44s${DIM}${RB_V}${NC}\n" "$stats"
+    printf "  ${DIM}${RB_V}${NC}   ${DIM}${G_CLOCK}  %-44s${NC}${DIM}${RB_V}${NC}\n" "$(( elapsed / 60 ))m $(( elapsed % 60 ))s"
+    echo -e "  ${DIM}${RB_V}${NC}                                                     ${DIM}${RB_V}${NC}"
+    echo -e "  ${DIM}${RB_BL}${border}${RB_BR}${NC}"
+
+    local i
+    if [[ ${#RUN_FAILED[@]} -gt 0 ]]; then
+        echo ""
+        echo -e "  ${RED}Failed:${NC}"
+        for i in "${!RUN_FAILED[@]}"; do
+            echo -e "    ${RED}${G_ERR}${NC} ${BOLD}${RUN_FAILED[$i]}${NC} ${DIM}— ${RUN_FAILED_WHY[$i]}${NC}"
+        done
+    fi
+
+    local reasons=() r
+    [[ -s "$RUN_DIR/reboot-reasons" ]] && mapfile -t reasons < <(sort -u "$RUN_DIR/reboot-reasons")
+    [[ -f /var/run/reboot-required ]] && reasons+=("system packages need a reboot (/var/run/reboot-required)")
+    if [[ ${#reasons[@]} -gt 0 ]]; then
+        echo ""
+        echo -e "  ${YELLOW}${G_REFRESH}${NC}  ${BOLD}Reboot or re-login to apply:${NC}"
+        for r in "${reasons[@]}"; do
+            echo -e "     ${DIM}${G_INFO} ${r}${NC}"
+        done
+    fi
+
+    [[ -n "$LOG_FILE" ]] && echo -e "\n  ${DIM}Log: ${LOG_FILE}${NC}"
+    echo ""
+}
+
+interrupt_run() {
+    trap - INT TERM
+    if [[ -n "$CURRENT_STEP" ]]; then
+        RUN_FAILED+=("$CURRENT_STEP")
+        RUN_FAILED_WHY+=("interrupted mid-step — re-run to finish it")
+    fi
+    echo ""
+    warn "Interrupted — stopping after ${RUN_SUCCEEDED} ${ACTION_PAST} step(s)"
+    print_summary interrupted
+    exit 130
+}
+
+# Must be called as a plain statement: inside an if/||/&& context bash ignores set -e and the ERR trap, even in the subshell.
+run_step() {
+    local step_fn="$1" err_file="$RUN_DIR/step-error" _rc=0 _cmd=""
+    rm -f "$err_file"
+    set +e
+    ( set -eE
+      trap '_rc=$?; if (( BASH_SUBSHELL == 1 )) && [[ ! -s "$err_file" ]]; then _cmd=${BASH_COMMAND//$'"'"'\n'"'"'/ }; printf "%s|%s|%s|%s\n" "$_rc" "$LINENO" "${FUNCNAME[0]:-}" "$_cmd" > "$err_file"; if [[ "${FUNCNAME[0]:-}" != run_step && "$_cmd" != return* ]]; then printf "  %b%s%b \"%s\" exited %s (%s, line %s)\n" "$RED" "$G_ERR" "$NC" "$_cmd" "$_rc" "${FUNCNAME[0]:-?}" "$LINENO" >&2; fi; fi' ERR
+      "$step_fn" )
+    STEP_RC=$?
+    set -e
+}
+
+step_failure_reason() {
+    local step_fn="$1" rc="$2" err_rc err_line err_func err_cmd
+    if [[ -s "$RUN_DIR/step-error" ]]; then
+        IFS='|' read -r err_rc err_line err_func err_cmd < "$RUN_DIR/step-error"
+        if [[ "$err_func" != run_step && "$err_cmd" == return* ]]; then
+            echo "a call in $err_func returned $err_rc (line $err_line, see the messages above)"
+            return
+        elif [[ "$err_func" != run_step ]]; then
+            echo "\"$err_cmd\" exited $err_rc ($err_func, line $err_line)"
+            return
+        fi
+    fi
+    echo "$step_fn returned $rc (see the messages above)"
+}
+
 main() {
     # Parse flags (order-independent).
     local arg
@@ -2545,14 +2811,21 @@ main() {
 
     # Pick the glyph set (Unicode vs ASCII) before anything is drawn.
     setup_glyphs
+    validate_registry
 
     need_root "$@"
 
+    if [[ "$REAL_USER" == root || -z "$REAL_HOME" ]]; then
+        fail "Target user resolved to '${REAL_USER}' — run this as your normal user; it re-execs itself with sudo."
+        exit 1
+    fi
+
     # This toolkit targets Ubuntu 26.04 — warn (don't refuse) on anything else.
-    local os_id os_ver
+    local os_id os_ver codename
     os_id=$(. /etc/os-release && echo "${ID:-}")
     os_ver=$(. /etc/os-release && echo "${VERSION_ID:-}")
-    if [[ "$os_id" != "ubuntu" || "$os_ver" != "26.04" ]]; then
+    codename=$(get_ubuntu_codename)
+    if [[ "$codename" != resolute && ( "$os_id" != "ubuntu" || "$os_ver" != "26.04" ) ]]; then
         warn "This toolkit targets Ubuntu 26.04 — detected '${os_id:-unknown} ${os_ver:-?}'. It may still work, but nothing is guaranteed."
     fi
 
@@ -2594,28 +2867,36 @@ main() {
     local prefix="do_"
     [[ "$MODE" == "uninstall" ]] && prefix="undo_"
 
+    start_logging
+    trap cleanup_run EXIT
+    trap interrupt_run INT TERM
+    rm -rf "$RUN_DIR"
+    mkdir -p "$RUN_DIR"
+    echo 'DPkg::Lock::Timeout "600";' > "$APT_RUN_CONF"
+
     local border; border=$(ui_rep 53 "$RB_H")
     echo ""
     echo -e "  ${DIM}${RB_TL}${border}${RB_TR}${NC}"
     printf "  ${DIM}${RB_V}${NC}  ${MINTB}${G_DIAMOND}${NC}  ${BOLD}${WHITE}%-48s${NC}${DIM}${RB_V}${NC}\n" "${ACTION_GERUND} ${STEP_TOTAL} packages..."
     echo -e "  ${DIM}${RB_BL}${border}${RB_BR}${NC}"
 
-    local failed=()
-    local succeeded=0
-    local start_time=$SECONDS
-
+    RUN_START=$SECONDS
+    local entry key label name
     for entry in "${APPS[@]}"; do
         IFS='|' read -r key label _ <<< "$entry"
+        [[ "${SELECTED[$key]}" == "1" ]] || continue
         # Drop the "::tagline" — only the name belongs in headers & error lines.
-        local name="${label%%::*}"
-        if [[ "${SELECTED[$key]}" == "1" ]]; then
-            print_step_header "$name"
-            if "${prefix}${key}"; then
-                succeeded=$((succeeded + 1))
-            else
-                fail "$name — ${MODE} failed"
-                failed+=("$name")
-            fi
+        name="${label%%::*}"
+        print_step_header "$name"
+        CURRENT_STEP="$name"
+        run_step "${prefix}${key}"
+        CURRENT_STEP=""
+        if [[ $STEP_RC -eq 0 ]]; then
+            RUN_SUCCEEDED=$((RUN_SUCCEEDED + 1))
+        else
+            fail "$name — ${MODE} failed"
+            RUN_FAILED+=("$name")
+            RUN_FAILED_WHY+=("$(step_failure_reason "${prefix}${key}" "$STEP_RC")")
         fi
     done
 
@@ -2623,9 +2904,9 @@ main() {
         # Wire runtime PATH/env into the shell rc even when the zsh Terminal Kit
         # was skipped, so bash — the default shell — still sees the tools.
         local _rt
-        for _rt in nvm bun pnpm dotnet azcli claude; do
+        for _rt in nvm bun pnpm yarn dotnet abp azcli claude; do
             if [[ "${SELECTED[$_rt]}" == "1" ]]; then
-                write_tool_integrations "$(resolve_shell_rc)"
+                write_tool_integrations "$(resolve_shell_rc)" || warn "Could not update the Tool-integrations block"
                 break
             fi
         done
@@ -2634,9 +2915,11 @@ main() {
         local _el
         for _el in chrome edge teams vscode trae postman; do
             if [[ "${SELECTED[$_el]}" == "1" ]]; then
-                grep -q '^ELECTRON_OZONE_PLATFORM_HINT=' /etc/environment 2>/dev/null \
-                    || echo 'ELECTRON_OZONE_PLATFORM_HINT=auto' >> /etc/environment
-                enable_wayland_ime
+                if ! grep -q '^ELECTRON_OZONE_PLATFORM_HINT=' /etc/environment 2>/dev/null; then
+                    echo 'ELECTRON_OZONE_PLATFORM_HINT=auto' >> /etc/environment
+                    need_reboot "/etc/environment changed (Electron Wayland hint)"
+                fi
+                enable_wayland_ime || warn "Could not install the Wayland IME launcher hook"
                 break
             fi
         done
@@ -2648,40 +2931,9 @@ main() {
         remove_wayland_ime_if_unused
     fi
 
-    local elapsed=$(( SECONDS - start_time ))
-    local mins=$(( elapsed / 60 ))
-    local secs=$(( elapsed % 60 ))
-
-    border=$(ui_rep 53 "$RB_H")
-    echo ""
-    echo ""
-    echo -e "  ${DIM}${RB_TL}${border}${RB_TR}${NC}"
-    echo -e "  ${DIM}${RB_V}${NC}                                                     ${DIM}${RB_V}${NC}"
-    if [[ ${#failed[@]} -eq 0 ]]; then
-        echo -e "  ${DIM}${RB_V}${NC}   ${MINT}${G_OK}${NC}  ${BOLD}${WHITE}All done!${NC}                                      ${DIM}${RB_V}${NC}"
-    else
-        echo -e "  ${DIM}${RB_V}${NC}   ${YELLOW}${G_WARN}${NC}  ${BOLD}Completed with errors${NC}                           ${DIM}${RB_V}${NC}"
-    fi
-    echo -e "  ${DIM}${RB_V}${NC}                                                     ${DIM}${RB_V}${NC}"
-    local stats="${succeeded} ${ACTION_PAST}"
-    [[ ${#failed[@]} -gt 0 ]] && stats="${stats}  ${#failed[@]} failed"
-    local time_str="${mins}m ${secs}s"
-    printf "  ${DIM}${RB_V}${NC}   ${MINT}${G_ON}${NC} %-44s${DIM}${RB_V}${NC}\n" "$stats"
-    printf "  ${DIM}${RB_V}${NC}   ${DIM}${G_CLOCK}  %-44s${NC}${DIM}${RB_V}${NC}\n" "$time_str"
-    echo -e "  ${DIM}${RB_V}${NC}                                                     ${DIM}${RB_V}${NC}"
-    echo -e "  ${DIM}${RB_BL}${border}${RB_BR}${NC}"
-
-    if [[ ${#failed[@]} -gt 0 ]]; then
-        echo ""
-        echo -e "  ${RED}Failed:${NC}"
-        for f in "${failed[@]}"; do
-            echo -e "    ${RED}${G_ERR}${NC} ${DIM}$f${NC}"
-        done
-    fi
-
-    echo ""
-    echo -e "  ${YELLOW}${G_REFRESH}${NC}  ${DIM}Reboot or re-login to apply all changes${NC}"
-    echo ""
+    trap - INT TERM
+    print_summary finished
+    [[ ${#RUN_FAILED[@]} -eq 0 ]]
 }
 
 # Only run main when executed directly — allows sourcing for tests.
