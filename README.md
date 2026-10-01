@@ -129,7 +129,7 @@ A 3D SETUP wordmark in leaf-green gradient greets you on launch.
 |-----------|---------|
 | **APT mirror (Vietnam)** | Switches the Ubuntu archive mirror to a nearby Vietnam host (default `mirror.bizflycloud.vn`; press `m` to pick another). Works from **any** previous mirror, not just the default. Rewrites `sources.list` and the deb822 `ubuntu.sources`, leaves `security.ubuntu.com` untouched, and backs up each sources file (`*.bak`). Runs first so later steps download from the fast mirror |
 | **System Update** | `apt update && upgrade && autoremove` |
-| **Swap 8GB** | Creates `/swapfile` (8GB), `swappiness=10`, persists in `/etc/fstab` + `/etc/sysctl.conf` |
+| **Swap 8GB** | Grows the installer's `/swap.img` to 8GB (or creates `/swapfile` if none), `swappiness=10`, persists in `/etc/fstab` + `/etc/sysctl.d/99-swappiness.conf` |
 
 ### Shell & Terminal
 
@@ -205,7 +205,7 @@ previously installed tool working.
 
 | Component | Source | Details |
 |-----------|--------|---------|
-| **Teams for Linux** | [GitHub releases](https://github.com/IsmaelMartinez/teams-for-linux) | Unofficial Electron wrapper (Microsoft discontinued native Teams for Linux in 2022) |
+| **Teams for Linux** | Official apt repo ([repo.teamsforlinux.de](https://github.com/IsmaelMartinez/teams-for-linux)) | Unofficial Electron wrapper (Microsoft discontinued native Teams for Linux in 2022) |
 
 ### IDE & Editor
 
@@ -411,7 +411,7 @@ claude --version                # → claude X.X.X
 
 Edit the size and check in `do_swap()`:
 ```bash
-fallocate -l 16G /swapfile
+fallocate -l 16G "$swapfile"
 # Also update the size check: $((16 * 1024 * 1024 * 1024))
 ```
 

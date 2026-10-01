@@ -879,34 +879,50 @@ do_update() {
     success "System updated"
 }
 
+# Ubuntu 26.04 has no /etc/sysctl.conf and systemd-sysctl only reads sysctl.d.
+SWAPPINESS_CONF=/etc/sysctl.d/99-swappiness.conf
+
+# The Ubuntu installer provisions /swap.img — reuse it rather than stacking a second swap file.
+resolve_swapfile() {
+    if grep -q '^/swap.img[[:space:]]' /etc/fstab 2>/dev/null; then echo /swap.img; else echo /swapfile; fi
+}
+
+remove_swapfile() {
+    local f="$1"
+    if swapon --show=NAME --noheadings | grep -qx "$f"; then
+        swapoff "$f" || { fail "Cannot swapoff $f (not enough free RAM to page it back in?)"; return 1; }
+    fi
+    rm -f "$f"
+    sed -i "\#^${f}[[:space:]]#d" /etc/fstab
+}
+
 do_swap() {
     info "Configuring 8GB swap with swappiness 10..."
 
-    if swapon --show | grep -q '/swapfile'; then
-        local current_size
-        current_size=$(stat -c%s /swapfile 2>/dev/null || echo 0)
-        if [[ "$current_size" -eq $((8 * 1024 * 1024 * 1024)) ]]; then
-            success "Swap 8GB already configured, skipping"
-            return
-        fi
-        swapoff /swapfile 2>/dev/null || true
-        rm -f /swapfile
+    local swapfile size
+    swapfile=$(resolve_swapfile)
+    # Earlier runs stacked /swapfile on top of the installer's /swap.img.
+    if [[ "$swapfile" == /swap.img ]] && { [[ -e /swapfile ]] || grep -q '^/swapfile[[:space:]]' /etc/fstab; }; then
+        remove_swapfile /swapfile || return 1
+        info "Removed extra /swapfile (reusing /swap.img)"
     fi
 
-    fallocate -l 8G /swapfile
-    chmod 600 /swapfile
-    mkswap /swapfile
-    swapon /swapfile
-
-    if ! grep -q '/swapfile' /etc/fstab; then
-        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    size=$(stat -c%s "$swapfile" 2>/dev/null || echo 0)
+    if [[ "$size" -ge $((8 * 1024 * 1024 * 1024)) ]]; then
+        swapon --show=NAME --noheadings | grep -qx "$swapfile" || swapon "$swapfile" || return 1
+        success "Swap 8GB already configured ($swapfile), skipping"
+    else
+        remove_swapfile "$swapfile" || return 1
+        { fallocate -l 8G "$swapfile" && chmod 600 "$swapfile" && mkswap "$swapfile" >/dev/null && swapon "$swapfile"; } \
+            || { fail "Failed to create $swapfile"; return 1; }
+        success "Swap 8GB active ($swapfile)"
     fi
+    grep -q "^${swapfile}[[:space:]]" /etc/fstab || echo "$swapfile none swap sw 0 0" >> /etc/fstab
 
-    sed -i '/^vm.swappiness/d' /etc/sysctl.conf
-    echo 'vm.swappiness=10' >> /etc/sysctl.conf
-    sysctl vm.swappiness=10
-
-    success "Swap 8GB active, swappiness=10 (persistent)"
+    [[ -f /etc/sysctl.conf ]] && sed -i '/^vm.swappiness/d' /etc/sysctl.conf
+    echo 'vm.swappiness=10' > "$SWAPPINESS_CONF"
+    sysctl -q -w vm.swappiness=10 || return 1
+    success "swappiness=10 (persistent via $SWAPPINESS_CONF)"
 }
 
 # Create a dedicated 'administrator' account with passwordless sudo, kept as an
@@ -1540,32 +1556,39 @@ do_edge() {
     success "Microsoft Edge installed"
 }
 
+TEAMS_REPO=/etc/apt/sources.list.d/teams-for-linux-packages.sources
+TEAMS_KEY=/etc/apt/keyrings/teams-for-linux.asc
+
+ensure_teams_repo() {
+    [[ -f "$TEAMS_REPO" && -s "$TEAMS_KEY" ]] && return 0
+    command -v wget &>/dev/null || apt install -y wget
+    mkdir -p /etc/apt/keyrings
+    wget -qO "$TEAMS_KEY" https://repo.teamsforlinux.de/teams-for-linux.asc \
+        || { rm -f "$TEAMS_KEY"; fail "Could not download the Teams for Linux repo key"; return 1; }
+    cat > "$TEAMS_REPO" <<EOF
+Types: deb
+URIs: https://repo.teamsforlinux.de/debian/
+Suites: stable
+Components: main
+Signed-By: $TEAMS_KEY
+Architectures: amd64
+EOF
+    # Roll back so a broken repo doesn't fail every later apt update and the next run retries cleanly.
+    apt update || { rm -f "$TEAMS_REPO" "$TEAMS_KEY"; fail "apt update failed after adding the Teams for Linux repo"; return 1; }
+}
+
 do_teams() {
+    ensure_teams_repo || return 1
+
     if dpkg -s teams-for-linux &>/dev/null; then
-        success "Teams for Linux already installed, skipping"
+        # Older runs installed the GitHub .deb, which never updates; this moves it onto the apt repo (no-op when current).
+        apt install -y teams-for-linux || return 1
+        success "Teams for Linux already installed (updates via apt)"
         return
     fi
 
     info "Installing Teams for Linux..."
-    apt install -y curl wget
-
-    local download_url
-    download_url=$(curl -fsSL "https://api.github.com/repos/IsmaelMartinez/teams-for-linux/releases/latest" \
-        | grep -oP '"browser_download_url":\s*"\K[^"]*_amd64\.deb' | head -1)
-
-    if [[ -z "$download_url" ]]; then
-        fail "Could not find Teams for Linux download URL (GitHub API may be rate-limited, try again later)"
-        return 1
-    fi
-
-    local tmp
-    tmp=$(mktemp /tmp/teams-for-linux-XXXXXX.deb)
-    if ! download_deb "$download_url" "$tmp"; then
-        rm -f "$tmp"
-        return 1
-    fi
-    apt install -y "$tmp"
-    rm -f "$tmp"
+    apt install -y teams-for-linux || return 1
     success "Teams for Linux installed"
 }
 
@@ -1635,31 +1658,46 @@ do_terraform() {
     success "Terraform $(terraform --version | head -1) installed"
 }
 
+azcli_codename() {
+    local codename
+    codename=$(get_ubuntu_codename)
+    # Azure CLI has no repo for other codenames (apt update 404s and aborts the run), so fall back to noble.
+    case "$codename" in
+        jammy | noble | resolute) echo "$codename" ;;
+        *) echo noble ;;
+    esac
+}
+
+write_azcli_repo() {
+    ensure_microsoft_gpg
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $1 main" \
+        > /etc/apt/sources.list.d/azure-cli.list
+    apt update && apt install -y azure-cli
+}
+
 do_azcli() {
+    local list=/etc/apt/sources.list.d/azure-cli.list codename
+    codename=$(azcli_codename)
+
     if command -v az &>/dev/null; then
+        # Older runs pinned the jammy repo on newer Ubuntu; move to the native build.
+        if [[ -f "$list" ]] && ! grep -q "/azure-cli/ $codename main" "$list"; then
+            info "Switching Azure CLI repo to '$codename'..."
+            write_azcli_repo "$codename" || { fail "Azure CLI repo switch failed"; return 1; }
+            success "Azure CLI moved to the '$codename' repo"
+            return
+        fi
         success "Azure CLI already installed, skipping"
         return
     fi
 
     info "Installing Azure CLI..."
     apt install -y ca-certificates curl apt-transport-https lsb-release gnupg
-    ensure_microsoft_gpg
-
-    local codename
-    codename=$(get_ubuntu_codename)
-    # Azure CLI has no repo for other codenames (apt update 404s and aborts the run), so fall back to noble.
-    case "$codename" in
-        jammy | noble | resolute) ;;
-        *)
-            warn "Azure CLI repo does not support '$codename', using the 'noble' repo instead"
-            codename="noble"
-            ;;
-    esac
-
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $codename main" \
-        > /etc/apt/sources.list.d/azure-cli.list
-    apt update
-    apt install -y azure-cli
+    local host_codename
+    host_codename=$(get_ubuntu_codename)
+    [[ "$codename" == "$host_codename" ]] \
+        || warn "Azure CLI repo does not support '$host_codename', using the 'noble' repo instead"
+    write_azcli_repo "$codename" || return 1
 
     success "Azure CLI $(az version --output tsv 2>/dev/null | head -1) installed"
 }
@@ -2104,12 +2142,15 @@ undo_update() {
 
 undo_swap() {
     info "Removing swap & resetting swappiness..."
-    swapoff /swapfile 2>/dev/null || true
-    rm -f /swapfile
-    sed -i '\#/swapfile#d' /etc/fstab
-    sed -i '/^vm.swappiness/d' /etc/sysctl.conf
-    sysctl -w vm.swappiness=60 >/dev/null 2>&1 || true
-    success "Swap removed, swappiness reset to default (60)"
+    remove_swapfile /swapfile || return 1
+    [[ -f /etc/sysctl.conf ]] && sed -i '/^vm.swappiness/d' /etc/sysctl.conf
+    rm -f "$SWAPPINESS_CONF"
+    sysctl -q -w vm.swappiness=60 || true
+    if [[ "$(resolve_swapfile)" == /swap.img ]]; then
+        success "Swappiness reset to default (60); kept the installer's /swap.img"
+    else
+        success "Swap removed, swappiness reset to default (60)"
+    fi
 }
 
 undo_adminuser() {
@@ -2282,20 +2323,22 @@ undo_dotnet() {
 undo_chrome() {
     info "Removing Google Chrome..."
     apt_purge google-chrome-stable
-    rm -f /etc/apt/sources.list.d/google-chrome.list
+    # The package's cron job rewrites its repo as deb822 .sources with its own keyring.
+    rm -f /etc/apt/sources.list.d/google-chrome.{list,sources} /usr/share/keyrings/google-chrome.gpg
     success "Google Chrome removed"
 }
 
 undo_edge() {
     info "Removing Microsoft Edge..."
     apt_purge microsoft-edge-stable
-    rm -f /etc/apt/sources.list.d/microsoft-edge.list
+    rm -f /etc/apt/sources.list.d/microsoft-edge.{list,sources} /usr/share/keyrings/microsoft-edge.gpg
     success "Microsoft Edge removed"
 }
 
 undo_teams() {
     info "Removing Teams for Linux..."
     apt_purge teams-for-linux
+    rm -f "$TEAMS_REPO" "$TEAMS_KEY"
     success "Teams for Linux removed"
 }
 
