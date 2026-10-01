@@ -83,13 +83,17 @@ screen (`\033[?1049h`) for flicker-free redraw. `read_key()` decodes arrow keys
   markers; `undo_` functions call `strip_rc_block <label> [rc…]` to remove them
   from `.zshrc` and `.bashrc` (only when both markers exist; `filter_rc` keeps a
   `.bak` and the owner). Reuse this pattern for any user-config edits.
-- **Shell target is dynamic** — `resolve_shell_rc()` returns `.zshrc` when zsh
-  is installed (the Terminal Kit runs before every runtime), else `.bashrc`, so
-  tools work even when zsh isn't installed. Runtime PATH/env goes through the
-  shared `write_tool_integrations <rc>` block (shell-agnostic; the Azure
-  completion is gated on `$ZSH_VERSION`), which is rewritten in place on every
-  run so script updates reach existing machines; `do_eza` writes aliases to the
-  resolved rc.
+- **Shell config reaches every installed shell** — `target_shell_rcs()` prints
+  `.bashrc`, plus `.zshrc` when zsh is installed (the Terminal Kit runs before
+  every runtime), so tools are on PATH whatever the login shell is. Runtime
+  PATH/env goes through the shared `write_tool_integrations <rc>` block
+  (shell-agnostic; the Azure completion is gated on `$ZSH_VERSION`), which
+  `main()` writes to each target rc and rewrites in place on every run so script
+  updates reach existing machines; `do_eza` writes its aliases the same way.
+- **Login shell is a pre-run option** — `ZSH_LOGIN_SHELL` (default `1`,
+  `--keep-shell` sets `0`) decides whether `do_terminal` runs `chsh` to zsh.
+  Steps never prompt; the only interactive read after the menu is the
+  uninstall confirmation in `main()`.
 - **Wayland IME for Chromium/Electron** — `enable_wayland_ime` (called from
   `main()`) installs `/usr/local/sbin/wayland-ime-launchers` plus a
   `DPkg::Post-Invoke` hook (`/etc/apt/apt.conf.d/99wayland-ime-launchers`) that

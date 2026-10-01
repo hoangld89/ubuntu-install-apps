@@ -28,6 +28,9 @@ cd ubuntu-install-apps
 # Or install everything at once
 ./install-app.sh --all
 
+# Keep bash as the login shell (Terminal Kit otherwise switches to zsh)
+./install-app.sh --all --keep-shell
+
 # Uninstall — same TUI, removes the apps you pick
 ./install-app.sh --uninstall
 ./install-app.sh --uninstall --all
@@ -134,13 +137,14 @@ A 3D SETUP wordmark in leaf-green gradient greets you on launch.
 
 ### Shell & Terminal
 
-The **Terminal Kit** (zsh) runs **before** languages/runtimes so their config
-lands in `.zshrc`. If you **skip** the Terminal Kit, that same config is written
-to `.bashrc` instead — the default shell keeps working with every tool on PATH.
+Runtime config (PATH, nvm, aliases) is written to `.bashrc`, and also to
+`.zshrc` when zsh is installed, so every tool works in whichever shell you open.
+The **Terminal Kit** (zsh) runs **before** languages/runtimes so `.zshrc`
+exists by the time they write to it.
 
 | Component | Details |
 |-----------|---------|
-| **zsh + Oh My Zsh** | Oh My Zsh with a minimal set of 3 plugins (see below). The script **asks** whether to make zsh your default shell — answer `n` to keep bash and just run `zsh` when you want it |
+| **zsh + Oh My Zsh** | Oh My Zsh with a minimal set of 3 plugins (see below). zsh becomes your login shell; pass `--keep-shell` to keep bash and just run `zsh` when you want it |
 | **tmux** | Terminal multiplexer |
 | **htop** | Interactive process monitor |
 | **jq** / **yq** | JSON / YAML processors |
@@ -168,8 +172,8 @@ A deliberately minimal set — just the essentials. `zsh-syntax-highlighting` is
 <details>
 <summary><b>Shell Tool Integrations</b></summary>
 
-A single `# --- Tool integrations ---` block is written to the active shell rc
-(`.zshrc` when zsh is installed, else `.bashrc`). Each entry is guarded so it is
+A single `# --- Tool integrations ---` block is written to `.bashrc`, and to
+`.zshrc` when zsh is installed. Each entry is guarded so it is
 auto-loaded when the tool is present and silently skipped otherwise:
 
 - **NVM** &mdash; `$NVM_DIR/nvm.sh`
@@ -387,7 +391,7 @@ hint, or `/var/run/reboot-required` present):
 Quick verification:
 
 ```bash
-echo $SHELL                     # → /usr/bin/zsh (if you set it)
+echo $SHELL                     # → /usr/bin/zsh (/bin/bash with --keep-shell)
 node -v                         # → current LTS, e.g. v24.x.x
 pnpm -v                         # → x.x.x
 yarn -v                         # → 4.x.x
