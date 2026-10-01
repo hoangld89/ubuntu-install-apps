@@ -59,9 +59,12 @@ sequences.
   through the shared `write_tool_integrations <rc>` block (shell-agnostic; the
   Azure completion is gated on `$ZSH_VERSION`); `do_eza` writes aliases to the
   resolved rc.
-- **Wayland IME for Chromium/Electron** — `enable_wayland_ime <desktop-file>`
-  injects Ozone/Wayland IME flags into a launcher's `Exec=` lines so fcitx5 can
-  type into Chrome/Edge/VS Code/Teams/Trae/Postman; `main()` also sets
+- **Wayland IME for Chromium/Electron** — `enable_wayland_ime` (called from
+  `main()`) installs `/usr/local/sbin/wayland-ime-launchers` plus a
+  `DPkg::Post-Invoke` hook (`/etc/apt/apt.conf.d/99wayland-ime-launchers`) that
+  injects Ozone/Wayland IME flags into the `Exec=` lines of every launcher in
+  `WAYLAND_IME_LAUNCHERS` after each apt run, so package upgrades can't drop them.
+  A new Electron app → add its `.desktop` path to that array. `main()` also sets
   `ELECTRON_OZONE_PLATFORM_HINT=auto` in `/etc/environment`.
 - **Glyphs**: the UI uses Unicode box-drawing/symbols with an ASCII fallback.
   Use the `G_*` / `RB_*` glyph variables (set in `setup_glyphs`), never hardcode

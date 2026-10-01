@@ -265,6 +265,11 @@ so the flags are safe on either session. This is applied to **Chrome, Edge,
 VS Code, Teams, Trae, and Postman**, and `ELECTRON_OZONE_PLATFORM_HINT=auto` is
 added to `/etc/environment` for other Electron apps.
 
+Package upgrades overwrite these launchers, so the script installs an apt hook
+(`/etc/apt/apt.conf.d/99wayland-ime-launchers` →
+`/usr/local/sbin/wayland-ime-launchers`) that re-applies the flags after every
+apt run. It is removed in uninstall mode once none of those apps remain.
+
 ---
 
 ## Idempotent &mdash; Safe to Re-run
