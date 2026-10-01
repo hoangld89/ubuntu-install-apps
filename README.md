@@ -414,14 +414,32 @@ claude --version                # → claude X.X.X
 
 ## Customization
 
+### Project layout
+
+```
+install-app.sh     entrypoint — sources lib/ and apps/, then runs main
+lib/
+  core.sh          colours, glyphs, output helpers, sudo re-exec, package checks
+  registry.sh      APPS + APP_GROUPS registry, mirror/.NET/IME config
+  apt.sh           apt repo / download helpers
+  shell-rc.sh      shell rc blocks, tool integrations, Wayland IME hook
+  shared.sh        helpers shared by several apps (nvm, corepack, zsh plugins)
+  ui-menu.sh       interactive menu
+  runner.sh        step runner, logging, summary, main
+apps/
+  <key>.sh         one file per app: do_<key> (install) + undo_<key> (uninstall)
+```
+
 ### Adding a new app
 
-1. Add to the `APPS` array (format `"key|Name::tagline|default_on"`):
+1. Add a line to the `APPS` array in `lib/registry.sh`
+   (format `"key|group|Name::tagline|default_on"`, group is one of the
+   `APP_GROUPS` keys; array order is install order):
    ```bash
-   "myapp|My Application::a one-line tagline|1"    # 1 = on by default
+   "myapp|desktop|My Application::a one-line tagline|1"    # 1 = on by default
    ```
 
-2. Add a `do_myapp()` with an idempotent skip check:
+2. Create `apps/myapp.sh` with a `do_myapp()` that has an idempotent skip check:
    ```bash
    do_myapp() {
        if command -v myapp &>/dev/null; then
@@ -434,7 +452,7 @@ claude --version                # → claude X.X.X
    }
    ```
 
-3. Add a matching `undo_myapp()` so it can be uninstalled too:
+3. Add a matching `undo_myapp()` to the same file so it can be uninstalled too:
    ```bash
    undo_myapp() {
        info "Removing My Application..."
@@ -443,9 +461,9 @@ claude --version                # → claude X.X.X
    }
    ```
 
-4. Add the `myapp` key to the relevant group's comma list in the `APP_GROUPS`
-   array so it shows up under that group in the menu. The script checks at
-   startup that every key sits in exactly one group and has both functions.
+The script checks at startup that every app has a known group, its
+`apps/<key>.sh` file and both functions, and that every file in `apps/` is
+registered.
 
 Steps run in a subshell with `set -e`, so an unchecked failing command fails the
 step. Guard expected failures with `|| true`, and add apt repos through
@@ -454,7 +472,7 @@ the repo back when `apt-get update` fails.
 
 ### Changing swap size
 
-Edit the size and check in `do_swap()`:
+Edit the size and check in `do_swap()` (`apps/swap.sh`):
 ```bash
 fallocate -l 16G "$swapfile"
 # Also update the size check: $((16 * 1024 * 1024 * 1024))

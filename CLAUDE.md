@@ -4,11 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A single-file Bash post-install setup for fresh Ubuntu 26.04 (resolute) machines. An
+A Bash post-install setup for fresh Ubuntu 26.04 (resolute) machines. An
 interactive TUI menu lets the user pick which of 36 apps to install (or
-uninstall), then runs each installer in sequence. Everything lives in
-`install-app.sh`. A non-26.04 host gets a soft warning at startup but the run
-still proceeds.
+uninstall), then runs each installer in sequence. A non-26.04 host gets a soft
+warning at startup but the run still proceeds.
+
+## Layout
+
+- `install-app.sh` — entrypoint: bash re-exec guard, `SCRIPT_DIR`, sources
+  `lib/` in a fixed order (core, registry, apt, shell-rc, shared, ui-menu,
+  runner) then every `apps/*.sh`, and calls `main` when executed directly.
+- `lib/core.sh` — colours, glyphs, output helpers, `need_root`, path constants,
+  `pkg_*`, `need_reboot`, `step_tmpdir`.
+- `lib/registry.sh` — `APPS`, `APP_GROUPS`, menu config, `validate_registry`.
+- `lib/apt.sh` — apt/download helpers. `lib/shell-rc.sh` — rc blocks, tool
+  integrations, Wayland IME. `lib/shared.sh` — helpers used by two or more apps.
+- `lib/ui-menu.sh` — menu state, rendering, key loop. `lib/runner.sh` — step
+  runner, logging, summary, `usage`, `main`.
+- `apps/<key>.sh` — `do_<key>`, `undo_<key>` and helpers only that app uses.
+  App and lib files only define functions and constants; nothing runs at
+  source time except building registry lookup tables.
 
 ## Architecture
 
@@ -16,19 +31,20 @@ still proceeds.
 and exactly two functions: `do_<key>` (install) and `undo_<key>` (uninstall).
 `main()` builds a `prefix` of `do_` or `undo_` from `$MODE`, then iterates the
 `APPS` registry calling `${prefix}${key}` for every selected app. **To add an
-app you must:** (1) add a `"key|Name::tagline|default_on"` line to the `APPS`
-array, (2) add the key to the right group's CSV in `APP_GROUPS`, (3) write both
-`do_<key>` and `undo_<key>`. `validate_registry` checks all three at startup
-and exits naming the bad key.
+app you must:** (1) add a `"key|group|Name::tagline|default_on"` line to `APPS`
+in `lib/registry.sh`, (2) create `apps/<key>.sh` with both `do_<key>` and
+`undo_<key>`. `validate_registry` checks at startup that the group exists, the
+file exists, both functions are defined, and every `apps/*.sh` has an entry; it
+exits naming the bad key or file.
 
-**The registries are the source of truth** (top of file, ~line 79):
-- `APPS` — ordered `"key|Name::tagline|default_on"`. `::` splits highlighted
+**The registries are the source of truth** (`lib/registry.sh`):
+- `APPS` — ordered `"key|group|Name::tagline|default_on"`. `::` splits highlighted
   name from dim tagline; install order = array order, so ordering matters
   (e.g. `mirror` runs first so later steps use the fast mirror; `terminal`/zsh
-  runs before language runtimes so shell config lands in `.zshrc` when chosen).
-- `APP_GROUPS` — `"groupkey|Title|csv,of,app,keys"`; drives the collapsible
-  TUI groups (icons come from `G_ICON`, keyed by group key). Every app key must
-  appear in exactly one group's CSV.
+  runs before language runtimes so `.zshrc` exists when they write to it).
+- `APP_GROUPS` — `"groupkey|Title|icon|ascii-icon"`; drives the collapsible TUI
+  groups in array order. `GROUP_APPS[groupkey]` (built from `APPS`) lists each
+  group's apps in `APPS` order. Never name an array `GROUPS` — bash reserves it.
 - `MIRRORS`, `DOTNET_VERSIONS`, `INPUT_ENGINES`/`IME_ENGINE` — config the user
   changes via menu keys (`m` mirror, `d` .NET, `g` Vietnamese input engine).
   `do_fcitx5` branches on `IME_ENGINE` (unikey / bamboo / lotus); `lotus` pulls
@@ -58,7 +74,8 @@ sets `DPkg::Lock::Timeout "600"` for the run and the EXIT trap removes it.
 reboot hint is printed only with collected reasons (plus `/var/run/reboot-required`).
 
 **Re-exec guards.** The script re-execs itself under `bash` if launched with
-`sh`/dash (line 5), and `need_root()` re-execs under `sudo` passing original
+`sh`/dash (top of `install-app.sh`), and `need_root()` re-execs
+`$SCRIPT_DIR/install-app.sh` under `sudo` passing original
 args through (so `--uninstall`/`--all` survive) plus `MINT_ASCII` via `sudo env`.
 Runs as root throughout; user-file edits target `REAL_USER`/`REAL_HOME` (from
 `$SUDO_USER`, home from `getent passwd`) and `chown` back. A target user of root
