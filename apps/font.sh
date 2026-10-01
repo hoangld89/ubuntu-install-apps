@@ -1,8 +1,6 @@
 # shellcheck shell=bash
 
-# Point gnome-terminal's default profile at the Nerd Font so icons render
-# without a manual settings change. Runs as REAL_USER because gsettings needs
-# that user's own dconf store and DBus session bus — not root's.
+# gsettings needs REAL_USER's dconf store and DBus session, so this runs as that user.
 apply_terminal_font() {
     command -v gnome-terminal &>/dev/null || return 0
     command -v gsettings     &>/dev/null || return 0
@@ -29,11 +27,7 @@ FONT_EOF
     rm -f "$font_script"
 }
 
-# Vietnamese web fonts. Facebook (and most sites) fall back to whatever face the
-# system offers for Vietnamese diacritics; without full-coverage fonts the
-# combining marks render misplaced/overlapping or as tofu boxes. Noto gives
-# correctly-composed Vietnamese coverage, its emoji face fixes broken emoji, and
-# Liberation covers the Arial/Helvetica CSS stacks sites commonly request.
+# Sites fall back to system fonts for Vietnamese diacritics: Noto covers them and emoji, Liberation the Arial/Helvetica stacks.
 install_vn_web_fonts() {
     local pkgs=(fonts-noto-core fonts-noto-cjk fonts-noto-color-emoji fonts-liberation)
     local missing=() p
@@ -85,15 +79,10 @@ do_font() {
             return 1
         fi
     done
-    # Rebuild the WHOLE font cache, not just "$font_dir": caching a single
-    # subdir can leave fontconfig's parent-dir cache stale so an immediate
-    # fc-list misses the new faces. A full -f makes fc-list see them at once.
+    # Caching only $font_dir can leave the parent-dir cache stale, hiding the new faces from fc-list.
     fc-cache -f >/dev/null 2>&1 || true
 
-    # The .ttf files on disk are the real source of truth for "installed".
-    # fc-list is only confirmation, and its cache can lag a beat — so retry it
-    # briefly, and if files are present treat that as success even if fc-list
-    # hasn't caught up (icons will render once the cache settles).
+    # The .ttf files decide success; fc-list can lag behind its cache, so it only gets a short retry.
     local faces=0 i
     for i in 1 2 3; do
         faces=$(fc-list 2>/dev/null | grep -ci 'MesloLGS NF' || true)
@@ -109,8 +98,7 @@ do_font() {
     apply_terminal_font
 }
 
-# Revert gnome-terminal's default profile back to the system font, so it does
-# not keep pointing at a font we are about to delete. Best-effort, as REAL_USER.
+# The profile must stop pointing at the Nerd Font before it is deleted.
 revert_terminal_font() {
     command -v gnome-terminal &>/dev/null || return 0
     command -v gsettings     &>/dev/null || return 0
@@ -143,8 +131,6 @@ undo_font() {
     else
         success "MesloLGS Nerd Font removed"
     fi
-    # Vietnamese web fonts (Noto/Liberation) are intentionally left in place:
-    # the desktop and browsers depend on them, so purging risks breaking
-    # system-wide text rendering. Remove manually if you really need to.
+    # Noto/Liberation stay: the desktop and browsers depend on them.
     info "Vietnamese web fonts (Noto/Liberation) left installed — shared with the desktop"
 }

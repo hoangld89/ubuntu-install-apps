@@ -10,8 +10,7 @@ do_bun() {
     # The installer downloads a zip and needs unzip; curl to fetch install.sh.
     apt-get install -y curl unzip
 
-    # Official per-user installer (into ~/.bun). PATH is wired up by the
-    # Bun block in the Tool-integrations section of .zshrc (added by do_terminal).
+    # Per-user install into ~/.bun; PATH comes from the Tool-integrations block.
     run_remote_script "$REAL_USER" bash https://bun.sh/install
 
     if [[ -x "$REAL_HOME/.bun/bin/bun" ]]; then

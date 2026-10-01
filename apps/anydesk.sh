@@ -9,8 +9,7 @@ do_anydesk() {
     info "Installing AnyDesk..."
     apt-get install -y gpg ca-certificates
 
-    # Official AnyDesk apt repo. The repo is single-arch (amd64) and uses the
-    # legacy `all main` suite regardless of Ubuntu codename.
+    # The AnyDesk repo is amd64-only and uses the `all main` suite for every codename.
     add_apt_repo /etc/apt/sources.list.d/anydesk.list https://keys.anydesk.com/repos/DEB-GPG-KEY /usr/share/keyrings/anydesk.gpg 1 \
         "deb [arch=amd64 signed-by=/usr/share/keyrings/anydesk.gpg] https://deb.anydesk.com/ all main" || return 1
     apt-get install -y anydesk

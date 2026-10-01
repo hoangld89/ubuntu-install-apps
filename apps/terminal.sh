@@ -46,7 +46,7 @@ do_terminal() {
     write_tool_integrations "$REAL_HOME/.zshrc"
 
     local cur_shell zsh_bin
-    cur_shell=$(getent passwd "$REAL_USER" | cut -d: -f7)
+    cur_shell=$(user_login_shell)
     zsh_bin=$(command -v zsh)
     if [[ "$cur_shell" == "$zsh_bin" ]]; then
         success "zsh is already the default shell for '$REAL_USER'"
@@ -55,7 +55,7 @@ do_terminal() {
         need_reboot "login shell changed to zsh"
         success "Default shell changed to zsh (re-login to apply)"
     else
-        info "Keeping the current login shell (--keep-shell). zsh is installed — run 'zsh' anytime to use it"
+        info "Keeping the current login shell (zsh login turned off). zsh is installed — run 'zsh' anytime to use it"
     fi
 
     success "Terminal tools installed: zsh + oh-my-zsh (3 plugins), tmux, htop, jq, yq, rg, fzf, bat"
@@ -64,9 +64,9 @@ do_terminal() {
 undo_terminal() {
     info "Removing terminal tools..."
 
-    # Revert the login shell to bash before removing zsh.
+    # A login shell pointing at a purged zsh would block login, so switch to bash first.
     local cur_shell
-    cur_shell=$(getent passwd "$REAL_USER" | cut -d: -f7)
+    cur_shell=$(user_login_shell)
     if [[ "$cur_shell" == *zsh ]]; then
         chsh -s "$(command -v bash)" "$REAL_USER" 2>/dev/null || true
         need_reboot "login shell reverted to bash"

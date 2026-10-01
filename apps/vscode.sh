@@ -1,8 +1,6 @@
 # shellcheck shell=bash
 
-# A user-level code.desktop (hand-made IME override) no longer shadows the
-# package's launcher since it was renamed to com.microsoft.VSCode.desktop, so
-# the menu shows two VS Code icons. The dpkg hook now covers the flags.
+# The package launcher is now com.microsoft.VSCode.desktop and the dpkg hook adds the IME flags, so an old hand-made code.desktop is only a second icon.
 remove_stale_vscode_launcher() {
     local stale="$REAL_HOME/.local/share/applications/code.desktop"
     [[ -f /usr/share/applications/com.microsoft.VSCode.desktop && -f "$stale" ]] || return 0

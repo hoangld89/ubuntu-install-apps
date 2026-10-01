@@ -1,19 +1,10 @@
 # shellcheck shell=bash
 
-# Microsoft fonts, from two separate sources:
-#   * ttf-mscorefonts-installer (multiverse) — Arial, Times New Roman, Courier
-#     New, Georgia, Verdana, Trebuchet MS, Comic Sans, Impact, Andale, Webdings.
-#     The EULA must be pre-accepted via debconf so the install is non-interactive.
-#   * Calibri, Cambria, Consolas, Candara, Constantia, Corbel — the ClearType
-#     ("Vista") faces MS never shipped stand-alone. They live inside PowerPoint
-#     Viewer 2007; we download it and pull the .ttf/.ttc out with cabextract
-#     (the long-standing community method).
-# Each part guards its own already-installed state, so this is safe to re-run.
+# Calibri, Cambria, Consolas… never shipped stand-alone, so they are extracted from PowerPoint Viewer 2007 with cabextract.
 do_msfonts() {
     # fontconfig provides fc-list / fc-cache — required for the accurate checks.
     apt-get install -y fontconfig >/dev/null 2>&1 || apt-get install -y fontconfig
 
-    # --- Core fonts: Arial, Times New Roman, … (ttf-mscorefonts-installer) ---
     if has_font 'Times New Roman'; then
         success "MS core fonts already installed (Arial / Times New Roman / …)"
     else
@@ -41,7 +32,6 @@ do_msfonts() {
         fi
     fi
 
-    # --- Calibri + ClearType faces, extracted from PowerPoint Viewer 2007 ---
     if has_font 'Calibri'; then
         success "Calibri & ClearType fonts already installed"
         return
@@ -74,8 +64,6 @@ do_msfonts() {
 }
 
 undo_msfonts() {
-    # Purge the core-fonts package and delete the extracted Calibri/ClearType
-    # faces. apt_purge never aborts the run on failure.
     info "Removing Microsoft fonts (Arial/Times New Roman/Calibri/…)..."
     apt_purge ttf-mscorefonts-installer
     rm -rf /usr/local/share/fonts/vista

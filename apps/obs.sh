@@ -6,8 +6,7 @@ do_obs() {
         return
     fi
     info "Installing OBS Studio..."
-    # Official OBS PPA — newest builds with PipeWire screen capture for Wayland.
-    # `add-apt-repository -y` refreshes the apt cache itself, so no extra update.
+    # The OBS PPA has PipeWire capture for Wayland; add-apt-repository -y already refreshes apt.
     add_ppa ppa:obsproject/obs-studio || return 1
     apt-get install -y obs-studio
     success "OBS Studio installed"

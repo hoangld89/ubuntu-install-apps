@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 
-# install | uninstall — set in main() from CLI flags. Drives menu labels,
-# default selection, and which dispatch prefix (do_ / undo_) main() calls.
+# install | uninstall: picks the do_/undo_ prefix, menu labels and default selection.
 MODE="install"
 ALL=0
 ZSH_LOGIN_SHELL=1           # Terminal Kit makes zsh the login shell; --keep-shell sets 0
@@ -14,7 +13,7 @@ STEP_TMP=""
 
 usage() {
     cat <<EOF
-SETUP — Post-install toolkit for Ubuntu 26.04
+SETUP v${TOOLKIT_VERSION} — Post-install toolkit for Ubuntu 26.04
 
 Usage:
   ./install-app.sh              Interactive install menu
@@ -35,7 +34,11 @@ RUN_SUCCEEDED=0
 RUN_START=0
 RUN_FAILED=()
 RUN_FAILED_WHY=()
-TEE_PID=""
+RUN_WARNED=()
+RUN_WARNED_WHY=()
+STEP_WARNINGS=()
+RUNTIME_KEYS=(nvm bun pnpm yarn dotnet abp azcli claude)
+ELECTRON_KEYS=(chrome edge teams vscode trae postman)
 STEP_RC=0
 CURRENT_STEP=""
 
@@ -43,80 +46,24 @@ start_logging() {
     mkdir -p "$LOG_DIR"
     LOG_FILE="$LOG_DIR/$(date +%Y%m%d-%H%M%S).log"
     find "$LOG_DIR" -maxdepth 1 -name '*.log' -printf '%T@ %p\n' | sort -rn | tail -n +20 | cut -d' ' -f2- | xargs -r rm -f
-    exec 3>&1 4>&2
-    # tee ignores INT/TERM so a Ctrl-C summary still reaches the terminal and the log.
-    exec > >(trap '' INT TERM; exec tee -a "$LOG_FILE") 2>&1
-    TEE_PID=$!
+    printf 'install-app %s run, %s, user %s\n' "$MODE" "$(date -Is)" "$REAL_USER" > "$LOG_FILE"
 }
 
 cleanup_run() {
+    spinner_stop
     rm -f "$APT_RUN_CONF"
-    [[ -n "$TEE_PID" ]] || return 0
-    exec 1>&3 2>&4 3>&- 4>&-
-    # A daemon started by a postinst can inherit stdout and keep tee alive forever.
-    local i
-    for i in {1..50}; do
-        kill -0 "$TEE_PID" 2>/dev/null || break
-        sleep 0.1
-    done
-    kill "$TEE_PID" 2>/dev/null || true
-    TEE_PID=""
-}
-
-print_summary() {
-    local headline="$1" elapsed=$(( SECONDS - RUN_START ))
-    local border; border=$(ui_rep 53 "$RB_H")
-    echo ""
-    echo ""
-    echo -e "  ${DIM}${RB_TL}${border}${RB_TR}${NC}"
-    echo -e "  ${DIM}${RB_V}${NC}                                                     ${DIM}${RB_V}${NC}"
-    if [[ "$headline" == interrupted ]]; then
-        printf "  ${DIM}${RB_V}${NC}   ${YELLOW}${G_WARN}${NC}  ${BOLD}%-46s${NC}${DIM}${RB_V}${NC}\n" "Interrupted"
-    elif [[ ${#RUN_FAILED[@]} -eq 0 ]]; then
-        echo -e "  ${DIM}${RB_V}${NC}   ${MINT}${G_OK}${NC}  ${BOLD}${WHITE}All done!${NC}                                      ${DIM}${RB_V}${NC}"
-    else
-        echo -e "  ${DIM}${RB_V}${NC}   ${YELLOW}${G_WARN}${NC}  ${BOLD}Completed with errors${NC}                           ${DIM}${RB_V}${NC}"
-    fi
-    echo -e "  ${DIM}${RB_V}${NC}                                                     ${DIM}${RB_V}${NC}"
-    local stats="${RUN_SUCCEEDED} ${ACTION_PAST}"
-    [[ ${#RUN_FAILED[@]} -gt 0 ]] && stats="${stats}  ${#RUN_FAILED[@]} failed"
-    printf "  ${DIM}${RB_V}${NC}   ${MINT}${G_ON}${NC} %-44s${DIM}${RB_V}${NC}\n" "$stats"
-    printf "  ${DIM}${RB_V}${NC}   ${DIM}${G_CLOCK}  %-44s${NC}${DIM}${RB_V}${NC}\n" "$(( elapsed / 60 ))m $(( elapsed % 60 ))s"
-    echo -e "  ${DIM}${RB_V}${NC}                                                     ${DIM}${RB_V}${NC}"
-    echo -e "  ${DIM}${RB_BL}${border}${RB_BR}${NC}"
-
-    local i
-    if [[ ${#RUN_FAILED[@]} -gt 0 ]]; then
-        echo ""
-        echo -e "  ${RED}Failed:${NC}"
-        for i in "${!RUN_FAILED[@]}"; do
-            echo -e "    ${RED}${G_ERR}${NC} ${BOLD}${RUN_FAILED[$i]}${NC} ${DIM}— ${RUN_FAILED_WHY[$i]}${NC}"
-        done
-    fi
-
-    local reasons=() r
-    [[ -s "$RUN_DIR/reboot-reasons" ]] && mapfile -t reasons < <(sort -u "$RUN_DIR/reboot-reasons")
-    [[ -f /var/run/reboot-required ]] && reasons+=("system packages need a reboot (/var/run/reboot-required)")
-    if [[ ${#reasons[@]} -gt 0 ]]; then
-        echo ""
-        echo -e "  ${YELLOW}${G_REFRESH}${NC}  ${BOLD}Reboot or re-login to apply:${NC}"
-        for r in "${reasons[@]}"; do
-            echo -e "     ${DIM}${G_INFO} ${r}${NC}"
-        done
-    fi
-
-    [[ -n "$LOG_FILE" ]] && echo -e "\n  ${DIM}Log: ${LOG_FILE}${NC}"
-    echo ""
+    (( RUN_TTY )) && { tput cnorm 2>/dev/null || true; }
+    return 0
 }
 
 interrupt_run() {
     trap - INT TERM
+    spinner_stop
     if [[ -n "$CURRENT_STEP" ]]; then
         RUN_FAILED+=("$CURRENT_STEP")
         RUN_FAILED_WHY+=("interrupted mid-step — re-run to finish it")
     fi
-    echo ""
-    warn "Interrupted — stopping after ${RUN_SUCCEEDED} ${ACTION_PAST} step(s)"
+    run_emit "  ${C_YELLOW}${G_WARN}${NC} Interrupted — stopping after ${RUN_SUCCEEDED} ${ACTION_PAST} step(s)"
     print_summary interrupted
     exit 130
 }
@@ -127,8 +74,10 @@ run_step() {
     rm -f "$err_file"
     set +e
     ( set -eE
-      trap '_rc=$?; if (( BASH_SUBSHELL == 1 )) && [[ ! -s "$err_file" ]]; then _cmd=${BASH_COMMAND//$'"'"'\n'"'"'/ }; printf "%s|%s|%s|%s\n" "$_rc" "$LINENO" "${FUNCNAME[0]:-}" "$_cmd" > "$err_file"; if [[ "${FUNCNAME[0]:-}" != run_step && "$_cmd" != return* ]]; then printf "  %b%s%b \"%s\" exited %s (%s, line %s)\n" "$RED" "$G_ERR" "$NC" "$_cmd" "$_rc" "${FUNCNAME[0]:-?}" "$LINENO" >&2; fi; fi' ERR
-      "$step_fn" )
+      trap '_rc=$?; if (( BASH_SUBSHELL == 1 )) && [[ ! -s "$err_file" ]]; then _cmd=${BASH_COMMAND//$'"'"'\n'"'"'/ }; printf "%s|%s|%s|%s\n" "$_rc" "$LINENO" "${FUNCNAME[0]:-}" "$_cmd" > "$err_file"; if [[ "${FUNCNAME[0]:-}" != run_step && "$_cmd" != return* ]]; then printf "  %s \"%s\" exited %s (%s, line %s)\n" "$G_ERR" "$_cmd" "$_rc" "${FUNCNAME[0]:-?}" "$LINENO" >&2; fi; fi' ERR
+      ui_plain
+      STEP_ACTIVE=1
+      "$step_fn" ) >> "$LOG_FILE" 2>&1 < /dev/null
     STEP_RC=$?
     set -e
 }
@@ -138,18 +87,83 @@ step_failure_reason() {
     if [[ -s "$RUN_DIR/step-error" ]]; then
         IFS='|' read -r err_rc err_line err_func err_cmd < "$RUN_DIR/step-error"
         if [[ "$err_func" != run_step && "$err_cmd" == return* ]]; then
-            echo "a call in $err_func returned $err_rc (line $err_line, see the messages above)"
+            echo "a call in $err_func returned $err_rc (line $err_line, see the step output)"
             return
         elif [[ "$err_func" != run_step ]]; then
             echo "\"$err_cmd\" exited $err_rc ($err_func, line $err_line)"
             return
         fi
     fi
-    echo "$step_fn returned $rc (see the messages above)"
+    echo "$step_fn returned $rc (see the step output)"
+}
+
+run_one_step() {  # $1 name $2 function $3 detail for the result line $4 counts
+    local offset started why=""
+    printf '\n==> %s (%s)\n' "$1" "$2" >> "$LOG_FILE"
+    offset=$(stat -c %s "$LOG_FILE")
+    started=$SECONDS
+    rm -f "$RUN_DIR/step-warnings"
+    ui_term_size
+    CURRENT_STEP="$1"
+    spinner_start "$1"
+    run_step "$2"
+    spinner_stop
+    CURRENT_STEP=""
+    STEP_WARNINGS=()
+    [[ -s "$RUN_DIR/step-warnings" ]] && mapfile -t STEP_WARNINGS < "$RUN_DIR/step-warnings"
+    if (( STEP_RC == 0 )); then
+        (( $4 )) && RUN_SUCCEEDED=$((RUN_SUCCEEDED + 1))
+        if (( ${#STEP_WARNINGS[@]} )); then
+            local first="${STEP_WARNINGS[0]}"
+            (( ${#STEP_WARNINGS[@]} > 1 )) && first+=" (+$(( ${#STEP_WARNINGS[@]} - 1 )) more)"
+            RUN_WARNED+=("$1")
+            RUN_WARNED_WHY+=("$first")
+        fi
+    else
+        why=$(step_failure_reason "$2" "$STEP_RC")
+        RUN_FAILED+=("$1")
+        RUN_FAILED_WHY+=("$why")
+    fi
+    step_report "$1" "$STEP_RC" $(( SECONDS - started )) "$offset" "$3" "$why"
+}
+
+any_selected() {
+    local k
+    for k in "$@"; do
+        [[ "${SELECTED[$k]:-}" == "1" ]] && return 0
+    done
+    return 1
+}
+
+needs_finalize() {
+    [[ "$MODE" == uninstall ]] || any_selected "${RUNTIME_KEYS[@]}" "${ELECTRON_KEYS[@]}"
+}
+
+finalize_run() {
+    if [[ "$MODE" == "install" ]]; then
+        if any_selected "${RUNTIME_KEYS[@]}"; then
+            local _rc
+            while read -r _rc; do
+                write_tool_integrations "$_rc" || warn "Could not update the Tool-integrations block in ${_rc##*/}"
+            done < <(target_shell_rcs)
+        fi
+        # Electron apps pick Wayland from this hint, which lets fcitx5 type into them; X11 falls back.
+        if any_selected "${ELECTRON_KEYS[@]}"; then
+            if ! grep -q '^ELECTRON_OZONE_PLATFORM_HINT=' /etc/environment 2>/dev/null; then
+                echo 'ELECTRON_OZONE_PLATFORM_HINT=auto' >> /etc/environment
+                need_reboot "/etc/environment changed (Electron Wayland hint)"
+            fi
+            enable_wayland_ime || warn "Could not install the Wayland IME launcher hook"
+        fi
+    fi
+
+    if [[ "$MODE" == "uninstall" ]]; then
+        apt-get autoremove -y >/dev/null 2>&1 || true
+        remove_wayland_ime_if_unused
+    fi
 }
 
 main() {
-    # Parse flags (order-independent).
     local arg
     for arg in "$@"; do
         case "$arg" in
@@ -173,7 +187,6 @@ main() {
         exit 1
     fi
 
-    # This toolkit targets Ubuntu 26.04 — warn (don't refuse) on anything else.
     local os_id os_ver codename
     os_id=$(. /etc/os-release && echo "${ID:-}")
     os_ver=$(. /etc/os-release && echo "${VERSION_ID:-}")
@@ -203,10 +216,9 @@ main() {
         exit 0
     fi
 
-    # Uninstalling is destructive — confirm once before touching anything.
     if [[ "$MODE" == "uninstall" ]]; then
         echo ""
-        printf "  ${YELLOW}?${NC} Remove ${BOLD}%s${NC} selected app(s)? This cannot be undone. [y/N] " "$STEP_TOTAL"
+        printf "  %s?%s Remove %s%s%s selected app(s)? This cannot be undone. [y/N] " "$C_YELLOW" "$NC" "$BOLD" "$STEP_TOTAL" "$NC"
         local confirm="n"
         read -r confirm </dev/tty || confirm="n"
         if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
@@ -227,64 +239,26 @@ main() {
     mkdir -p "$RUN_DIR"
     echo 'DPkg::Lock::Timeout "600";' > "$APT_RUN_CONF"
 
-    local border; border=$(ui_rep 53 "$RB_H")
-    echo ""
-    echo -e "  ${DIM}${RB_TL}${border}${RB_TR}${NC}"
-    printf "  ${DIM}${RB_V}${NC}  ${MINTB}${G_DIAMOND}${NC}  ${BOLD}${WHITE}%-48s${NC}${DIM}${RB_V}${NC}\n" "${ACTION_GERUND} ${STEP_TOTAL} packages..."
-    echo -e "  ${DIM}${RB_BL}${border}${RB_BR}${NC}"
-
+    RUN_TTY=0
+    [[ -t 1 ]] && RUN_TTY=1
+    ui_term_size
     RUN_START=$SECONDS
-    local entry key label name
+    run_header
+    (( RUN_TTY )) && { tput civis 2>/dev/null || true; }
+
+    local entry key label
     for entry in "${APPS[@]}"; do
         IFS='|' read -r key _ label _ <<< "$entry"
         [[ "${SELECTED[$key]}" == "1" ]] || continue
-        # Drop the "::tagline" — only the name belongs in headers & error lines.
-        name="${label%%::*}"
-        print_step_header "$name"
-        CURRENT_STEP="$name"
-        run_step "${prefix}${key}"
-        CURRENT_STEP=""
-        if [[ $STEP_RC -eq 0 ]]; then
-            RUN_SUCCEEDED=$((RUN_SUCCEEDED + 1))
-        else
-            fail "$name — ${MODE} failed"
-            RUN_FAILED+=("$name")
-            RUN_FAILED_WHY+=("$(step_failure_reason "${prefix}${key}" "$STEP_RC")")
-        fi
+        STEP_CURRENT=$((STEP_CURRENT + 1))
+        # Drop the "::tagline" — only the name belongs in result & error lines.
+        item_chip "$key"
+        run_one_step "${label%%::*}" "${prefix}${key}" "$REPLY" 1
     done
 
-    if [[ "$MODE" == "install" ]]; then
-        # Wire runtime PATH/env into the shell rc even when the zsh Terminal Kit
-        # was skipped, so bash — the default shell — still sees the tools.
-        local _rt
-        for _rt in nvm bun pnpm yarn dotnet abp azcli claude; do
-            if [[ "${SELECTED[$_rt]}" == "1" ]]; then
-                local _rc
-                while read -r _rc; do
-                    write_tool_integrations "$_rc" || warn "Could not update the Tool-integrations block in ${_rc##*/}"
-                done < <(target_shell_rcs)
-                break
-            fi
-        done
-        # Electron apps read this hint to auto-select Wayland, which is what lets
-        # fcitx5 type into them. Harmless on X11 (falls back automatically).
-        local _el
-        for _el in chrome edge teams vscode trae postman; do
-            if [[ "${SELECTED[$_el]}" == "1" ]]; then
-                if ! grep -q '^ELECTRON_OZONE_PLATFORM_HINT=' /etc/environment 2>/dev/null; then
-                    echo 'ELECTRON_OZONE_PLATFORM_HINT=auto' >> /etc/environment
-                    need_reboot "/etc/environment changed (Electron Wayland hint)"
-                fi
-                enable_wayland_ime || warn "Could not install the Wayland IME launcher hook"
-                break
-            fi
-        done
-    fi
-
-    # Sweep up packages orphaned by an uninstall pass.
-    if [[ "$MODE" == "uninstall" ]]; then
-        apt-get autoremove -y >/dev/null 2>&1 || true
-        remove_wayland_ime_if_unused
+    if needs_finalize; then
+        STEP_CURRENT=$((STEP_TOTAL + 1))
+        run_one_step "Finalizing" finalize_run "" 0
     fi
 
     trap - INT TERM
