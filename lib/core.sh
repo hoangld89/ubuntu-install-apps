@@ -1,53 +1,91 @@
 # shellcheck shell=bash
 
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-WHITE='\033[1;37m'
-DIM='\033[2m'
-BOLD='\033[1m'
-NC='\033[0m'
+TOOLKIT_VERSION="1.0.0"
 
-# Leaf-green accent palette on neutral chrome
-MINT='\033[38;5;113m'        # leaf green (≈ #87CF3E)
-MINTB='\033[1;38;5;113m'     # bold leaf green
-MINTD='\033[38;5;108m'       # muted sage green
+# Catppuccin Mocha; each colour carries its nearest xterm-256 index for terminals without truecolor.
+TRUECOLOR=0
+case "${COLORTERM:-}" in truecolor|24bit) TRUECOLOR=1 ;; esac
 
-# The menu leans on box-drawing and geometric symbols. Terminals whose font
-# lacks them (e.g. a bare VS Code integrated terminal, minimal SSH sessions)
-# render "tofu" boxes instead. UI_ASCII swaps every glyph for a 7-bit-safe
-# equivalent so the menu stays legible on any font. Defaults below are the
-# pretty Unicode set; setup_glyphs() flips them when ASCII mode is active.
+rgb_esc() {  # $1 38=fg|48=bg, $2 hex, $3 xterm-256 index
+    local hex=$2
+    if (( TRUECOLOR )); then
+        printf '\033[%s;2;%d;%d;%dm' "$1" "0x${hex:0:2}" "0x${hex:2:2}" "0x${hex:4:2}"
+    else
+        printf '\033[%s;5;%sm' "$1" "$3"
+    fi
+}
+
+C_MAUVE=$(rgb_esc 38 cba6f7 183)
+C_LAVENDER=$(rgb_esc 38 b4befe 147)
+C_BLUE=$(rgb_esc 38 89b4fa 111)
+C_SAPPHIRE=$(rgb_esc 38 74c7ec 117)
+C_GREEN=$(rgb_esc 38 a6e3a1 151)
+C_YELLOW=$(rgb_esc 38 f9e2af 223)
+C_RED=$(rgb_esc 38 f38ba8 211)
+C_TEXT=$(rgb_esc 38 cdd6f4 189)
+C_SUBTEXT=$(rgb_esc 38 a6adc8 146)
+C_OVERLAY=$(rgb_esc 38 6c7086 60)
+C_SURFACE2=$(rgb_esc 38 585b70 240)
+BG_SURFACE=$(rgb_esc 48 313244 236)
+BOLD=$'\033[1m'
+NOBOLD=$'\033[22m'
+FG0=$'\033[39m'
+BG0=$'\033[49m'
+NC=$'\033[0m'
+
+# Step output only reaches the log, so steps drop every escape sequence.
+ui_plain() {
+    C_MAUVE=""; C_LAVENDER=""; C_BLUE=""; C_SAPPHIRE=""; C_GREEN=""; C_YELLOW=""
+    C_RED=""; C_TEXT=""; C_SUBTEXT=""; C_OVERLAY=""; C_SURFACE2=""
+    BG_SURFACE=""; BOLD=""; NOBOLD=""; FG0=""; BG0=""; NC=""
+}
+
+# Fonts without these glyphs render tofu boxes; setup_glyphs swaps them for 7-bit ones in ASCII mode.
 UI_ASCII=0
 
-# selection / tree
-G_ON="●"; G_OFF="○"; G_PART="◐"
+G_ON="●"; G_OFF="○"
 G_EXPAND="▸"; G_COLLAPSE="▾"; G_BAR="▌"
 
-# bars & rules
-G_PROG_F="█"; G_PROG_E="░"; G_RULE="─"
+G_PROG_F="━"; G_PROG_E="─"; G_RULE="─"; G_HEAVY="━"; G_DOT="·"; G_ELLIPSIS="…"
+G_MINI_F="█"; G_MINI_E="░"; G_UP="↑"; G_DOWN="↓"
 
-# status / log markers
 G_INFO="▸"; G_OK="✓"; G_WARN="!"; G_ERR="✗"
-G_DIAMOND="◈"; G_REFRESH="⟳"; G_CLOCK="⏱"
+G_DIAMOND="◆"; G_REFRESH="⟳"; G_PIPE="│"
+G_SPIN=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
 
-# rounded box (summary panels)
-RB_TL="╭"; RB_TR="╮"; RB_BL="╰"; RB_BR="╯"; RB_H="─"; RB_V="│"
+RB_TL="╭"; RB_BL="╰"; RB_H="─"; RB_V="│"
 
 setup_glyphs() {
-    # Auto-enable ASCII in an explicitly non-UTF-8 locale — multibyte glyphs
-    # can't render there. A blank locale (sudo may strip it) is left as-is and
-    # assumed UTF-8. MINT_ASCII / --ascii force it on regardless.
+    # A blank locale (sudo may strip it) counts as UTF-8; only an explicit non-UTF-8 one forces ASCII.
     local loc="${LC_ALL:-}${LC_CTYPE:-}${LANG:-}"
     [[ -n "$loc" && "$loc" != *[Uu][Tt][Ff]* ]] && UI_ASCII=1
     [[ "${MINT_ASCII:-0}" == "1" ]] && UI_ASCII=1
     (( UI_ASCII == 0 )) && return 0
 
-    G_ON="*"; G_OFF="-"; G_PART="~"
+    G_ON="*"; G_OFF="-"
     G_EXPAND=">"; G_COLLAPSE="v"; G_BAR="|"
-    G_PROG_F="#"; G_PROG_E="."; G_RULE="-"
+    G_PROG_F="="; G_PROG_E="-"; G_RULE="-"; G_HEAVY="="; G_DOT="-"; G_ELLIPSIS="~"
+    G_MINI_F="#"; G_MINI_E="."; G_UP="^"; G_DOWN="v"
     G_INFO=">"; G_OK="+"; G_WARN="!"; G_ERR="x"
-    G_DIAMOND="*"; G_REFRESH="~"; G_CLOCK="~"
-    RB_TL="+"; RB_TR="+"; RB_BL="+"; RB_BR="+"; RB_H="-"; RB_V="|"
+    G_DIAMOND="*"; G_REFRESH="~"; G_PIPE="|"
+    G_SPIN=('|' '/' '-' "\\")
+    RB_TL="+"; RB_BL="+"; RB_H="-"; RB_V="|"
+}
+
+# String helpers return through REPLY so redraw loops never fork; C.UTF-8 counts multibyte glyphs as one column when sudo blanks the locale.
+ui_trunc() {  # $1 text, $2 max columns → REPLY: text cut to fit, ending in an ellipsis
+    local LC_ALL=C.UTF-8 max=$2
+    REPLY=$1
+    (( max <= 0 )) && { REPLY=""; return 0; }
+    (( ${#REPLY} > max )) && REPLY="${REPLY:0:max-1}${G_ELLIPSIS}"
+    return 0
+}
+
+ui_rep() {  # $1 count, $2 char → REPLY: char repeated
+    REPLY=""
+    (( $1 > 0 )) || return 0
+    printf -v REPLY '%*s' "$1" ''
+    REPLY=${REPLY// /$2}
 }
 
 RUN_DIR=/run/install-app            # per-run scratch: reboot reasons, step errors
@@ -57,30 +95,33 @@ LOG_FILE=""
 APT_RUN_CONF=/etc/apt/apt.conf.d/99install-app-run
 export DEBIAN_FRONTEND=noninteractive
 
-info()    { echo -e "\n  ${MINT}${G_INFO}${NC} $*"; }
-success() { echo -e "  ${MINT}${G_OK}${NC} $*"; }
-warn()    { echo -e "  ${YELLOW}${G_WARN}${NC} $*"; }
-fail()    { echo -e "  ${RED}${G_ERR}${NC} $*"; }
-
-print_step_header() {
-    local label="$1"
-    STEP_CURRENT=$((STEP_CURRENT + 1))
-    echo ""
-    echo -e "  ${MINTB}[${STEP_CURRENT}/${STEP_TOTAL}]${NC} ${BOLD}${WHITE}${label}${NC}"
-    echo -e "  ${DIM}$(ui_rep 50 "$G_RULE")${NC}"
+# Inside a step (STEP_ACTIVE=1) info also feeds the spinner's sub-status and warn the warnings shown under the result line.
+STEP_ACTIVE=0
+info() {
+    echo -e "\n  ${C_BLUE}${G_INFO}${NC} $*"
+    if (( STEP_ACTIVE )); then
+        { printf '%s\n' "$*" > "$RUN_DIR/status.tmp" && mv -f "$RUN_DIR/status.tmp" "$RUN_DIR/status"; } 2>/dev/null || true
+    fi
 }
+success() { echo -e "  ${C_GREEN}${G_OK}${NC} $*"; }
+warn() {
+    echo -e "  ${C_YELLOW}${G_WARN}${NC} $*"
+    if (( STEP_ACTIVE )); then printf '%s\n' "$*" >> "$RUN_DIR/step-warnings" 2>/dev/null || true; fi
+}
+fail()    { echo -e "  ${C_RED}${G_ERR}${NC} $*"; }
 
 need_root() {
     if [[ $EUID -ne 0 ]]; then
-        echo -e "${YELLOW}Requesting sudo privileges...${NC}"
-        # Pass the original CLI args along — otherwise flags like --uninstall /
-        # --all are dropped on the sudo re-exec.
-        exec sudo env "MINT_ASCII=${MINT_ASCII:-0}" bash "$SCRIPT_DIR/install-app.sh" "$@"
+        warn "Requesting sudo privileges..."
+        # sudo drops COLORTERM, which decides truecolor.
+        exec sudo env "MINT_ASCII=${MINT_ASCII:-0}" "COLORTERM=${COLORTERM:-}" bash "$SCRIPT_DIR/install-app.sh" "$@"
     fi
 }
 
 REAL_USER="${SUDO_USER:-${USER:-$(id -un)}}"
 REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6 || true)
+
+user_login_shell() { getent passwd "$REAL_USER" | cut -d: -f7; }
 
 get_ubuntu_codename() {
     ( . /etc/os-release && echo "${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}" )

@@ -16,9 +16,7 @@ do_docker() {
     local codename
     codename=$(get_ubuntu_codename)
 
-    # Remove any conflicting deb822-style source / armored key left by a prior
-    # install. apt refuses to read sources when the same repo is declared twice
-    # with different Signed-By values (docker.gpg vs docker.asc).
+    # apt rejects a repo declared twice with different Signed-By (docker.gpg vs docker.asc).
     rm -f /etc/apt/sources.list.d/docker.sources /etc/apt/keyrings/docker.asc
 
     add_apt_repo /etc/apt/sources.list.d/docker.list https://download.docker.com/linux/ubuntu/gpg /etc/apt/keyrings/docker.gpg 1 \

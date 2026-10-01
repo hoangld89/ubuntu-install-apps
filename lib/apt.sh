@@ -49,7 +49,7 @@ add_ppa() {
     fi
 }
 
-# add_apt_repo <list-path> <key-url> <key-path> <dearmor:0|1> <repo-content>
+# A failed key fetch or apt-get update removes both the key and the list, so a bad repo never breaks later steps.
 add_apt_repo() {
     local list="$1" key_url="$2" key="$3" dearmor="$4" content="$5"
     fetch_key "$key_url" "$key" "$dearmor" || { rm -f "$list" "$key"; return 1; }
@@ -87,14 +87,7 @@ apt_purge() {
     apt-get purge -y "${installed[@]}" >/dev/null 2>&1 || true
 }
 
-# Download a .deb to $dest, retrying on flaky networks, then verify the archive
-# is a well-formed Debian package before the caller hands it to apt. A truncated
-# download (wget can exit 0 on a partial transfer through some proxies) yields a
-# corrupt .deb that apt rejects with "could not locate member control.tar" /
-# "could not read meta" — so we validate with `dpkg-deb` and fail loudly instead.
-# `--contents` (not `--info`) is used on purpose: it reads data.tar, the final
-# archive member, so a download truncated anywhere is caught; `--info` only reads
-# the control member near the start and passes on a partial file.
+# wget can exit 0 on a truncated download; `dpkg-deb --contents` reads the last archive member (--info stops at control), so truncation fails here, not in apt.
 download_deb() {
     local url="$1" dest="$2" attempt
     for attempt in 1 2 3; do

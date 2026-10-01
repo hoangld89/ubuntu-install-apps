@@ -9,8 +9,7 @@ for _g in "${APP_GROUPS[@]}"; do
 done
 
 init_defaults() {
-    # In uninstall mode start with everything OFF so nothing is removed by
-    # accident — the user explicitly opts each app in.
+    # Uninstall starts with nothing selected so nothing is removed by accident.
     local def
     for entry in "${APPS[@]}"; do
         IFS='|' read -r key _ label default <<< "$entry"
@@ -49,31 +48,13 @@ build_visible() {
     done
 }
 
-# Keep CURSOR inside the visible range. Collapsing a group shrinks VIS_*, and
-# without this an out-of-range index trips `set -u` (unbound variable) the next
-# time interactive_menu reads VIS_TYPES[$CURSOR].
+# Collapsing a group shrinks VIS_*; an out-of-range CURSOR would trip set -u.
 clamp_cursor() {
     local n=${#VIS_TYPES[@]}
     (( n == 0 )) && { CURSOR=0; return 0; }
     (( CURSOR >= n )) && CURSOR=$((n - 1))
     (( CURSOR < 0 )) && CURSOR=0
     return 0   # never let a false (( )) become the function's exit status (set -e)
-}
-
-group_sel_count() {
-    local gapps="$1"
-    IFS=',' read -ra apps <<< "$gapps"
-    local sel=0
-    for app in "${apps[@]}"; do
-        [[ "${SELECTED[$app]}" == "1" ]] && sel=$((sel + 1))
-    done
-    echo "$sel"
-}
-
-group_app_count() {
-    local gapps="$1"
-    IFS=',' read -ra apps <<< "$gapps"
-    echo "${#apps[@]}"
 }
 
 toggle_group() {
@@ -114,21 +95,18 @@ toggle_item() {
 select_all()   { for entry in "${APPS[@]}"; do IFS='|' read -r key _ _ <<< "$entry"; SELECTED[$key]=1; done; }
 deselect_all() { for entry in "${APPS[@]}"; do IFS='|' read -r key _ _ <<< "$entry"; SELECTED[$key]=0; done; }
 
-# Lines are buffered, then painted in one pass from the home position. Each
-# line is cleared to EOL (\033[K) and the area below is cleared (\033[J) so
-# nothing ever blanks-then-fills — no flicker, no full `clear`.
-
 MENU_LINES=()
+MENU_TOP=0
+MENU_INFO=""
+UI_COLS=80
+UI_ROWS=24
+UI_W=76
+BANNER_LINES=()
+BANNER_KEY=""
 
-ui_rep() {  # repeat char $2, $1 times → stdout
-    local n=$1 ch=$2 out
-    printf -v out '%*s' "$n" ''
-    printf '%s' "${out// /$ch}"
-}
+ui_add() { MENU_LINES+=("$1"); }
 
-ui_add()  { MENU_LINES+=("$1"); }            # push a literal line
-ui_addf() { local _l; printf -v _l "$@"; MENU_LINES+=("$_l"); }  # push formatted
-
+# Painting from home and clearing to EOL/below avoids the blank-then-fill flicker of `clear`.
 render_menu() {
     local _l
     printf '\033[H'
@@ -138,173 +116,260 @@ render_menu() {
     printf '\033[J'
 }
 
-ui_progress_bar() {  # $1 selected $2 total → colored "██████░░░░"
-    local sel=$1 total=$2 width=18 filled
-    (( total == 0 )) && total=1
-    filled=$(( sel * width / total ))
-    (( filled > width )) && filled=width
-    printf '%b%s%b%s%b' "$MINT" "$(ui_rep "$filled" "$G_PROG_F")" \
-        "$DIM" "$(ui_rep $((width - filled)) "$G_PROG_E")" "$NC"
+ui_term_size() {
+    UI_COLS=$(tput cols 2>/dev/null || echo 80)
+    UI_ROWS=$(tput lines 2>/dev/null || echo 24)
+    [[ "$UI_COLS" =~ ^[0-9]+$ ]] || UI_COLS=80
+    [[ "$UI_ROWS" =~ ^[0-9]+$ ]] || UI_ROWS=24
+    UI_W=$(( UI_COLS - 3 ))
+    (( UI_W > 96 )) && UI_W=96
+    (( UI_W < 40 )) && UI_W=40
+    return 0
 }
 
-ui_gradient_rule() {  # $1 width, $2 char → dark→light green gradient rule
-    local width=${1:-55} ch=${2:-━}
-    # ASCII mode has no per-cell color budget to spare — plain dim rule.
-    if (( UI_ASCII == 1 )); then
-        printf '%b%s%b' "$MINTD" "$(ui_rep "$width" "$G_RULE")" "$NC"
-        return 0
-    fi
-    local ramp=(23 29 35 71 77 83 84 120 84 83 77 71 35 29)
-    local n=${#ramp[@]} out="" i seg
-    for (( i=0; i<width; i++ )); do
-        seg=$(( i * n / width ))
-        out+="\033[38;5;${ramp[$seg]}m${ch}"
+# shellcheck disable=SC2034  # read through the nameref in ui_gradient
+UI_RAMP_INSTALL=(cba6f7:183 b4befe:147 89b4fa:111 74c7ec:117)
+# shellcheck disable=SC2034
+UI_RAMP_UNINSTALL=(f38ba8:211 eba0ac:217 fab387:216)
+
+ui_gradient() {  # $1 text, $2 ramp array name → REPLY: each character coloured along the ramp
+    local LC_ALL=C.UTF-8 text=$1 i n ch out="" num s f stops a b r g bl
+    local -n ramp=$2
+    n=${#text}; stops=${#ramp[@]}
+    for (( i = 0; i < n; i++ )); do
+        ch=${text:i:1}
+        if [[ "$ch" == " " ]]; then out+=" "; continue; fi
+        num=$(( i * (stops - 1) * 1000 / (n > 1 ? n - 1 : 1) ))
+        s=$(( num / 1000 )); f=$(( num % 1000 ))
+        if (( s >= stops - 1 )); then s=$(( stops - 2 )); f=1000; fi
+        if (( TRUECOLOR )); then
+            a=${ramp[s]%%:*}; b=${ramp[s+1]%%:*}
+            r=$(( 0x${a:0:2} + (0x${b:0:2} - 0x${a:0:2}) * f / 1000 ))
+            g=$(( 0x${a:2:2} + (0x${b:2:2} - 0x${a:2:2}) * f / 1000 ))
+            bl=$(( 0x${a:4:2} + (0x${b:4:2} - 0x${a:4:2}) * f / 1000 ))
+            out+=$'\033'"[38;2;${r};${g};${bl}m${ch}"
+        else
+            (( f >= 500 )) && s=$(( s + 1 ))
+            out+=$'\033'"[38;5;${ramp[s]##*:}m${ch}"
+        fi
     done
-    out+="$NC"
-    printf '%b' "$out"
+    REPLY="${out}${FG0}"
 }
 
-print_banner() {
-    local G1='\033[1;38;5;157m'  # brightest mint
-    local G2='\033[1;38;5;120m'  # bright mint
-    local G3='\033[38;5;113m'    # mint green
-    local G4='\033[38;5;71m'     # leaf green
-    local G5='\033[38;5;34m'     # dark green
-    local G6='\033[38;5;22m'     # deep forest (shadow)
-
-    ui_add  ""
-    ui_addf "   ${G1}███████╗ ███████╗ ████████╗ ██╗   ██╗ ██████╗${NC}"
-    ui_addf "   ${G2}██╔════╝ ██╔════╝ ╚══██╔══╝ ██║   ██║ ██╔══██╗${NC}"
-    ui_addf "   ${G3}███████╗ █████╗      ██║    ██║   ██║ ██████╔╝${NC}"
-    ui_addf "   ${G4}╚════██║ ██╔══╝      ██║    ██║   ██║ ██╔═══╝${NC}"
-    ui_addf "   ${G5}███████║ ███████╗    ██║    ╚██████╔╝ ██║${NC}"
-    ui_addf "   ${G6}╚══════╝ ╚══════╝    ╚═╝     ╚═════╝  ╚═╝${NC}"
-    ui_add  ""
-    if [[ "$MODE" == "uninstall" ]]; then
-        ui_addf "      ${MINTB}ubuntu setup${NC} ${DIM}· uninstaller${NC}"
-        ui_addf "      ${YELLOW}danger zone — selected apps will be wiped${NC}"
+ui_pill() {  # $1 key → REPLY: key drawn as a pill (bracketed in ASCII mode)
+    if (( UI_ASCII )); then
+        REPLY="${C_TEXT}[${1}]${FG0}"
     else
-        ui_addf "      ${MINTB}ubuntu setup${NC} ${DIM}· post-install toolkit${NC}"
-        ui_addf "      ${MINTD}from bare install to battle-ready${NC}"
+        REPLY="${BG_SURFACE}${C_TEXT} ${1} ${BG0}${FG0}"
     fi
-    ui_add  ""
-    ui_add  "  $(ui_gradient_rule 55 ━)"
-    ui_add  ""
+}
+
+ui_bar() {  # $1 filled $2 total $3 width $4 fill colour $5 fill glyph $6 empty glyph → REPLY
+    local total=$2 width=$3 filled full
+    (( total == 0 )) && total=1
+    filled=$(( $1 * width / total ))
+    (( filled > width )) && filled=$width
+    ui_rep "$filled" "$5"; full=$REPLY
+    ui_rep $(( width - filled )) "$6"
+    REPLY="${4}${full}${C_SURFACE2}${REPLY}${FG0}"
+}
+
+build_banner() {
+    local key="$UI_W|$MODE|$UI_ASCII|$MENU_INFO"
+    [[ "$key" == "$BANNER_KEY" ]] && return 0
+    BANNER_KEY=$key
+    BANNER_LINES=()
+    local ramp=UI_RAMP_INSTALL sub="post-install toolkit" info
+    [[ "$MODE" == "uninstall" ]] && ramp=UI_RAMP_UNINSTALL && sub="uninstaller"
+    ui_trunc "$MENU_INFO" $(( UI_W - 22 )); info=$REPLY
+    (( 22 + 15 + ${#sub} > UI_W )) && sub=""
+    local title="${C_TEXT}${BOLD}ubuntu setup${NOBOLD}${sub:+ ${C_SUBTEXT}${G_DOT} ${sub}}${NC}"
+    BANNER_LINES+=("")
+    if (( UI_ASCII )); then
+        BANNER_LINES+=("  ${BOLD}${C_MAUVE}SETUP${NOBOLD}  ${title}")
+        BANNER_LINES+=("         ${C_OVERLAY}${info}${NC}")
+    else
+        ui_gradient "█▀▀ █▀▀ ▀█▀ █ █ █▀█" "$ramp"; BANNER_LINES+=("  ${REPLY}   ${title}")
+        ui_gradient "▄▄█ ██▄  █  █▄█ █▀▀" "$ramp"; BANNER_LINES+=("  ${REPLY}   ${C_OVERLAY}${info}${NC}")
+    fi
+    [[ "$MODE" == "uninstall" ]] && BANNER_LINES+=("  ${C_RED}${G_WARN} danger zone ${G_DOT} selected apps will be removed${NC}")
+    BANNER_LINES+=("")
+    ui_rep "$UI_W" "$G_HEAVY"
+    if (( UI_ASCII )); then
+        BANNER_LINES+=("  ${C_SURFACE2}${REPLY}${NC}")
+    else
+        ui_gradient "$REPLY" "$ramp"; BANNER_LINES+=("  ${REPLY}${NC}")
+    fi
+    BANNER_LINES+=("")
+}
+
+ui_row() {  # $1 on_cursor $2 left $3 left plain length $4 right $5 right plain length
+    local gap=$(( UI_W - 1 - $3 - $5 ))
+    (( gap < 1 )) && gap=1
+    ui_rep "$gap" ' '
+    if (( $1 )); then
+        ui_add "  ${BG_SURFACE}${C_MAUVE}${G_BAR}${FG0}${2}${REPLY}${4}${NC}"
+    else
+        ui_add "   ${2}${REPLY}${4}${NC}"
+    fi
+}
+
+group_row() {  # $1 group key $2 on_cursor
+    local label="${GROUP_LABEL[$1]}" icon="${GROUP_ICON[$1]}" app gsel=0 gtotal=0
+    local arrow="$G_EXPAND" arrow_col="$C_OVERLAY" bar_col="$C_GREEN" count
+    (( UI_ASCII )) && icon="${GROUP_ICON_ASCII[$1]}"
+    local -a apps
+    IFS=',' read -ra apps <<< "${GROUP_APPS[$1]}"
+    for app in "${apps[@]}"; do
+        [[ "${SELECTED[$app]}" == "1" ]] && gsel=$(( gsel + 1 ))
+    done
+    gtotal=${#apps[@]}
+    [[ "${GROUP_EXPANDED[$1]}" == "1" ]] && arrow="$G_COLLAPSE"
+    (( $2 )) && arrow_col="$C_MAUVE"
+    if (( gsel == 0 )); then bar_col="$C_OVERLAY"; elif (( gsel < gtotal )); then bar_col="$C_YELLOW"; fi
+    printf -v count '%5s' "$gsel/$gtotal"
+    ui_bar "$gsel" "$gtotal" 8 "$bar_col" "$G_MINI_F" "$G_MINI_E"
+    ui_row "$2" " ${arrow_col}${arrow} ${C_LAVENDER}${icon}  ${C_TEXT}${BOLD}${label}${NOBOLD}" \
+        $(( 6 + ${#label} )) "${REPLY} ${bar_col}${count}" 14
+}
+
+item_chip() {  # $1 app key → REPLY: live install setting shown at the row's right edge
+    REPLY=""
+    [[ "$MODE" == install ]] || return 0
+    case "$1" in
+        mirror) REPLY="$MIRROR_HOST" ;;
+        dotnet) REPLY=".NET ${DOTNET_VERSIONS[*]}" ;;
+        fcitx5) REPLY="$IME_ENGINE" ;;
+        terminal)
+            if [[ "${SELECTED[terminal]}" == 1 ]]; then
+                if [[ "$ZSH_LOGIN_SHELL" == 1 ]]; then REPLY="login: yes"; else REPLY="login: no"; fi
+            fi ;;
+    esac
+    return 0
+}
+
+item_row() {  # $1 app key $2 on_cursor
+    local LC_ALL=C.UTF-8
+    local full="${APP_LABELS[$1]}" name tag="" chip namecell dot dotc namec tagc
+    name="${full%%::*}"
+    [[ "$full" == *"::"* ]] && tag="${full#*::}"
+    item_chip "$1"
+    ui_trunc "$REPLY" $(( UI_W - 1 - 26 - 2 )); chip=$REPLY
+    printf -v namecell '%-18s' "$name"
+    if [[ "${SELECTED[$1]}" == "1" ]]; then
+        dot="$G_ON"; dotc="$C_GREEN"; namec="$C_TEXT"; tagc="$C_SUBTEXT"
+    else
+        dot="$G_OFF"; dotc="$C_OVERLAY"; namec="$C_OVERLAY"; tagc="$C_SURFACE2"
+    fi
+    (( $2 )) && namec="${C_TEXT}${BOLD}" && tagc="$C_SUBTEXT"
+    ui_trunc "$tag" $(( UI_W - 1 - 26 - ${#chip} - 1 )); tag=$REPLY
+    ui_row "$2" "    ${dotc}${dot} ${namec}${namecell}${NOBOLD}  ${tagc}${tag}" $(( 26 + ${#tag} )) \
+        "${C_SAPPHIRE}${chip}" "${#chip}"
+}
+
+HINTS=()
+HINT_LINES=()
+HINTS_KEY=""
+
+hint() {  # $1 key $2 label [$3 colour] → one "plainlen|coloured" footer hint
+    local LC_ALL=C.UTF-8 len=$(( ${#1} + 3 + ${#2} ))
+    ui_pill "$1"
+    if [[ -n "${3:-}" ]]; then
+        HINTS+=("${len}|${3}${BOLD}${REPLY}${3}${BOLD} ${2}${NOBOLD}${FG0}")
+    else
+        HINTS+=("${len}|${REPLY} ${C_SUBTEXT}${2}${FG0}")
+    fi
+}
+
+build_hints() {
+    local key="$UI_W|$MODE|$UI_ASCII"
+    [[ "$key" == "$HINTS_KEY" ]] && return 0
+    HINTS_KEY=$key
+    HINTS=()
+    if (( UI_ASCII )); then hint "up/dn" move; else hint "↑↓" move; fi
+    hint space toggle; hint enter expand; hint a all; hint n none
+    hint d .NET; hint m mirror; hint g IME
+    [[ "$MODE" == install ]] && hint s zsh
+    hint i "$ACTION_LABEL" "$C_MAUVE"; hint q quit
+    HINT_LINES=()
+    local line="" len=0 item ilen
+    for item in "${HINTS[@]}"; do
+        ilen=${item%%|*}; item=${item#*|}
+        if (( len > 0 && len + 2 + ilen > UI_W )); then
+            HINT_LINES+=("  ${line}${NC}"); line=""; len=0
+        fi
+        (( len > 0 )) && line+="  " && len=$(( len + 2 ))
+        line+="$item"; len=$(( len + ilen ))
+    done
+    HINT_LINES+=("  ${line}${NC}")
 }
 
 print_menu() {
     build_visible
     clamp_cursor
+    ui_term_size
+    build_banner
+    build_hints
     MENU_LINES=()
-    local total=${#APPS[@]}
-    local sel
-    sel=$(count_selected)
-    local rule; rule=$(ui_rep 55 "$G_RULE")
+    local total=${#APPS[@]} sel=0 n=${#VIS_TYPES[@]} footer_h avail list_h window i k
+    for k in "${!SELECTED[@]}"; do
+        [[ "${SELECTED[$k]}" == "1" ]] && sel=$(( sel + 1 ))
+    done
+    footer_h=$(( 4 + ${#HINT_LINES[@]} ))
+    avail=$(( UI_ROWS - 1 - footer_h ))
+    local min_list=$(( n < 8 ? n : 8 ))
+    if (( avail - ${#BANNER_LINES[@]} >= min_list )); then
+        MENU_LINES+=("${BANNER_LINES[@]}")
+        list_h=$(( avail - ${#BANNER_LINES[@]} ))
+    else
+        list_h=$avail
+    fi
 
-    # ── Banner ──
-    print_banner
+    local from=0 to=$n scroll=0
+    if (( n > list_h && list_h >= 3 )); then
+        scroll=1
+        window=$(( list_h - 2 ))
+        (( CURSOR < MENU_TOP )) && MENU_TOP=$CURSOR
+        (( CURSOR >= MENU_TOP + window )) && MENU_TOP=$(( CURSOR - window + 1 ))
+        (( MENU_TOP > n - window )) && MENU_TOP=$(( n - window ))
+        (( MENU_TOP < 0 )) && MENU_TOP=0
+        from=$MENU_TOP; to=$(( MENU_TOP + window ))
+    else
+        MENU_TOP=0
+    fi
 
-    # ── List ──
-    local i=0
-    for (( i=0; i<${#VIS_TYPES[@]}; i++ )); do
-        local vtype="${VIS_TYPES[$i]}"
-        local vkey="${VIS_KEYS[$i]}"
-        local on_cursor=0
-        [[ $i -eq $CURSOR ]] && on_cursor=1
-
-        if [[ "$vtype" == "group" ]]; then
-            local glabel="" gicon="" gapps="${GROUP_APPS[$vkey]}"
-            for g in "${APP_GROUPS[@]}"; do
-                IFS='|' read -r gk gl gi gia <<< "$g"
-                if [[ "$gk" == "$vkey" ]]; then
-                    glabel="$gl"; gicon="$gi"
-                    (( UI_ASCII == 1 )) && gicon="$gia"
-                    break
-                fi
-            done
-
-            local gsel gtotal
-            gsel=$(group_sel_count "$gapps")
-            gtotal=$(group_app_count "$gapps")
-
-            local arrow="$G_EXPAND"
-            [[ "${GROUP_EXPANDED[$vkey]}" == "1" ]] && arrow="$G_COLLAPSE"
-
-            local status_color="${MINT}" status_dot="$G_ON"
-            if [[ "$gsel" -eq 0 ]]; then
-                status_color="${DIM}"; status_dot="$G_OFF"
-            elif [[ "$gsel" -lt "$gtotal" ]]; then
-                status_color="${YELLOW}"; status_dot="$G_PART"
-            fi
-
-            if [[ $on_cursor -eq 1 ]]; then
-                ui_addf "  ${MINTB}${G_BAR}${NC} ${MINTB}${arrow}${NC} ${MINTD}${gicon}${NC} ${BOLD}${WHITE}%-30s${NC} %b%s %s/%s${NC}" \
-                    "$glabel" "$status_color" "$status_dot" "$gsel" "$gtotal"
-            else
-                ui_addf "    ${DIM}${arrow}${NC} ${MINTD}${gicon}${NC} ${BOLD}${WHITE}%-30s${NC} %b%s %s/%s${NC}" \
-                    "$glabel" "$status_color" "$status_dot" "$gsel" "$gtotal"
-            fi
-
+    if (( scroll )); then
+        if (( from > 0 )); then ui_add "   ${C_OVERLAY}${G_UP} ${from} more${NC}"; else ui_add ""; fi
+    fi
+    for (( i = from; i < to; i++ )); do
+        local on=0
+        (( i == CURSOR )) && on=1
+        if [[ "${VIS_TYPES[$i]}" == "group" ]]; then
+            group_row "${VIS_KEYS[$i]}" "$on"
         else
-            # Label is "Name::tagline" — name is the highlighted column, tagline
-            # the dim hint to its right. Items without "::" render name-only.
-            local full="${APP_LABELS[$vkey]}"
-            local name="$full" tag=""
-            if [[ "$full" == *"::"* ]]; then
-                name="${full%%::*}"; tag="${full#*::}"
-            fi
-
-            # Configurable items carry a live value chip after the tagline.
-            local chip=""
-            [[ "$vkey" == "dotnet" ]] && chip=" ${MINTD}[${DOTNET_VERSIONS[*]}]${NC}"
-            [[ "$vkey" == "mirror" ]] && chip=" ${MINTD}[${MIRROR_HOST}]${NC}"
-            [[ "$vkey" == "fcitx5" ]] && chip=" ${MINTD}[${IME_ENGINE}]${NC}"
-
-            local marker="  "
-            [[ $on_cursor -eq 1 ]] && marker="${MINTB}${G_BAR}${NC} "
-
-            local namecell; printf -v namecell '%-20s' "$name"
-            local mdot tagcol="$DIM"
-            [[ $on_cursor -eq 1 ]] && tagcol="$MINTD"
-            if [[ "${SELECTED[$vkey]}" == "1" ]]; then
-                mdot="${MINT}${G_ON}${NC}"; namecell="${WHITE}${namecell}${NC}"
-            else
-                mdot="${DIM}${G_OFF}${NC}"; namecell="${DIM}${namecell}${NC}"
-            fi
-            ui_addf "  %b      %b %b %b%s%b%b" \
-                "$marker" "$mdot" "$namecell" "$tagcol" "$tag" "$NC" "$chip"
+            item_row "${VIS_KEYS[$i]}" "$on"
         fi
     done
-
-    # ── Footer ──
-    ui_add  ""
-    ui_addf "  ${DIM}%s${NC}" "$rule"
-    ui_addf "  ${MINTB}%s${NC}${DIM}/%s selected${NC}   %s" \
-        "$sel" "$total" "$(ui_progress_bar "$sel" "$total")"
-    ui_add  ""
-    if (( UI_ASCII == 1 )); then
-        # Borderless hints — box-drawing alignment isn't worth the tofu risk.
-        ui_addf "  ${MINTD}Navigate${NC}  ${BOLD}${WHITE}Up/Dn${NC} ${DIM}move${NC}   ${BOLD}${WHITE}Enter${NC} ${DIM}expand${NC}   ${BOLD}${WHITE}Space${NC} ${DIM}toggle${NC}"
-        ui_addf "  ${MINTD}Select  ${NC}  ${BOLD}${WHITE}a${NC} ${DIM}all${NC}   ${BOLD}${WHITE}n${NC} ${DIM}none${NC}   ${BOLD}${WHITE}d${NC} ${DIM}.NET ver${NC}   ${BOLD}${WHITE}m${NC} ${DIM}mirror${NC}   ${BOLD}${WHITE}g${NC} ${DIM}input${NC}"
-        ui_addf "  ${MINTD}Actions ${NC}  ${MINTB}i${NC} ${MINTB}%s${NC}   ${BOLD}${WHITE}q${NC} ${DIM}quit${NC}" "$ACTION_LABEL"
-    else
-        ui_addf "  ${DIM}┌─${NC} ${MINTD}Navigate${NC} ${DIM}─────┬─${NC} ${MINTD}Select${NC} ${DIM}───────┬─${NC} ${MINTD}Actions${NC} ${DIM}─────────┐${NC}"
-        ui_addf "  ${DIM}│${NC}  ${BOLD}${WHITE}↑ ↓${NC}  ${DIM}Move${NC}     ${DIM}│${NC}  ${BOLD}${WHITE}Space${NC}  ${DIM}Toggle${NC} ${DIM}│${NC}  ${BOLD}${WHITE}d${NC}  ${DIM}.NET version${NC}  ${DIM}│${NC}"
-        ui_addf "  ${DIM}│${NC}  ${BOLD}${WHITE}↵${NC}    ${DIM}Expand${NC}   ${DIM}│${NC}  ${BOLD}${WHITE}a${NC}      ${DIM}All${NC}    ${DIM}│${NC}  ${BOLD}${WHITE}m${NC}  ${DIM}APT mirror${NC}    ${DIM}│${NC}"
-        ui_addf "  ${DIM}│${NC}                ${DIM}│${NC}  ${BOLD}${WHITE}n${NC}      ${DIM}None${NC}   ${DIM}│${NC}  ${BOLD}${WHITE}g${NC}  ${DIM}Input engine${NC}  ${DIM}│${NC}"
-        ui_addf "  ${DIM}│${NC}                ${DIM}│${NC}                ${DIM}│${NC}  ${MINTB}i${NC}  ${MINTB}%-7s${NC}    ${MINT}▸${NC}  ${DIM}│${NC}" "$ACTION_LABEL"
-        ui_addf "  ${DIM}│${NC}                ${DIM}│${NC}                ${DIM}│${NC}  ${BOLD}${WHITE}q${NC}  ${DIM}Quit${NC}          ${DIM}│${NC}"
-        ui_addf "  ${DIM}└────────────────┴────────────────┴───────────────────┘${NC}"
+    if (( scroll )); then
+        if (( to < n )); then ui_add "   ${C_OVERLAY}${G_DOWN} $(( n - to )) more${NC}"; else ui_add ""; fi
     fi
-    ui_add  ""
+
+    local count_txt="$sel/$total selected"
+    ui_add ""
+    ui_rep "$UI_W" "$G_RULE"
+    ui_add "  ${C_SURFACE2}${REPLY}${NC}"
+    ui_bar "$sel" "$total" $(( UI_W - ${#count_txt} - 2 )) "$C_MAUVE" "$G_PROG_F" "$G_PROG_E"
+    ui_add "  ${C_MAUVE}${BOLD}${sel}${NOBOLD}${C_SUBTEXT}/${total} selected  ${REPLY}${NC}"
+    ui_add ""
+    MENU_LINES+=("${HINT_LINES[@]}")
 
     render_menu
 }
 
 configure_dotnet() {
     echo ""
-    echo -e "  ${DIM}Available:${NC} 8 ${YELLOW}(EOL 2026-11-10)${NC}  9 ${YELLOW}(EOL 2026-11-10)${NC}  10"
-    echo -e "  ${DIM}Current: ${NC} ${BOLD}${DOTNET_VERSIONS[*]}${NC}"
+    echo -e "  ${C_SUBTEXT}Available:${NC} 8 ${C_YELLOW}(EOL 2026-11-10)${NC}  9 ${C_YELLOW}(EOL 2026-11-10)${NC}  10"
+    echo -e "  ${C_SUBTEXT}Current: ${NC} ${BOLD}${DOTNET_VERSIONS[*]}${NC}"
     echo ""
     local input v picked=()
     read -rp "  Versions (e.g. '8 10'): " input
@@ -323,14 +388,14 @@ configure_dotnet() {
 
 configure_mirror() {
     echo ""
-    echo -e "  ${DIM}Pick the APT mirror closest to you (Vietnam):${NC}"
+    echo -e "  ${C_SUBTEXT}Pick the APT mirror closest to you (Vietnam):${NC}"
     echo ""
     local i=1 host label
     for m in "${MIRRORS[@]}"; do
         IFS='|' read -r host label <<< "$m"
         local mark="  "
-        [[ "$host" == "$MIRROR_HOST" ]] && mark="${MINT}${G_ON}${NC}"
-        echo -e "    ${mark} ${BOLD}${WHITE}${i}${NC}) ${label} ${DIM}(${host})${NC}"
+        [[ "$host" == "$MIRROR_HOST" ]] && mark="${C_GREEN}${G_ON}${NC}"
+        echo -e "    ${mark} ${BOLD}${C_TEXT}${i}${NC}) ${label} ${C_SUBTEXT}(${host})${NC}"
         i=$((i + 1))
     done
     echo ""
@@ -343,16 +408,16 @@ configure_mirror() {
 
 configure_input_method() {
     echo ""
-    echo -e "  ${DIM}Pick the Vietnamese input-method engine (fcitx5):${NC}"
+    echo -e "  ${C_SUBTEXT}Pick the Vietnamese input-method engine (fcitx5):${NC}"
     echo ""
     local i=1 ekey elabel
     for e in "${INPUT_ENGINES[@]}"; do
         IFS='|' read -r ekey elabel <<< "$e"
         local mark="  "
-        [[ "$ekey" == "$IME_ENGINE" ]] && mark="${MINT}${G_ON}${NC}"
+        [[ "$ekey" == "$IME_ENGINE" ]] && mark="${C_GREEN}${G_ON}${NC}"
         local note=""
-        [[ "$ekey" == "lotus" ]] && note=" ${DIM}(third-party apt repo)${NC}"
-        echo -e "    ${mark} ${BOLD}${WHITE}${i}${NC}) ${elabel}${note}"
+        [[ "$ekey" == "lotus" ]] && note=" ${C_SUBTEXT}(third-party apt repo)${NC}"
+        echo -e "    ${mark} ${BOLD}${C_TEXT}${i}${NC}) ${elabel}${note}"
         i=$((i + 1))
     done
     echo ""
@@ -363,13 +428,20 @@ configure_input_method() {
     fi
 }
 
+toggle_login_shell() {
+    if [[ "$ZSH_LOGIN_SHELL" == 1 ]]; then
+        ZSH_LOGIN_SHELL=0
+    else
+        ZSH_LOGIN_SHELL=1
+        SELECTED[terminal]=1
+    fi
+}
+
 read_key() {
-    # `|| true` guards each read: a bare ESC press (or EOF) makes read return
-    # non-zero, which would otherwise abort the whole script under `set -e`.
+    # A bare ESC or EOF makes read fail, which would abort the script under set -e.
     local key rest="" st=0
     IFS= read -rsn1 key || st=$?
-    # EOF (stdin closed) returns non-zero with no char — treat as quit so the
-    # loop never spins forever on a closed/exhausted input.
+    # EOF means quit, so a closed stdin can't spin the loop forever.
     if (( st > 0 )) && [[ -z "$key" ]]; then echo "QUIT"; return 0; fi
     if [[ "$key" == $'\x1b' ]]; then
         read -rsn2 -t 0.1 rest || true
@@ -396,6 +468,9 @@ menu_ui_start() { printf '\033[?1049h\033[H'; tput civis 2>/dev/null || true; }
 menu_ui_stop()  { tput cnorm 2>/dev/null || true; printf '\033[?1049l'; }
 
 interactive_menu() {
+    local login_shell
+    login_shell=$(user_login_shell)
+    MENU_INFO="v${TOOLKIT_VERSION} ${G_DOT} Ubuntu $(get_ubuntu_version) ${G_DOT} ${REAL_USER} ${G_DOT} ${login_shell##*/} ${G_DOT} ${#APPS[@]} apps"
     menu_ui_start
     trap 'menu_ui_stop' EXIT
     trap 'menu_ui_stop; trap - EXIT; exit 130' INT TERM
@@ -441,6 +516,7 @@ interactive_menu() {
             d) tput cnorm 2>/dev/null || true; configure_dotnet; tput civis 2>/dev/null || true ;;
             m) tput cnorm 2>/dev/null || true; configure_mirror; tput civis 2>/dev/null || true ;;
             g) tput cnorm 2>/dev/null || true; configure_input_method; tput civis 2>/dev/null || true ;;
+            s) [[ "$MODE" == install ]] && toggle_login_shell ;;
             i) menu_ui_stop; trap - EXIT INT TERM; return ;;
             q|QUIT) menu_ui_stop; trap - EXIT INT TERM; echo "Cancelled."; exit 0 ;;
         esac

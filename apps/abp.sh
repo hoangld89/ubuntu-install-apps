@@ -8,8 +8,7 @@ do_abp() {
         return 1
     fi
 
-    # `abp` is provided by the Volo.Abp.Studio.Cli dotnet global tool (into
-    # ~/.dotnet/tools, already on PATH via the Tool-integrations block).
+    # The Volo.Abp.Studio.Cli global tool provides `abp` in ~/.dotnet/tools (on PATH via Tool integrations).
     if su - "$REAL_USER" -c "$DOTNET_ENV"'; command -v abp' &>/dev/null; then
         success "ABP CLI already installed, skipping"
         return

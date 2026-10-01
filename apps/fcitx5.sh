@@ -17,13 +17,11 @@ do_fcitx5() {
 
     info "Installing Fcitx5 with Vietnamese input (engine: ${im_name})..."
 
-    # Base fcitx5 runtime + GTK/Qt frontends — shared across every engine.
     apt-get install -y fcitx5 fcitx5-config-qt \
         fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5
 
     if [[ "$im_name" == lotus ]]; then
-        # Lotus is a third-party fcitx5 addon distributed via its own signed
-        # apt repo (not in Ubuntu's archive), keyed per release codename.
+        # Lotus is not in Ubuntu's archive; its signed apt repo is keyed per codename.
         local lotus_list=/etc/apt/sources.list.d/fcitx5-lotus.list lotus_key=/etc/apt/keyrings/fcitx5-lotus.gpg lotus_codename
         lotus_codename=$(get_ubuntu_codename)
         if [[ ! -f "$lotus_list" || ! -s "$lotus_key" ]]; then
@@ -34,11 +32,7 @@ do_fcitx5() {
     fi
     apt-get install -y "$engine_pkg"
 
-    # ── IM environment variables ──────────────────────────────────────────
-    # Ubuntu 24.04 dropped PAM's reading of ~/.pam_environment, and on Wayland
-    # (GNOME default) ~/.xprofile is never sourced. /etc/environment is read by
-    # pam_env for every login session — X11 *and* Wayland — so it's the one
-    # reliable place for IM vars.
+    # pam_env reads /etc/environment on X11 and Wayland; ~/.pam_environment is no longer read and Wayland never sources ~/.xprofile.
     local env_file="/etc/environment" env_before
     env_before=$(cksum < "$env_file")
     sed -i -E '/^(GTK_IM_MODULE|QT_IM_MODULE|XMODIFIERS|SDL_IM_MODULE|GLFW_IM_MODULE)=/d' "$env_file"
@@ -51,9 +45,7 @@ GLFW_IM_MODULE=ibus
 ENVEOF
     [[ "$(cksum < "$env_file")" == "$env_before" ]] || need_reboot "/etc/environment changed (fcitx5 input-method variables)"
 
-    # ── Autostart on login (X11 + Wayland) ────────────────────────────────
-    # The fcitx5 package ships a system autostart entry; we add a per-user one
-    # explicitly so it starts regardless of session type / desktop.
+    # A per-user autostart entry starts fcitx5 regardless of session type or desktop.
     local autostart_dir="$REAL_HOME/.config/autostart"
     mkdir -p "$autostart_dir"
     cat > "$autostart_dir/fcitx5.desktop" <<'DEOF'
@@ -66,7 +58,6 @@ X-GNOME-Autostart-Phase=Applications
 X-GNOME-Autostart-enabled=true
 DEOF
 
-    # ── Preselect Unikey ──────────────────────────────────────────────────
     local fcitx_conf_dir="$REAL_HOME/.config/fcitx5"
     local profile_file="$fcitx_conf_dir/profile"
     mkdir -p "$fcitx_conf_dir"
@@ -89,8 +80,7 @@ Layout=
 PROFEOF
     chown -R "$REAL_USER:$REAL_USER" "$autostart_dir" "$fcitx_conf_dir"
 
-    # Migrate away from the legacy locations an older script version may have
-    # written, so stale settings don't fight the new ones.
+    # An older script version wrote these locations; stale settings would fight the new ones.
     rm -f "$REAL_HOME/.pam_environment"
     if [[ -f "$REAL_HOME/.xprofile" ]]; then
         sed -i '/fcitx/d; /GTK_IM_MODULE/d; /QT_IM_MODULE/d; /XMODIFIERS/d' "$REAL_HOME/.xprofile"
@@ -106,17 +96,13 @@ undo_fcitx5() {
     apt_purge fcitx5 fcitx5-unikey fcitx5-bamboo fcitx5-lotus fcitx5-config-qt \
         fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5
 
-    # Drop the third-party Lotus apt repo + key if they were added.
     rm -f /etc/apt/sources.list.d/fcitx5-lotus.list /etc/apt/keyrings/fcitx5-lotus.gpg
 
-    # Strip the IM vars from /etc/environment (leave the rest untouched).
     grep -qE '^(GTK_IM_MODULE|QT_IM_MODULE|XMODIFIERS)=' /etc/environment && need_reboot "/etc/environment changed (fcitx5 variables removed)"
     sed -i -E '/^(GTK_IM_MODULE|QT_IM_MODULE|XMODIFIERS|SDL_IM_MODULE|GLFW_IM_MODULE)=/d' /etc/environment
 
-    # Remove the config + autostart entry this script created.
     su - "$REAL_USER" -c 'rm -rf "$HOME/.config/fcitx5" "$HOME/.config/autostart/fcitx5.desktop"' 2>/dev/null || true
 
-    # Clean up legacy locations from older script versions.
     rm -f "$REAL_HOME/.pam_environment"
     if [[ -f "$REAL_HOME/.xprofile" ]]; then
         sed -i '/fcitx/d; /GTK_IM_MODULE/d; /QT_IM_MODULE/d; /XMODIFIERS/d' "$REAL_HOME/.xprofile"
