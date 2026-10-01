@@ -16,7 +16,6 @@ set -euo pipefail
 
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 DIM='\033[2m'
 BOLD='\033[1m'
@@ -70,6 +69,7 @@ setup_glyphs() {
 # default selection, and which dispatch prefix (do_ / undo_) main() calls.
 MODE="install"
 ALL=0
+ZSH_LOGIN_SHELL=1           # Terminal Kit makes zsh the login shell; --keep-shell sets 0
 ACTION_LABEL="Install"      # footer hint label
 ACTION_GERUND="Installing"  # progress box verb
 ACTION_PAST="installed"     # summary stat verb
@@ -834,7 +834,7 @@ download_deb() {
 
 # Remove a marked block from the user's shell rc files. Install steps wrap their
 # additions in `# --- <label> ---` … `# --- end <label> ---` so this deletes them
-# cleanly from wherever they landed (.zshrc when zsh is installed, else .bashrc).
+# cleanly from every rc they landed in (.bashrc, plus .zshrc when zsh is installed).
 # Runs as root but rewrites REAL_USER's files and restores ownership.
 strip_rc_block() {
     local label="$1" rc
@@ -873,13 +873,10 @@ filter_rc() {
     rm -f "$tmp"
 }
 
-# zsh installed (the Terminal Kit runs before every runtime) → ~/.zshrc, otherwise ~/.bashrc.
-resolve_shell_rc() {
-    if command -v zsh &>/dev/null; then
-        echo "$REAL_HOME/.zshrc"
-    else
-        echo "$REAL_HOME/.bashrc"
-    fi
+# Shell config goes to every installed shell, so the login-shell choice never decides whether tools are on PATH.
+target_shell_rcs() {
+    echo "$REAL_HOME/.bashrc"
+    if command -v zsh &>/dev/null; then echo "$REAL_HOME/.zshrc"; fi
 }
 
 runtimes_present() {
@@ -1184,17 +1181,12 @@ do_terminal() {
     zsh_bin=$(command -v zsh)
     if [[ "$cur_shell" == "$zsh_bin" ]]; then
         success "zsh is already the default shell for '$REAL_USER'"
+    elif [[ "$ZSH_LOGIN_SHELL" == 1 ]]; then
+        chsh -s "$zsh_bin" "$REAL_USER"
+        need_reboot "login shell changed to zsh"
+        success "Default shell changed to zsh (re-login to apply)"
     else
-        local set_default="n"
-        printf "  ${CYAN}?${NC} Set zsh as the default shell for '%s'? [y/N] " "$REAL_USER"
-        read -r set_default </dev/tty || set_default="n"
-        if [[ "$set_default" =~ ^[Yy]$ ]]; then
-            chsh -s "$zsh_bin" "$REAL_USER"
-            need_reboot "login shell changed to zsh"
-            success "Default shell changed to zsh (re-login to apply)"
-        else
-            warn "Keeping current shell. zsh is installed — run 'zsh' anytime to use it"
-        fi
+        info "Keeping the current login shell (--keep-shell). zsh is installed — run 'zsh' anytime to use it"
     fi
 
     success "Terminal tools installed: zsh + oh-my-zsh (3 plugins), tmux, htop, jq, yq, rg, fzf, bat"
@@ -1392,12 +1384,12 @@ do_eza() {
         success "eza installed via apt"
     fi
 
-    # Aliases go to whichever rc the user's shell reads (.zshrc with zsh, else
-    # .bashrc) so they take effect even when the Terminal Kit / zsh isn't chosen.
-    local rc; rc=$(resolve_shell_rc)
-    [[ -e "$rc" ]] || touch "$rc"
-    if ! grep -q '# --- eza aliases ---' "$rc" 2>/dev/null; then
-        cat >> "$rc" <<'EZAEOF'
+    local rc rcs=()
+    mapfile -t rcs < <(target_shell_rcs)
+    for rc in "${rcs[@]}"; do
+        [[ -e "$rc" ]] || touch "$rc"
+        if ! grep -q '# --- eza aliases ---' "$rc" 2>/dev/null; then
+            cat >> "$rc" <<'EZAEOF'
 
 # --- eza aliases ---
 alias ls='eza --icons --group-directories-first'
@@ -1406,10 +1398,11 @@ alias la='eza -la --icons --group-directories-first --git'
 alias lt='eza --tree --icons --level=2'
 # --- end eza aliases ---
 EZAEOF
-    fi
-    chown "$REAL_USER:$REAL_USER" "$rc" 2>/dev/null || true
+        fi
+        chown "$REAL_USER:$REAL_USER" "$rc" 2>/dev/null || true
+    done
 
-    success "eza installed (ls/ll/la/lt aliases added to $(basename "$rc"))"
+    success "eza installed (ls/ll/la/lt aliases added to ${rcs[*]##*/})"
 }
 
 do_fastfetch() {
@@ -2671,6 +2664,7 @@ Usage:
   ./install-app.sh --uninstall  Interactive uninstall menu
   ./install-app.sh --uninstall --all   Uninstall every app
   ./install-app.sh --ascii      Force ASCII-only glyphs (fonts missing symbols)
+  ./install-app.sh --keep-shell Keep the current login shell (default: switch to zsh with Terminal Kit)
   ./install-app.sh -h | --help  Show this help
 
 Tip: if the menu shows boxes/tofu instead of icons, your terminal font
@@ -2804,6 +2798,7 @@ main() {
             --all)       ALL=1 ;;
             --uninstall) MODE="uninstall" ;;
             --ascii)     UI_ASCII=1 ;;
+            --keep-shell) ZSH_LOGIN_SHELL=0 ;;
             -h|--help)   usage; exit 0 ;;
             *)           warn "Unknown option: $arg"; usage; exit 1 ;;
         esac
@@ -2906,7 +2901,10 @@ main() {
         local _rt
         for _rt in nvm bun pnpm yarn dotnet abp azcli claude; do
             if [[ "${SELECTED[$_rt]}" == "1" ]]; then
-                write_tool_integrations "$(resolve_shell_rc)" || warn "Could not update the Tool-integrations block"
+                local _rc
+                while read -r _rc; do
+                    write_tool_integrations "$_rc" || warn "Could not update the Tool-integrations block in ${_rc##*/}"
+                done < <(target_shell_rcs)
                 break
             fi
         done
