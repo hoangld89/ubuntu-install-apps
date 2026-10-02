@@ -59,31 +59,40 @@ MIRRORS=(
     "mirror.clearsky.vn|ClearSky"
 )
 
-# Format: "groupkey|Title|icon|ascii-icon" — menu order is array order.
+# Format: "groupkey|Title|Short|icon|ascii-icon" — menu order is array order; Short fits the two-pane group list.
 APP_GROUPS=(
-    "system|System & Shell|⚙|#"
-    "dev|Languages & IDEs|◆|>"
-    "devops|DevOps & Cloud|▲|^"
-    "database|Databases|⬡|="
-    "desktop|Apps & Desktop|◎|@"
+    "system|System & Shell|System|⚙|#"
+    "dev|Languages & IDEs|Languages|◆|>"
+    "devops|DevOps & Cloud|DevOps|▲|^"
+    "database|Databases|Databases|⬡|="
+    "desktop|Apps & Desktop|Desktop|◎|@"
 )
-declare -A APP_LABELS GROUP_APPS GROUP_LABEL GROUP_ICON GROUP_ICON_ASCII
+declare -A APP_LABELS GROUP_APPS GROUP_LABEL GROUP_SHORT GROUP_ICON GROUP_ICON_ASCII
+GROUP_KEYS=()
 for _entry in "${APP_GROUPS[@]}"; do
-    IFS='|' read -r _g _l _i _a <<< "$_entry"
-    GROUP_LABEL[$_g]=$_l; GROUP_ICON[$_g]=$_i; GROUP_ICON_ASCII[$_g]=$_a
+    IFS='|' read -r _g _l _s _i _a <<< "$_entry"
+    GROUP_KEYS+=("$_g")
+    GROUP_LABEL[$_g]=$_l; GROUP_SHORT[$_g]=$_s; GROUP_ICON[$_g]=$_i; GROUP_ICON_ASCII[$_g]=$_a
 done
 for _entry in "${APPS[@]}"; do
     IFS='|' read -r _k _g _l _ <<< "$_entry"
     APP_LABELS[$_k]="$_l"
     GROUP_APPS[$_g]+="${GROUP_APPS[$_g]:+,}$_k"
 done
+MAX_GROUP_SIZE=0
+for _g in "${GROUP_KEYS[@]}"; do
+    IFS=',' read -ra _a <<< "${GROUP_APPS[$_g]:-}"
+    if (( ${#_a[@]} > MAX_GROUP_SIZE )); then MAX_GROUP_SIZE=${#_a[@]}; fi
+done
 
 # Every app needs a known group, its apps/<key>.sh and both do_/undo_ functions, or the menu/dispatch breaks mid-run.
 validate_registry() {
-    local entry g key group file
+    local LC_ALL=C.UTF-8 entry g key group file
     local -A groups=() in_apps=()
     for g in "${APP_GROUPS[@]}"; do
-        IFS='|' read -r key _ <<< "$g"
+        IFS='|' read -r key _ short _ <<< "$g"
+        (( ${#short} >= 1 && ${#short} <= 11 )) || { echo "Registry error: group '$key' needs a short label of 1-11 characters" >&2; exit 1; }
+        [[ -n "${GROUP_APPS[$key]:-}" ]] || { echo "Registry error: group '$key' has no apps" >&2; exit 1; }
         groups[$key]=1
     done
     for entry in "${APPS[@]}"; do

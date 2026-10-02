@@ -24,15 +24,10 @@ run_header() {
     run_emit ""
 }
 
-name_cell() {
-    ui_trunc "$1" 20
-    printf -v REPLY '%-20s' "$REPLY"
-}
-
 step_line() {  # $1 colour $2 glyph $3 name $4 detail $5 seconds → STEP_LINE
     local LC_ALL=C.UTF-8 t namecell detail gap
     fmt_secs "$5"; t=$REPLY
-    name_cell "$3"; namecell=$REPLY
+    ui_pad "$3" 20; namecell=$REPLY
     ui_trunc "$4" $(( UI_W - STEP_PREFIX_W - ${#t} - 1 )); detail=$REPLY
     gap=$(( UI_W - STEP_PREFIX_W - ${#detail} - ${#t} ))
     (( gap < 1 )) && gap=1
@@ -104,7 +99,7 @@ step_report() {
 
 summary_row() {
     local namecell
-    name_cell "$3"; namecell=$REPLY
+    ui_pad "$3" 20; namecell=$REPLY
     ui_trunc "$4" $(( UI_W - 26 ))
     run_emit "  ${5}${RB_V}${NC} ${1}${2}${NC} ${C_TEXT}${namecell}${NC} ${C_SUBTEXT}${REPLY}${NC}"
 }
