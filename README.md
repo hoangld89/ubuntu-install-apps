@@ -1,11 +1,39 @@
+<h1 align="center">SETUP</h1>
+
+<p align="center"><b>Post-install toolkit for Ubuntu 26.04</b><br/>Pick apps from a TUI menu on a fresh machine; the script installs them. Re-runs are safe and every app can be uninstalled.</p>
+
 <p align="center">
-  <img src="https://img.shields.io/badge/Ubuntu-26.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white" />
-  <img src="https://img.shields.io/badge/Shell-Bash-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white" />
+  <a href="https://github.com/hoangld89/ubuntu-install-apps/releases/latest"><img src="https://img.shields.io/github/v/release/hoangld89/ubuntu-install-apps?style=flat-square" alt="Latest release" /></a>
+  <img src="https://img.shields.io/badge/Ubuntu-26.04-E95420?style=flat-square&logo=ubuntu&logoColor=white" alt="Ubuntu 26.04" />
+  <img src="https://img.shields.io/badge/Shell-Bash-4EAA25?style=flat-square&logo=gnubash&logoColor=white" alt="Bash" />
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/hoangld89/ubuntu-install-apps?style=flat-square" alt="MIT License" /></a>
 </p>
 
-<h1 align="center">SETUP &mdash; Ubuntu 26.04 Post-install Toolkit</h1>
+<p align="center"><img src="docs/images/menu.png" alt="Two-pane install menu: groups and settings on the left, apps of the focused group on the right" width="900" /></p>
 
-<p align="center">Pick apps from a TUI menu on a fresh Ubuntu 26.04 (resolute) machine; the script installs them. Re-runs are safe and every app can be uninstalled.</p>
+<p align="center">
+  <a href="#features">Features</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#usage">Usage</a> ·
+  <a href="#apps">Apps</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#troubleshooting">Troubleshooting</a> ·
+  <a href="#contributing">Contributing</a>
+</p>
+
+## Features
+
+- **36 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
+- **Idempotent** — re-runs skip what is installed and move old installs onto the current upstream method.
+- **Reversible** — every app has an uninstall that removes its packages, repos, keys and shell config.
+- **Isolated steps** — a failing app ends only its own step; the rest of the run continues.
+- **Vietnam-ready** — fast local APT mirrors, Fcitx5 Vietnamese input, fonts with full diacritics.
+
+## Requirements
+
+- Ubuntu 26.04 (resolute) amd64 — other releases get a warning and the run continues
+- `sudo` and internet access
+- A terminal at least 80 columns wide for the two-pane menu
 
 ## Quick start
 
@@ -13,22 +41,24 @@
 git clone https://github.com/hoangld89/ubuntu-install-apps.git
 cd ubuntu-install-apps
 git checkout "$(git describe --tags --abbrev=0)"   # optional: pin the latest release
-
-./install-app.sh                  # interactive menu
-./install-app.sh --all            # install everything
-./install-app.sh --keep-shell     # keep your login shell (default: Terminal Kit switches to zsh)
-./install-app.sh --uninstall      # same menu, removes what you pick
-./install-app.sh --uninstall --all
-./install-app.sh --ascii          # plain glyphs for fonts without box-drawing symbols
+./install-app.sh
 ```
 
-Launching with `sh` re-execs under bash. Other Ubuntu releases get a warning and the run continues.
+Launching with `sh` re-execs under bash.
 
-## Menu
+## Usage
 
-<p align="center"><img src="docs/images/menu.png" alt="Two-pane install menu: groups and settings on the left, apps of the focused group on the right" width="900" /></p>
+| Command | Action |
+|---------|--------|
+| `./install-app.sh` | Interactive install menu |
+| `./install-app.sh --all` | Install every app |
+| `./install-app.sh --uninstall` | Same menu, removes what you pick |
+| `./install-app.sh --uninstall --all` | Uninstall every app |
+| `./install-app.sh --keep-shell` | Keep your login shell (default: Terminal Kit switches to zsh) |
+| `./install-app.sh --ascii` | Plain glyphs for fonts without box-drawing symbols (or `MINT_ASCII=1`) |
+| `./install-app.sh --help` | Usage and running version |
 
-Two panes need 80 columns; narrower terminals get a single list with collapsible groups (`Enter`).
+### Menu keys
 
 | Key | Action |
 |-----|--------|
@@ -39,54 +69,90 @@ Two panes need 80 columns; narrower terminals get a single list with collapsible
 | `s` | zsh as login shell yes/no (install only) |
 | `i` / `q` | Start / quit |
 
-Truecolor (Catppuccin Mocha) when `COLORTERM` is `truecolor`/`24bit`, 256 colours otherwise. Boxes instead of icons mean the font lacks the glyphs: use **MesloLGS NF** (installed by *Fonts*) or `--ascii`.
+Terminals narrower than 80 columns get a single list with collapsible groups (`Enter`). Colours are truecolor (Catppuccin Mocha) when `COLORTERM` is `truecolor`/`24bit`, 256 colours otherwise.
 
-## What gets installed
+## Apps
 
-| Group | App | How |
-|-------|-----|-----|
-| System & Shell | APT mirror | Points the Ubuntu archive at a Vietnam mirror (`m` to pick), backs up the sources files; runs first |
-| | System update | `apt-get update`, `upgrade --with-new-pkgs`, `autoremove`, keeping existing config files |
-| | Swap | Grows `/swap.img` (or creates `/swapfile`) to 8 GB, `swappiness=10` |
-| | Terminal Kit | zsh + Oh My Zsh (git, zsh-autosuggestions, zsh-syntax-highlighting), tmux, htop, jq, yq, ripgrep, fzf, bat |
-| | Fonts | MesloLGS NF (set in gnome-terminal), Noto + Liberation for Vietnamese diacritics in browsers |
-| | MS Fonts | `ttf-mscorefonts-installer` plus Calibri/ClearType faces from PowerPoint Viewer |
-| | eza, Fastfetch | Ubuntu archive; eza adds `ls`/`ll`/`la`/`lt` aliases |
-| Languages & IDEs | Node.js LTS | nvm, `nvm install --lts`; a re-run moves to the next LTS line |
-| | Bun | `bun.sh/install`, per user |
-| | pnpm, Yarn 4 | corepack npm package (needs Node.js) |
-| | .NET SDK | 10 from the archive, 8/9 from `ppa:dotnet/backports` (end of support 2026-11-10) |
-| | ABP CLI | `Volo.Abp.Studio.Cli` dotnet tool (needs .NET) |
-| | VS Code | Microsoft apt repo |
-| | Trae IDE | `.deb` from Trae's release API; reinstalled when a new build appears |
-| | Claude Code | `claude.ai/install.sh` |
-| DevOps & Cloud | Terraform | HashiCorp apt repo |
-| | Azure CLI | Microsoft apt repo |
-| | AzCopy | v10 tarball → `/usr/local/bin/azcopy` |
-| | Docker | Docker apt repo (CE, Compose, buildx); removes conflicting distro packages, adds you to `docker` |
-| | BrowserStack Local | Official zip → `/usr/local/bin/BrowserStackLocal` |
-| Databases | MySQL / PostgreSQL clients | apt |
-| | DBeaver CE | `dbeaver.io` apt repo |
-| | Navicat Premium Lite 18 | AppImage in `/opt`, `navicat` command; backs up `~/.config/navicat` on upgrade |
-| Apps & Desktop | Chrome | `.deb` |
-| | Edge | Microsoft apt repo |
-| | Teams for Linux | `repo.teamsforlinux.de` (unofficial Electron client) |
-| | Fcitx5 | Unikey or Bamboo (archive) or Lotus (third-party repo); sets IM env vars, autostart, profile |
-| | Postman | Tarball → `/opt/Postman` |
-| | Waydroid | Official repo; needs Wayland + `binder`, run `waydroid init` once |
-| | VLC | apt |
-| | OBS Studio | `ppa:obsproject/obs-studio` |
-| | AnyDesk, TeamViewer | Official repos |
+<details open>
+<summary><b>System & Shell</b></summary>
 
-Runtime PATH/env (nvm, Bun, pnpm, .NET, Azure completion, Claude Code) is one `# --- Tool integrations ---` block written to `.bashrc`, and to `.zshrc` when zsh is installed, so tools work in either shell.
+| App | How |
+|-----|-----|
+| APT mirror | Points the Ubuntu archive at a Vietnam mirror (`m` to pick), backs up the sources files; runs first |
+| System update | `apt-get update`, `upgrade --with-new-pkgs`, `autoremove`, keeping existing config files |
+| Swap | Grows `/swap.img` (or creates `/swapfile`) to 8 GB, `swappiness=10` |
+| Terminal Kit | zsh + Oh My Zsh (git, zsh-autosuggestions, zsh-syntax-highlighting), tmux, htop, jq, yq, ripgrep, fzf, bat |
+| Fonts | MesloLGS NF (set in gnome-terminal), Noto + Liberation for Vietnamese diacritics in browsers |
+| MS Fonts | `ttf-mscorefonts-installer` plus Calibri/ClearType faces from PowerPoint Viewer |
+| eza, Fastfetch | Ubuntu archive; eza adds `ls`/`ll`/`la`/`lt` aliases |
 
-Chromium/Electron launchers (Chrome, Edge, VS Code, Teams, Trae, Postman) get Wayland IME flags so fcitx5 can type into them; an apt hook re-applies the flags after package upgrades.
+</details>
 
-## Running
+<details open>
+<summary><b>Languages & IDEs</b></summary>
 
-- **Re-runs** skip anything already installed and move old installs onto the current method (DBeaver/Teams `.deb` → apt repo, Node → current LTS).
-- **Output:** one line per step with a spinner, then `✓` / `!` (warnings listed under it) / `✗` with the failing command and the step's last 15 log lines. A failure ends that step only.
+| App | How |
+|-----|-----|
+| Node.js LTS | nvm, `nvm install --lts`; a re-run moves to the next LTS line |
+| Bun | `bun.sh/install`, per user |
+| pnpm, Yarn 4 | corepack npm package (needs Node.js) |
+| .NET SDK | 10 from the archive, 8/9 from `ppa:dotnet/backports` (end of support 2026-11-10) |
+| ABP CLI | `Volo.Abp.Studio.Cli` dotnet tool (needs .NET) |
+| VS Code | Microsoft apt repo |
+| Trae IDE | `.deb` from Trae's release API; reinstalled when a new build appears |
+| Claude Code | `claude.ai/install.sh` |
+
+</details>
+
+<details open>
+<summary><b>DevOps & Cloud</b></summary>
+
+| App | How |
+|-----|-----|
+| Terraform | HashiCorp apt repo |
+| Azure CLI | Microsoft apt repo |
+| AzCopy | v10 tarball → `/usr/local/bin/azcopy` |
+| Docker | Docker apt repo (CE, Compose, buildx); removes conflicting distro packages, adds you to `docker` |
+| BrowserStack Local | Official zip → `/usr/local/bin/BrowserStackLocal` |
+
+</details>
+
+<details open>
+<summary><b>Databases</b></summary>
+
+| App | How |
+|-----|-----|
+| MySQL / PostgreSQL clients | apt |
+| DBeaver CE | `dbeaver.io` apt repo |
+| Navicat Premium Lite 18 | AppImage in `/opt`, `navicat` command; backs up `~/.config/navicat` on upgrade |
+
+</details>
+
+<details open>
+<summary><b>Apps & Desktop</b></summary>
+
+| App | How |
+|-----|-----|
+| Chrome | `.deb` |
+| Edge | Microsoft apt repo |
+| Teams for Linux | `repo.teamsforlinux.de` (unofficial Electron client) |
+| Fcitx5 | Unikey or Bamboo (archive) or Lotus (third-party repo); sets IM env vars, autostart, profile |
+| Postman | Tarball → `/opt/Postman` |
+| Waydroid | Official repo; needs Wayland + `binder`, run `waydroid init` once |
+| VLC | apt |
+| OBS Studio | `ppa:obsproject/obs-studio` |
+| AnyDesk, TeamViewer | Official repos |
+
+</details>
+
+Coming from Windows? [PHAN-MEM-TUONG-THICH.md](PHAN-MEM-TUONG-THICH.md) (Vietnamese) lists the Ubuntu equivalents.
+
+## How it works
+
+- **Steps:** one line per app with a spinner, then `✓` / `!` (warnings listed under it) / `✗` with the failing command and the step's last 15 log lines.
 - **Log:** full output in `/var/log/install-app/<YYYYmmdd-HHMMSS>.log`; `tail -f` it to watch a step.
+- **Shell integration:** runtime PATH/env (nvm, Bun, pnpm, .NET, Azure completion, Claude Code) is one `# --- Tool integrations ---` block in `.bashrc`, and in `.zshrc` when zsh is installed.
+- **Wayland IME:** Chromium/Electron launchers (Chrome, Edge, VS Code, Teams, Trae, Postman) get flags so fcitx5 can type into them; an apt hook re-applies them after upgrades.
 - **Ctrl-C** prints a partial summary. apt waits up to 10 minutes for a busy dpkg lock.
 - **Reboot/re-login** is suggested only when needed (docker group, login shell, `/etc/environment`, `/var/run/reboot-required`), with the reasons.
 
@@ -101,56 +167,31 @@ Chromium/Electron launchers (Chrome, Edge, VS Code, Teams, Trae, Postman) get Wa
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━──────────────  3/28 · 1m23s
 ```
 
-## Uninstall
+### Uninstall
 
-Every app starts unselected and `i` asks for confirmation. Each `undo_<key>` purges its packages, apt repo and key, downloaded binaries and the rc blocks it added; the mirror is restored from its backups.
+In uninstall mode every app starts unselected and `i` asks for confirmation. Each app's uninstall purges its packages, apt repo and key, downloaded binaries and the rc blocks it added; the mirror is restored from its backups.
 
 Kept on purpose: `git`, `curl`, Docker data (`/var/lib/docker`, `/var/lib/containerd`, `/etc/docker`), `unixodbc-dev`, `~/.claude`, and a completed system upgrade.
 
 ## Troubleshooting
 
-Garbled glyphs in the VS Code / Trae terminal: in `~/.config/Code/User/settings.json` (or `Trae/User`) set
+**Boxes instead of icons in the menu** — the terminal font lacks the glyphs. Use **MesloLGS NF** (installed by *Fonts*) or run with `--ascii`.
+
+**Garbled glyphs in the VS Code / Trae terminal** — in `~/.config/Code/User/settings.json` (or `Trae/User`) set:
 
 ```json
 "terminal.integrated.gpuAcceleration": "off",
 "terminal.integrated.fontFamily": "'DejaVu Sans Mono', 'Noto Sans Mono', monospace"
 ```
 
+**A step failed** — the summary shows the failing command and its last log lines; the full output is in the log file. Fix the cause and re-run: installed apps are skipped.
+
 ## Contributing
 
-```
-install-app.sh     entrypoint
-lib/               core, registry (APPS, APP_GROUPS), apt, shell-rc, shared, ui-menu, ui-run, runner
-apps/<key>.sh      do_<key> (install) + undo_<key> (uninstall), one file per app
-```
+Adding an app takes one registry line and one file. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-To add an app, add `"key|group|Name::tagline|default_on"` to `APPS` in `lib/registry.sh` (array order is install order) and create `apps/<key>.sh`:
-
-```bash
-do_myapp() {
-    if command -v myapp &>/dev/null; then
-        success "My App already installed, skipping"
-        return
-    fi
-    info "Installing My App..."
-    apt-get install -y myapp
-}
-
-undo_myapp() {
-    apt_purge myapp
-}
-```
-
-Steps run with `set -e`; guard expected failures with `|| true` and add apt repos with `add_apt_repo`. Conventions, PR and release rules are in [CLAUDE.md](CLAUDE.md).
-
-## Releases
-
-Versions follow SemVer and are tagged `vX.Y.Z` on `main` with GitHub Release notes. `./install-app.sh --help` shows the running version.
-
-## Requirements
-
-Ubuntu 26.04 amd64, `sudo`, internet access.
+Releases follow SemVer, are tagged `vX.Y.Z` on `main` and published on the [Releases](https://github.com/hoangld89/ubuntu-install-apps/releases) page.
 
 ## License
 
-MIT
+[MIT](LICENSE)
