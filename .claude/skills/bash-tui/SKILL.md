@@ -18,9 +18,10 @@ Read the file you change first; the invariants in `CLAUDE.md` still apply.
 | Cut / pad / repeat | `ui_trunc`, `ui_pad`, `ui_rep` → `REPLY` | `lib/core.sh` |
 | ASCII text | `ui_ascii_text` (`—` `·` `…` → 7-bit, same width); `render_menu`, `run_emit` and `status_msg` (behind `info`/`success`/`warn`/`fail`) already apply it | `lib/core.sh` |
 | Progress bar | `ui_bar filled total width colour fill empty` → `REPLY` | `lib/ui-menu.sh` |
-| Key pill | `ui_pill key` (brackets in ASCII mode) | `lib/ui-menu.sh` |
+| Key | `ui_pill key`: upper-cased bold lavender, as wide as the key; footer hints join `KEY label` with ` · ` | `lib/ui-menu.sh` |
+| Badge / button | `ui_badge text bg cap fg`: text on `bg` between `G_CAP_L`/`G_CAP_R` half blocks drawn in `cap` (the bg as fg), `${#text} + 2` wide; brackets in ASCII mode. Used for the `SETUP` badge in the run header and the action button | `lib/ui-menu.sh` |
 | Row with cursor | `ui_row on left left_len right right_len` (one-column layout) | `lib/ui-menu.sh` |
-| Pane frame | `pane_top`, `pane_rule`, `PANE_SEP` for a `├──┤` divider | `lib/ui-menu.sh` |
+| Pane frame | `pane_top`, `pane_divider` (titled `├─ SETTINGS ─┤` at `PANE_SEP`; title never highlights since settings take no cursor), `pane_rule` | `lib/ui-menu.sh` |
 | Scrolling | `scroll_window cursor items rows TOP_VAR` + `↑ n more` / `↓ n more` rows | `lib/ui-menu.sh` |
 | Footer hint | `hint key label` inside `build_hints` | `lib/ui-menu.sh` |
 | Step / summary line | `step_line`, `run_footer`, `summary_row`, `run_emit` | `lib/ui-run.sh` |
@@ -61,17 +62,29 @@ Read the file you change first; the invariants in `CLAUDE.md` still apply.
   column. Below the panes `detail_line` shows the focused app's full tagline
   (blank while the groups pane has focus), so rows may cut taglines; the pane
   height reserves it through `PANE_CHROME`.
-- Banner drops first when height is short. Test a change at 80×24, 120×40 and
+- Banner: two-row gradient block logo (`LOGO_FULL` "UBUNTU SETUP", `LOGO_SHORT`
+  "SETUP" when the info would not fit beside `LOGO_FULL`, plain text in ASCII mode) with the two `MENU_INFO`
+  parts right-aligned beside it, then a gradient `G_PROG_F` rule across `UI_W`.
+  Logo letters are 3-4 columns of `█▀▄`; new letters follow the same font. It
+  drops first when height is short. Test a change at 80×24, 120×40 and
   60×20.
 
 ## Colour and emphasis
 
 - Meaning, not decoration: green selected/ok, yellow partial/warning, red
   error/uninstall, overlay for off/secondary, sapphire for setting values, mauve
-  for focus and progress. Uninstall mode swaps `FOCUS_COL` / `SEL_COL` to red.
+  for focus and progress. `mode_theme` (called once in `main`) sets `FOCUS_COL`,
+  `SEL_COL`, `ACCENT_BG` and `ACCENT_RAMP`: mauve for install, red for uninstall.
+  Read those instead of testing `MODE` for a colour.
 - Cursor row: `BG_SURFACE` + `FOCUS_COL` `G_BAR`, name in `BOLD`. Inside it only
   switch foreground (`FG0`, `NOBOLD`); `NC` or `BG0` mid-row cuts the highlight.
   End the row with a pad of spaces before `NC` so the background reaches the edge.
+- Case: chrome is upper-case and bold (keys, the fixed `GROUPS` / `SETTINGS`
+  titles, the action button, the logo); content keeps its own case (group and app
+  names, also as the apps pane title, taglines, setting values), since all-caps
+  lists are slow to scan and upper-casing breaks acronyms (`IDEs` → `IDES`). No
+  letter-spacing: monospace caps are already evenly spaced; space around elements. `read_key` lower-cases
+  letters, so an upper-case key on screen works with or without Shift.
 - State never relies on colour alone: pair it with a glyph (`G_ON`/`G_OFF`,
   `G_OK`/`G_WARN`/`G_ERR`) or a count (`3/5`).
 - Truecolor comes from `COLORTERM`; the 256-colour index must stay close to the hex.
@@ -111,3 +124,4 @@ Read the file you change first; the invariants in `CLAUDE.md` still apply.
 5. Cursor highlight runs to the row end in both layouts; uninstall mode recolours.
 6. Terminal is restored (main screen, cursor visible) after `i`, `q`, Ctrl-C and
    closed stdin.
+7. A visible menu change re-runs `docs/screenshot.sh` so the README image matches.

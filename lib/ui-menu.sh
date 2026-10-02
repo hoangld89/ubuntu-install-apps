@@ -120,7 +120,7 @@ deselect_all() { for entry in "${APPS[@]}"; do IFS='|' read -r key _ _ <<< "$ent
 
 MENU_LINES=()
 MENU_TOP=0
-MENU_INFO=""
+MENU_INFO=()
 UI_COLS=80
 UI_ROWS=24
 UI_W=76
@@ -129,6 +129,18 @@ BANNER_KEY=""
 
 FOCUS_COL=""
 SEL_COL=""
+ACCENT_BG=""
+ACCENT_RAMP=UI_RAMP_INSTALL
+LOGO_FULL=("█ █ █▄▄ █ █ █▄ █ ▀█▀ █ █   █▀▀ █▀▀ ▀█▀ █ █ █▀█" "█▄█ █▄█ █▄█ █ ▀█  █  █▄█   ▄▄█ ██▄  █  █▄█ █▀▀")
+LOGO_SHORT=("█▀▀ █▀▀ ▀█▀ █ █ █▀█" "▄▄█ ██▄  █  █▄█ █▀▀")
+
+mode_theme() {  # MODE → FOCUS_COL, SEL_COL, ACCENT_BG, ACCENT_RAMP: mauve for install, red for uninstall
+    FOCUS_COL=$C_MAUVE; SEL_COL=$C_GREEN; ACCENT_BG=$BG_MAUVE; ACCENT_RAMP=UI_RAMP_INSTALL
+    if [[ "$MODE" == uninstall ]]; then
+        FOCUS_COL=$C_RED; SEL_COL=$C_RED; ACCENT_BG=$BG_RED; ACCENT_RAMP=UI_RAMP_UNINSTALL
+    fi
+    return 0
+}
 WINCHED=0
 
 ui_add() { MENU_LINES+=("$1"); }
@@ -192,7 +204,7 @@ UI_RAMP_INSTALL=(cba6f7:183 b4befe:147 89b4fa:111 74c7ec:117)
 UI_RAMP_UNINSTALL=(f38ba8:211 eba0ac:217 fab387:216)
 
 ui_gradient() {  # $1 text, $2 ramp array name → REPLY: each character coloured along the ramp
-    local LC_ALL=C.UTF-8 text=$1 i n ch out="" num s f stops a b r g bl
+    local LC_ALL=C.UTF-8 text=$1 i n ch out="" num s f stops a b r g bl esc prev=""
     local -n ramp=$2
     n=${#text}; stops=${#ramp[@]}
     for (( i = 0; i < n; i++ )); do
@@ -202,24 +214,34 @@ ui_gradient() {  # $1 text, $2 ramp array name → REPLY: each character coloure
         s=$(( num / 1000 )); f=$(( num % 1000 ))
         if (( s >= stops - 1 )); then s=$(( stops - 2 )); f=1000; fi
         if (( TRUECOLOR )); then
+            # Eight shades per ramp step let neighbouring cells share an escape.
+            f=$(( f / 125 * 125 ))
             a=${ramp[s]%%:*}; b=${ramp[s+1]%%:*}
             r=$(( 0x${a:0:2} + (0x${b:0:2} - 0x${a:0:2}) * f / 1000 ))
             g=$(( 0x${a:2:2} + (0x${b:2:2} - 0x${a:2:2}) * f / 1000 ))
             bl=$(( 0x${a:4:2} + (0x${b:4:2} - 0x${a:4:2}) * f / 1000 ))
-            out+=$'\033'"[38;2;${r};${g};${bl}m${ch}"
+            esc=$'\033'"[38;2;${r};${g};${bl}m"
         else
             (( f >= 500 )) && s=$(( s + 1 ))
-            out+=$'\033'"[38;5;${ramp[s]##*:}m${ch}"
+            esc=$'\033'"[38;5;${ramp[s]##*:}m"
         fi
+        [[ "$esc" == "$prev" ]] || out+=$esc
+        prev=$esc
+        out+=$ch
     done
     REPLY="${out}${FG0}"
 }
 
-ui_pill() {  # $1 key → REPLY: key drawn as a pill (bracketed in ASCII mode)
+ui_pill() {  # $1 key → REPLY: key upper-cased in bold lavender, as wide as the key
+    local LC_ALL=C.UTF-8
+    REPLY="${C_LAVENDER}${BOLD}${1^^}${NOBOLD}${FG0}"
+}
+
+ui_badge() {  # $1 text $2 background $3 cap colour $4 text colour → REPLY: text between half-block caps, ${#1} + 2 wide
     if (( UI_ASCII )); then
-        REPLY="${C_TEXT}[${1}]${FG0}"
+        REPLY="${3}${BOLD}${G_CAP_L}${1}${G_CAP_R}${NOBOLD}${FG0}"
     else
-        REPLY="${BG_SURFACE}${C_TEXT} ${1} ${BG0}${FG0}"
+        REPLY="${3}${G_CAP_L}${2}${4}${BOLD}${1}${NOBOLD}${BG0}${3}${G_CAP_R}${FG0}"
     fi
 }
 
@@ -234,23 +256,29 @@ ui_bar() {  # $1 filled $2 total $3 width $4 fill colour $5 fill glyph $6 empty 
 }
 
 build_banner() {
-    local key="$UI_W|$MODE|$UI_ASCII|$MENU_INFO"
+    local key="$UI_W|$MODE|$UI_ASCII|${MENU_INFO[*]}"
     [[ "$key" == "$BANNER_KEY" ]] && return 0
     BANNER_KEY=$key
     BANNER_LINES=()
-    local ramp=UI_RAMP_INSTALL sub="post-install toolkit" info
-    [[ "$MODE" == "uninstall" ]] && ramp=UI_RAMP_UNINSTALL && sub="uninstaller"
-    ui_trunc "$MENU_INFO" $(( UI_W - 22 )); info=$REPLY
-    (( 22 + 15 + ${#sub} > UI_W )) && sub=""
-    local title="${C_TEXT}${BOLD}ubuntu setup${NOBOLD}${sub:+ ${C_SUBTEXT}${G_DOT} ${sub}}${NC}"
-    BANNER_LINES+=("")
+    # The short logo leaves at least 19 columns for the info even at the minimum UI_W of 40.
+    local LC_ALL=C.UTF-8 logo=("${LOGO_SHORT[@]}") info=("${MENU_INFO[@]}") room i gap widest=0
+    for i in "${info[@]}"; do (( ${#i} > widest )) && widest=${#i}; done
     if (( UI_ASCII )); then
-        BANNER_LINES+=("  ${BOLD}${C_MAUVE}SETUP${NOBOLD}  ${title}")
-        BANNER_LINES+=("         ${C_OVERLAY}${info}${NC}")
-    else
-        ui_gradient "█▀▀ █▀▀ ▀█▀ █ █ █▀█" "$ramp"; BANNER_LINES+=("  ${REPLY}   ${title}")
-        ui_gradient "▄▄█ ██▄  █  █▄█ █▀▀" "$ramp"; BANNER_LINES+=("  ${REPLY}   ${C_OVERLAY}${info}${NC}")
+        logo=("UBUNTU SETUP" "")
+    elif (( UI_W >= ${#LOGO_FULL[0]} + 2 + widest )); then
+        logo=("${LOGO_FULL[@]}")
     fi
+    room=$(( UI_W - ${#logo[0]} - 2 ))
+    BANNER_LINES+=("")
+    for i in 0 1; do
+        gap=$(( UI_W - ${#logo[i]} ))
+        ui_gradient "${logo[i]}" "$ACCENT_RAMP"; logo[i]="${BOLD}${REPLY}${NOBOLD}"
+        ui_trunc "${info[i]:-}" "$room"; info[i]=$REPLY
+        ui_rep $(( gap - ${#info[i]} )) ' '
+        BANNER_LINES+=("  ${logo[i]}${REPLY}${C_OVERLAY}${info[i]}${NC}")
+    done
+    ui_rep "$UI_W" "$G_PROG_F"
+    ui_gradient "$REPLY" "$ACCENT_RAMP"; BANNER_LINES+=("  ${REPLY}${NC}")
     [[ "$MODE" == "uninstall" ]] && BANNER_LINES+=("  ${C_RED}${G_WARN} danger zone ${G_DOT} selected apps will be removed${NC}")
     BANNER_LINES+=("")
 }
@@ -362,7 +390,7 @@ settings_row() {  # $1 key $2 name $3 value → one Settings row of the left pan
     ui_pill "$1"; pill=$REPLY
     ui_pad "$2" 7; name=$REPLY
     ui_pad "$3" 13
-    PANE_L+=(" ${pill} ${C_SUBTEXT}${name}${C_SAPPHIRE}${REPLY} ${NC}")
+    PANE_L+=("  ${pill}  ${C_SUBTEXT}${name}${C_SAPPHIRE}${REPLY} ${NC}")
 }
 
 groups_pane() {  # → PANE_L: group rows, then Settings in install mode
@@ -426,12 +454,19 @@ apps_pane() {  # $1 rows → PANE_R: apps of the focused group, scrolled to keep
 }
 
 pane_top() {  # $1 width $2 title $3 right text $4 right colour $5 focused → REPLY
-    local LC_ALL=C.UTF-8 right=$3 bc=$C_SURFACE2 tc=$C_SUBTEXT title tail="" extra=0
+    local LC_ALL=C.UTF-8 right=$3 bc=$C_SURFACE2 tc="${C_SUBTEXT}${BOLD}" title tail="" extra=0
     if (( $5 )); then bc=$FOCUS_COL; tc="${FOCUS_COL}${BOLD}"; fi
     if [[ -n "$right" ]]; then extra=$(( ${#right} + 3 )); tail=" ${4}${right}${bc} ${RB_H}"; fi
     ui_trunc "$2" $(( $1 - 5 - extra )); title=$REPLY
     ui_rep $(( $1 - 5 - extra - ${#title} )) "$RB_H"
     REPLY="${bc}${RB_TL}${RB_H} ${tc}${title}${NOBOLD}${bc} ${REPLY}${tail}${RB_TR}${NC}"
+}
+
+# Settings rows never take the cursor, so the title stays unhighlighted while the frame follows focus.
+pane_divider() {  # $1 width $2 frame colour $3 title → REPLY: a titled ├─ ─┤ row
+    local LC_ALL=C.UTF-8
+    ui_rep $(( $1 - 5 - ${#3} )) "$RB_H"
+    REPLY="${2}${RB_LT}${RB_H} ${C_SUBTEXT}${BOLD}${3}${NOBOLD}${2} ${REPLY}${RB_RT}${NC}"
 }
 
 pane_rule() {  # $1 width $2 colour $3 left corner $4 right corner → REPLY
@@ -446,7 +481,7 @@ HINTS_KEY=""
 FOOTER_LINES=()
 
 hint() {  # $1 key $2 label → one "plainlen|coloured" footer hint
-    local LC_ALL=C.UTF-8 len=$(( ${#1} + 3 + ${#2} ))
+    local LC_ALL=C.UTF-8 len=$(( ${#1} + 1 + ${#2} ))
     ui_pill "$1"
     HINTS+=("${len}|${REPLY} ${C_SUBTEXT}${2}${FG0}")
 }
@@ -468,13 +503,15 @@ build_hints() {
         hint d .NET; hint m mirror; hint g IME; hint s zsh
     fi
     HINT_LINES=()
-    local line="" len=0 item ilen
+    local line="" len=0 item ilen sep="${C_SURFACE2} ${G_DOT} ${FG0}"
+    # The ASCII dot is "-", which reads as part of the "<-/->" key.
+    (( UI_ASCII )) && sep="   "
     for item in "${HINTS[@]}"; do
         ilen=${item%%|*}; item=${item#*|}
-        if (( len > 0 && len + 2 + ilen > UI_W )); then
+        if (( len > 0 && len + 3 + ilen > UI_W )); then
             HINT_LINES+=("  ${line}${NC}"); line=""; len=0
         fi
-        (( len > 0 )) && line+="  " && len=$(( len + 2 ))
+        (( len > 0 )) && line+=$sep && len=$(( len + 3 ))
         line+="$item"; len=$(( len + ilen ))
     done
     HINT_LINES+=("  ${line}${NC}")
@@ -482,30 +519,22 @@ build_hints() {
 }
 
 build_footer() {  # $1 selected count → FOOTER_LINES: hints, then quit and the action button right-aligned
-    local LC_ALL=C.UTF-8 n=$1 label=${ACTION_LABEL,,} btn text bg=$BG_MAUVE fg=$C_BASE right rlen last
+    local LC_ALL=C.UTF-8 n=$1 text bg=$ACCENT_BG cap=$FOCUS_COL fg=$C_BASE btn right plain last
     build_hints
-    if (( UI_ASCII )); then
-        fg=$FOCUS_COL
-        (( n == 0 )) && fg=$C_OVERLAY
-        text="[i ${label} ${n}]"
-        btn="${fg}${BOLD}${text}${NOBOLD}${FG0}"
-    else
-        [[ "$MODE" == uninstall ]] && bg=$BG_RED
-        (( n == 0 )) && bg=$BG_SURFACE fg=$C_OVERLAY
-        text=" i  ${label} ${n} "
-        btn="${bg}${fg}${BOLD}${text}${NOBOLD}${BG0}${FG0}"
-    fi
+    (( n == 0 )) && bg=$BG_SURFACE cap=$C_SURFACE fg=$C_OVERLAY
+    (( UI_ASCII && n == 0 )) && cap=$C_OVERLAY
+    text=" I  ${ACTION_LABEL^^} ${n} "
+    ui_badge "$text" "$bg" "$cap" "$fg"; btn=$REPLY
     ui_pill q
-    right="${REPLY} ${C_SUBTEXT}quit${FG0}   ${btn}"
-    text="[q] quit   ${text}"
-    rlen=${#text}
+    right="${REPLY} ${C_SUBTEXT}quit${FG0}  ${btn}"
+    plain="Q quit  ${G_CAP_L}${text}${G_CAP_R}"
     FOOTER_LINES=("${HINT_LINES[@]}")
-    if (( HINT_LAST_LEN + 3 + rlen <= UI_W )); then
+    if (( HINT_LAST_LEN + 3 + ${#plain} <= UI_W )); then
         last=$(( ${#FOOTER_LINES[@]} - 1 ))
-        ui_rep $(( UI_W - HINT_LAST_LEN - rlen )) ' '
+        ui_rep $(( UI_W - HINT_LAST_LEN - ${#plain} )) ' '
         FOOTER_LINES[last]+="${REPLY}${right}${NC}"
     else
-        ui_rep $(( UI_W - rlen )) ' '
+        ui_rep $(( UI_W - ${#plain} )) ' '
         FOOTER_LINES+=("  ${REPLY}${right}${NC}")
     fi
 }
@@ -541,13 +570,13 @@ two_pane_menu() {
     ui_rep $(( LEFT_W - 2 )) ' '
     while (( ${#PANE_L[@]} < PANE_ROWS )); do PANE_L+=("$REPLY"); done
     apps_pane "$PANE_ROWS"
-    pane_top "$LEFT_W" Groups "" "" "$lf"; top_l=$REPLY
+    pane_top "$LEFT_W" GROUPS "" "" "$lf"; top_l=$REPLY
     group_stats "${GROUP_KEYS[GROUP_CURSOR]}"
     pane_top "$RIGHT_W" "${GROUP_LABEL[${GROUP_KEYS[GROUP_CURSOR]}]}" "$GSTAT_SEL/$GSTAT_TOTAL" "$GSTAT_COL" $(( 1 - lf ))
     ui_add "  ${top_l} ${REPLY}"
     for (( i = 0; i < PANE_ROWS; i++ )); do
         if [[ "${PANE_L[i]}" == "$PANE_SEP" ]]; then
-            pane_rule "$LEFT_W" "$lc" "$RB_LT" "$RB_RT"; l=$REPLY
+            pane_divider "$LEFT_W" "$lc" SETTINGS; l=$REPLY
         else
             l="${lc}${RB_V}${NC}${PANE_L[i]}${lc}${RB_V}${NC}"
         fi
@@ -605,8 +634,6 @@ print_menu() {
     clamp_cursor
     clamp_panes
     ui_term_size
-    FOCUS_COL=$C_MAUVE; SEL_COL=$C_GREEN
-    if [[ "$MODE" == uninstall ]]; then FOCUS_COL=$C_RED; SEL_COL=$C_RED; fi
     build_banner
     MENU_LINES=()
     local sel=0 k
@@ -711,6 +738,9 @@ read_key() {
     if (( st > 128 )); then echo "TICK"; return 0; fi
     # EOF means quit, so a closed stdin can't spin the loop forever.
     if (( st > 0 )) && [[ -z "$key" ]]; then echo "QUIT"; return 0; fi
+    # The footer shows keys upper-cased, so Shift+key must work too; C.UTF-8 keeps the mapping ASCII (no Turkish ı).
+    local LC_ALL=C.UTF-8
+    key=${key,,}
     if [[ "$key" == $'\x1b' ]]; then
         read -rsn2 -t 0.1 rest || true
         # Application cursor mode (tmux, some terminals) sends ESC O A/B.
@@ -743,10 +773,14 @@ read_key() {
 menu_ui_start() { printf '\033[?1049h\033[H'; tput civis 2>/dev/null || true; }
 menu_ui_stop()  { trap - WINCH; tput cnorm 2>/dev/null || true; printf '\033[?1049l'; }
 
-interactive_menu() {
+build_menu_info() {  # → MENU_INFO: the two banner info lines
     local login_shell
     login_shell=$(user_login_shell)
-    MENU_INFO="v${TOOLKIT_VERSION} ${G_DOT} Ubuntu $(get_ubuntu_version) ${G_DOT} ${REAL_USER} ${G_DOT} ${login_shell##*/} ${G_DOT} ${#APPS[@]} apps"
+    MENU_INFO=("v${TOOLKIT_VERSION} ${G_DOT} Ubuntu $(get_ubuntu_version)" "${REAL_USER} ${G_DOT} ${login_shell##*/} ${G_DOT} ${#APPS[@]} apps")
+}
+
+interactive_menu() {
+    build_menu_info
     menu_ui_start
     # read_key runs in a subshell, where this trap is reset, so a resize never interrupts its read.
     trap 'WINCHED=1' WINCH

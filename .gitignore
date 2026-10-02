@@ -17,3 +17,6 @@ Thumbs.db
 # Temp files
 *.tmp
 *.bak
+
+# docs/screenshot.sh scratch
+docs/.shot.*/
