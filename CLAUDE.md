@@ -9,7 +9,7 @@ a warning and the run continues.
 - `install-app.sh` — entrypoint: re-execs under bash, sources `lib/` (core,
   registry, apt, shell-rc, shared, ui-menu, ui-run, runner) and `apps/*.sh`, runs `main`.
 - `lib/registry.sh` — `APPS` (`"key|group|Name::tagline|default_on"`, array order
-  is install order) and `APP_GROUPS` (`"key|Title|icon|ascii-icon"`).
+  is install order) and `APP_GROUPS` (`"key|Title|Short|icon|ascii-icon"`, Short ≤ 11 chars).
 - `apps/<key>.sh` — `do_<key>`, `undo_<key>` and helpers only that app uses.
   Helpers shared by two or more apps go in `lib/shared.sh`.
 - Lib and app files only define functions and constants.
@@ -32,7 +32,7 @@ is missing.
   command. `su - user -c` blocks start with `set -e`; nvm blocks source
   `$NVM_LOAD` first (nvm is not `set -e` safe).
 - Menu redraw and spinner paths must not fork: string helpers (`ui_trunc`,
-  `ui_rep`, `ui_bar`, `ui_pill`, `item_chip`, `fmt_secs`) return via `REPLY`.
+  `ui_pad`, `ui_rep`, `ui_bar`, `ui_pill`, `item_chip`, `fmt_secs`) return via `REPLY`.
   Widths are counted on plain text under `LC_ALL=C.UTF-8`; cursor rows only
   switch foreground (`FG0`/`NOBOLD`) so the background survives.
 - Never name an array `GROUPS` (bash reserves it).

@@ -28,36 +28,31 @@ Launching with `sh` re-execs under bash. Other Ubuntu releases get a warning and
 
 ```
   █▀▀ █▀▀ ▀█▀ █ █ █▀█   ubuntu setup · post-install toolkit
-  ▄▄█ ██▄  █  █▄█ █▀▀   v1.0.0 · Ubuntu 26.04 · hoangle · bash · 36 apps
+  ▄▄█ ██▄  █  █▄█ █▀▀   v1.1.0 · Ubuntu 26.04 · hoangle · zsh · 36 apps
 
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-    ▾ ⚙  System & Shell                                            ████████   8/8
-       ● APT Mirror          route apt through Vietnam's … mirror.bizflycloud.vn
-       ● System Update       refresh sources & upgrade every package
-       ● Swap File           8 GB swap · swappiness dialed to 10
-  ▌    ● Terminal Kit        zsh · oh-my-zsh · tmux · fzf · rg · bat… login: yes
-       ● Fonts               Nerd Font glyphs + Vietnamese web fonts (Facebook/…
-       ● MS Fonts            Arial, Times New Roman, Calibri & ClearType fonts
-       ● eza                 a modern ls with icons & git awareness
-       ● Fastfetch           system info at a glance, neofetch reborn
-    ▸ ◆  Languages & IDEs                                          ████████   9/9
-    ▸ ▲  DevOps & Cloud                                            ████████   5/5
-    ▸ ⬡  Databases                                                 ████████   4/4
-    ▸ ◎  Apps & Desktop                                            ██████░░  8/10
-
-  ───────────────────────────────────────────────────────────────────────────────
-  34/36 selected  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━────
-
-   ↑↓  move   space  toggle   enter  expand   a  all   n  none   d  .NET
-   m  mirror   g  IME   s  zsh   i  Install   q  quit
+  ╭─ Groups ─────────────────╮ ╭─ Languages & IDEs ─────────────────────────────── 6/9 ─╮
+  │   ⚙ System         8/8   │ │ ● Node.js LTS         managed by nvm, swap versions o… │
+  │   ◆ Languages      6/9   │ │▌○ Bun                 all-in-one JS runtime & toolkit… │
+  │   ▲ DevOps         5/5   │ │ ● pnpm                fast, disk-efficient package ma… │
+  │   ⬡ Databases      4/4   │ │ ● Yarn 4              the Berry JS package manager vi… │
+  │   ◎ Desktop      10/10   │ │ ● .NET SDK            build & run cross-platf… .NET 10 │
+  ├──────────────────────────┤ │ ○ ABP CLI             ABP Studio CLI for building ABP… │
+  │  m  mirror BizFly Cloud  │ │ ● VS Code             the editor that does it all      │
+  │  g  IME    Unikey        │ │ ○ Trae IDE            AI-native coding by ByteDance    │
+  │  d  .NET   10            │ │ ● Claude Code         Anthropic's agentic dev CLI      │
+  │  s  login  zsh           │ │                                                        │
+  ╰──────────────────────────╯ ╰────────────────────────────────────────────────────────╯
+   ↑↓  move   ←→  panel   space  toggle   a  all   n  none      q  quit    i  install 33
 ```
+
+Two panes need 80 columns; narrower terminals get a single list with collapsible groups (`Enter`).
 
 | Key | Action |
 |-----|--------|
-| `↑` `↓` / `k` `j`, `Enter` | Move, expand/collapse a group |
-| `Space`, `a`, `n` | Toggle, select all, select none |
-| `d` / `m` / `g` | .NET versions (8, 9, 10) / APT mirror / Vietnamese input engine |
+| `↑` `↓` / `k` `j` | Move within the focused pane |
+| `←` `→` / `h` `l`, `Tab`, `Enter` | Switch between groups and apps |
+| `Space`, `a`, `n` | Toggle app or whole group, select all, select none |
+| `d` / `m` / `g` | .NET versions (8, 9, 10) / APT mirror / Vietnamese input engine (install only) |
 | `s` | zsh as login shell yes/no (install only) |
 | `i` / `q` | Start / quit |
 

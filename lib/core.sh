@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-TOOLKIT_VERSION="1.0.0"
+TOOLKIT_VERSION="1.1.0"
 
 # Catppuccin Mocha; each colour carries its nearest xterm-256 index for terminals without truecolor.
 TRUECOLOR=0
@@ -26,7 +26,10 @@ C_TEXT=$(rgb_esc 38 cdd6f4 189)
 C_SUBTEXT=$(rgb_esc 38 a6adc8 146)
 C_OVERLAY=$(rgb_esc 38 6c7086 60)
 C_SURFACE2=$(rgb_esc 38 585b70 240)
+C_BASE=$(rgb_esc 38 1e1e2e 234)
 BG_SURFACE=$(rgb_esc 48 313244 236)
+BG_MAUVE=$(rgb_esc 48 cba6f7 183)
+BG_RED=$(rgb_esc 48 f38ba8 211)
 BOLD=$'\033[1m'
 NOBOLD=$'\033[22m'
 FG0=$'\033[39m'
@@ -36,8 +39,8 @@ NC=$'\033[0m'
 # Step output only reaches the log, so steps drop every escape sequence.
 ui_plain() {
     C_MAUVE=""; C_LAVENDER=""; C_BLUE=""; C_SAPPHIRE=""; C_GREEN=""; C_YELLOW=""
-    C_RED=""; C_TEXT=""; C_SUBTEXT=""; C_OVERLAY=""; C_SURFACE2=""
-    BG_SURFACE=""; BOLD=""; NOBOLD=""; FG0=""; BG0=""; NC=""
+    C_RED=""; C_TEXT=""; C_SUBTEXT=""; C_OVERLAY=""; C_SURFACE2=""; C_BASE=""
+    BG_SURFACE=""; BG_MAUVE=""; BG_RED=""; BOLD=""; NOBOLD=""; FG0=""; BG0=""; NC=""
 }
 
 # Fonts without these glyphs render tofu boxes; setup_glyphs swaps them for 7-bit ones in ASCII mode.
@@ -46,7 +49,7 @@ UI_ASCII=0
 G_ON="●"; G_OFF="○"
 G_EXPAND="▸"; G_COLLAPSE="▾"; G_BAR="▌"
 
-G_PROG_F="━"; G_PROG_E="─"; G_RULE="─"; G_HEAVY="━"; G_DOT="·"; G_ELLIPSIS="…"
+G_PROG_F="━"; G_PROG_E="─"; G_DOT="·"; G_ELLIPSIS="…"
 G_MINI_F="█"; G_MINI_E="░"; G_UP="↑"; G_DOWN="↓"
 
 G_INFO="▸"; G_OK="✓"; G_WARN="!"; G_ERR="✗"
@@ -54,6 +57,7 @@ G_DIAMOND="◆"; G_REFRESH="⟳"; G_PIPE="│"
 G_SPIN=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
 
 RB_TL="╭"; RB_BL="╰"; RB_H="─"; RB_V="│"
+RB_TR="╮"; RB_BR="╯"; RB_LT="├"; RB_RT="┤"
 
 setup_glyphs() {
     # A blank locale (sudo may strip it) counts as UTF-8; only an explicit non-UTF-8 one forces ASCII.
@@ -64,12 +68,13 @@ setup_glyphs() {
 
     G_ON="*"; G_OFF="-"
     G_EXPAND=">"; G_COLLAPSE="v"; G_BAR="|"
-    G_PROG_F="="; G_PROG_E="-"; G_RULE="-"; G_HEAVY="="; G_DOT="-"; G_ELLIPSIS="~"
+    G_PROG_F="="; G_PROG_E="-"; G_DOT="-"; G_ELLIPSIS="~"
     G_MINI_F="#"; G_MINI_E="."; G_UP="^"; G_DOWN="v"
     G_INFO=">"; G_OK="+"; G_WARN="!"; G_ERR="x"
     G_DIAMOND="*"; G_REFRESH="~"; G_PIPE="|"
     G_SPIN=('|' '/' '-' "\\")
     RB_TL="+"; RB_BL="+"; RB_H="-"; RB_V="|"
+    RB_TR="+"; RB_BR="+"; RB_LT="+"; RB_RT="+"
 }
 
 # String helpers return through REPLY so redraw loops never fork; C.UTF-8 counts multibyte glyphs as one column when sudo blanks the locale.
@@ -79,6 +84,13 @@ ui_trunc() {  # $1 text, $2 max columns → REPLY: text cut to fit, ending in an
     (( max <= 0 )) && { REPLY=""; return 0; }
     (( ${#REPLY} > max )) && REPLY="${REPLY:0:max-1}${G_ELLIPSIS}"
     return 0
+}
+
+ui_pad() {  # $1 text, $2 columns → REPLY: text cut or space-padded to exactly that width
+    local LC_ALL=C.UTF-8 t
+    ui_trunc "$1" "$2"; t=$REPLY
+    ui_rep $(( $2 - ${#t} )) ' '
+    REPLY="${t}${REPLY}"
 }
 
 ui_rep() {  # $1 count, $2 char → REPLY: char repeated
