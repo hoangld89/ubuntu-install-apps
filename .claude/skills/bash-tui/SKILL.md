@@ -22,7 +22,7 @@ Read the file you change first; the invariants in `CLAUDE.md` still apply.
 | Badge / button | `ui_badge text bg cap fg`: text on `bg` between `G_CAP_L`/`G_CAP_R` half blocks drawn in `cap` (the bg as fg), `${#text} + 2` wide; brackets in ASCII mode. Used for the `SETUP` badge in the run header and the action button | `lib/ui-menu.sh` |
 | Row with cursor | `ui_row on left left_len right right_len` (one-column layout) | `lib/ui-menu.sh` |
 | Pane frame | `pane_top`, `pane_divider` (titled `├─ SETTINGS ─┤` at `PANE_SEP`; title never highlights since settings take no cursor), `pane_rule` | `lib/ui-menu.sh` |
-| Scrolling | `scroll_window cursor items rows TOP_VAR` + `↑ n more` / `↓ n more` rows | `lib/ui-menu.sh` |
+| Scrolling | `scroll_window cursor items rows TOP_VAR` → `SCROLL_FROM` / `SCROLL_TO`, plus `↑ n more` / `↓ n more` rows | `lib/ui-menu.sh` |
 | Footer hint | `hint key label` inside `build_hints` | `lib/ui-menu.sh` |
 | Step / summary line | `step_line`, `run_footer`, `summary_row`, `run_emit` | `lib/ui-run.sh` |
 
@@ -63,11 +63,10 @@ Read the file you change first; the invariants in `CLAUDE.md` still apply.
   (blank while the groups pane has focus), so rows may cut taglines; the pane
   height reserves it through `PANE_CHROME`.
 - Banner: two-row gradient block logo (`LOGO_FULL` "UBUNTU SETUP", `LOGO_SHORT`
-  "SETUP" when the info would not fit beside `LOGO_FULL`, plain text in ASCII mode) with the two `MENU_INFO`
-  parts right-aligned beside it, then a gradient `G_PROG_F` rule across `UI_W`.
-  Logo letters are 3-4 columns of `█▀▄`; new letters follow the same font. It
-  drops first when height is short. Test a change at 80×24, 120×40 and
-  60×20.
+  "SETUP" when the info would not fit beside `LOGO_FULL`, plain text in ASCII
+  mode) with the two `MENU_INFO` parts right-aligned beside it, then a gradient
+  `G_PROG_F` rule across `UI_W`. Logo letters are 3-4 columns of `█▀▄`; new
+  letters follow the same font. The banner drops first when height is short.
 
 ## Colour and emphasis
 
@@ -83,8 +82,7 @@ Read the file you change first; the invariants in `CLAUDE.md` still apply.
   titles, the action button, the logo); content keeps its own case (group and app
   names, also as the apps pane title, taglines, setting values), since all-caps
   lists are slow to scan and upper-casing breaks acronyms (`IDEs` → `IDES`). No
-  letter-spacing: monospace caps are already evenly spaced; space around elements. `read_key` lower-cases
-  letters, so an upper-case key on screen works with or without Shift.
+  letter-spacing: monospace caps are already evenly spaced; space around elements.
 - State never relies on colour alone: pair it with a glyph (`G_ON`/`G_OFF`,
   `G_OK`/`G_WARN`/`G_ERR`) or a count (`3/5`).
 - Truecolor comes from `COLORTERM`; the 256-colour index must stay close to the hex.
@@ -92,12 +90,14 @@ Read the file you change first; the invariants in `CLAUDE.md` still apply.
 ## Keys and input
 
 - `read_key` maps arrows (CSI and SS3 forms), `hjkl`, Enter, Space, Tab, bare ESC
-  and EOF (→ `QUIT`) to names; add new special keys there, letters pass through.
+  and EOF (→ `QUIT`) to names; add new special keys there. Letters pass through
+  lower-cased, so an upper-case key on screen works with or without Shift.
 - A new binding needs: the `case` in `interactive_menu`, a `hint` in `build_hints`
   (only for layouts where it works), and in two-pane mode a Settings row via
   `settings_row` if it changes a setting.
-- Install-only keys check `MODE`. Prompts (`configure_*`) show the cursor with
-  `tput cnorm` and hide it again after; they are the only place `read -p` is used.
+- Install-only keys check `MODE`. Prompts (`configure_*`) are the only place
+  `read -rp` is used; `interactive_menu` shows the cursor (`tput cnorm`) before
+  calling one and hides it after, so the prompt itself does not touch the cursor.
 
 ## Run view
 
@@ -111,12 +111,35 @@ Read the file you change first; the invariants in `CLAUDE.md` still apply.
   20-column name) and in summary rows (box edge + glyph + name cell derived from
   `STEP_PREFIX_W`); keep new line types on that grid.
 
+## Testing
+
+Render a frame without a terminal (as `frame` in `docs/screenshot.sh` does) and
+check rows and widths at each size; prefix `MINT_ASCII=1`, `COLORTERM=` or
+`MODE=uninstall` for the other modes:
+
+```bash
+for size in 120x40 80x24 60x20; do
+    out=$(COLS=${size%x*} ROWS=${size#*x} bash -c '
+        source ./install-app.sh; setup_glyphs
+        tput() { case "$1" in cols) echo "$COLS" ;; lines) echo "$ROWS" ;; esac; }
+        get_ubuntu_version() { echo 26.04; }; user_login_shell() { echo /usr/bin/zsh; }
+        REAL_USER=user MODE=${MODE:-install}; mode_theme; init_defaults; build_menu_info; print_menu' </dev/null \
+        | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g')
+    echo "$size: $(wc -l <<< "$out") rows, widest $(LC_ALL=C.UTF-8 wc -L <<< "$out")"
+done
+```
+
+Rows must stay ≤ the terminal height and the widest row < its width. In ASCII
+mode `LC_ALL=C grep -c $'[\x80-\xff]' <<< "$out"` must print 0. Measure with
+`wc -L`, not `awk`: mawk counts bytes. Key handling, resize and terminal restore
+still need a real run.
+
 ## Review checklist
 
 1. `bash -n`, `shellcheck -x install-app.sh`, `validate_registry`.
 2. No new fork in a per-row or per-frame path; `REPLY` copied before reuse.
-3. Widths measured on plain text under `C.UTF-8`; no row exceeds `UI_W` at 120, 80
-   and 60 columns.
+3. Widths measured on plain text under `C.UTF-8`; the [Testing](#testing) check
+   passes at 120, 80 and 60 columns.
 4. ASCII mode (`MINT_ASCII=1`) prints none of the toolkit's own non-ASCII text
    (command output in error tails passes through) and 256-colour mode
    (`COLORTERM=`) renders; every new glyph and colour has its fallback, and new
