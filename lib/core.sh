@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-TOOLKIT_VERSION="1.1.1"
+TOOLKIT_VERSION="1.2.0"
 
 # Catppuccin Mocha; each colour carries its nearest xterm-256 index for terminals without truecolor.
 TRUECOLOR=0
@@ -26,6 +26,7 @@ C_TEXT=$(rgb_esc 38 cdd6f4 189)
 C_SUBTEXT=$(rgb_esc 38 a6adc8 146)
 C_OVERLAY=$(rgb_esc 38 6c7086 60)
 C_SURFACE2=$(rgb_esc 38 585b70 240)
+C_SURFACE=$(rgb_esc 38 313244 236)
 C_BASE=$(rgb_esc 38 1e1e2e 234)
 BG_SURFACE=$(rgb_esc 48 313244 236)
 BG_MAUVE=$(rgb_esc 48 cba6f7 183)
@@ -39,7 +40,7 @@ NC=$'\033[0m'
 # Step output only reaches the log, so steps drop every escape sequence.
 ui_plain() {
     C_MAUVE=""; C_LAVENDER=""; C_BLUE=""; C_SAPPHIRE=""; C_GREEN=""; C_YELLOW=""
-    C_RED=""; C_TEXT=""; C_SUBTEXT=""; C_OVERLAY=""; C_SURFACE2=""; C_BASE=""
+    C_RED=""; C_TEXT=""; C_SUBTEXT=""; C_OVERLAY=""; C_SURFACE2=""; C_SURFACE=""; C_BASE=""
     BG_SURFACE=""; BG_MAUVE=""; BG_RED=""; BOLD=""; NOBOLD=""; FG0=""; BG0=""; NC=""
 }
 
@@ -53,7 +54,8 @@ G_PROG_F="━"; G_PROG_E="─"; G_DOT="·"; G_ELLIPSIS="…"
 G_MINI_F="█"; G_MINI_E="░"; G_UP="↑"; G_DOWN="↓"
 
 G_INFO="▸"; G_OK="✓"; G_WARN="!"; G_ERR="✗"
-G_DIAMOND="◆"; G_REFRESH="⟳"; G_PIPE="│"
+G_REFRESH="⟳"; G_PIPE="│"
+G_CAP_L="▐"; G_CAP_R="▌"
 G_SPIN=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
 
 RB_TL="╭"; RB_BL="╰"; RB_H="─"; RB_V="│"
@@ -71,7 +73,8 @@ setup_glyphs() {
     G_PROG_F="="; G_PROG_E="-"; G_DOT="-"; G_ELLIPSIS="~"
     G_MINI_F="#"; G_MINI_E="."; G_UP="^"; G_DOWN="v"
     G_INFO=">"; G_OK="+"; G_WARN="!"; G_ERR="x"
-    G_DIAMOND="*"; G_REFRESH="~"; G_PIPE="|"
+    G_REFRESH="~"; G_PIPE="|"
+    G_CAP_L="["; G_CAP_R="]"
     G_SPIN=('|' '/' '-' "\\")
     RB_TL="+"; RB_BL="+"; RB_H="-"; RB_V="|"
     RB_TR="+"; RB_BR="+"; RB_LT="+"; RB_RT="+"

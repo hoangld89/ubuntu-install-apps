@@ -26,24 +26,7 @@ Launching with `sh` re-execs under bash. Other Ubuntu releases get a warning and
 
 ## Menu
 
-```
-  █▀▀ █▀▀ ▀█▀ █ █ █▀█   ubuntu setup · post-install toolkit
-  ▄▄█ ██▄  █  █▄█ █▀▀   v1.1.0 · Ubuntu 26.04 · hoangle · zsh · 36 apps
-
-  ╭─ Groups ─────────────────╮ ╭─ Languages & IDEs ─────────────────────────────── 6/9 ─╮
-  │   ⚙ System         8/8   │ │ ● Node.js LTS         managed by nvm, swap versions o… │
-  │   ◆ Languages      6/9   │ │▌○ Bun                 all-in-one JS runtime & toolkit… │
-  │   ▲ DevOps         5/5   │ │ ● pnpm                fast, disk-efficient package ma… │
-  │   ⬡ Databases      4/4   │ │ ● Yarn 4              the Berry JS package manager vi… │
-  │   ◎ Desktop      10/10   │ │ ● .NET SDK            build & run cross-platf… .NET 10 │
-  ├──────────────────────────┤ │ ○ ABP CLI             ABP Studio CLI for building ABP… │
-  │  m  mirror BizFly Cloud  │ │ ● VS Code             the editor that does it all      │
-  │  g  IME    Unikey        │ │ ○ Trae IDE            AI-native coding by ByteDance    │
-  │  d  .NET   10            │ │ ● Claude Code         Anthropic's agentic dev CLI      │
-  │  s  login  zsh           │ │                                                        │
-  ╰──────────────────────────╯ ╰────────────────────────────────────────────────────────╯
-   ↑↓  move   ←→  panel   space  toggle   a  all   n  none      q  quit    i  install 33
-```
+<p align="center"><img src="docs/images/menu.png" alt="Two-pane install menu: groups and settings on the left, apps of the focused group on the right" width="900" /></p>
 
 Two panes need 80 columns; narrower terminals get a single list with collapsible groups (`Enter`).
 

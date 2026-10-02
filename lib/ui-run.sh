@@ -21,8 +21,10 @@ run_emit() {
 }
 
 run_header() {
+    local badge
+    ui_badge " SETUP " "$ACCENT_BG" "$FOCUS_COL" "$C_BASE"; badge=$REPLY
     run_emit ""
-    run_emit "  ${C_MAUVE}${G_DIAMOND}${NC} ${BOLD}${C_TEXT}${ACTION_GERUND} ${STEP_TOTAL} apps${NC} ${C_OVERLAY}${G_DOT} log ${LOG_FILE}${NC}"
+    run_emit "  ${badge} ${BOLD}${C_TEXT}${ACTION_GERUND} ${STEP_TOTAL} apps${NC} ${C_OVERLAY}${G_DOT} log ${LOG_FILE}${NC}"
     run_emit ""
 }
 

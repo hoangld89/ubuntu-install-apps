@@ -13,6 +13,8 @@ a warning and the run continues.
 - `apps/<key>.sh` — `do_<key>`, `undo_<key>` and helpers only that app uses.
   Helpers shared by two or more apps go in `lib/shared.sh`.
 - Lib and app files only define functions and constants.
+- `docs/screenshot.sh` regenerates `docs/images/menu.png` (README) from the menu
+  code; needs python3-rich and Chrome/Chromium.
 
 **Adding an app:** add its `APPS` line, create `apps/<key>.sh` with both
 functions. `validate_registry` exits at startup if the group, file or a function
@@ -32,7 +34,7 @@ is missing.
   command. `su - user -c` blocks start with `set -e`; nvm blocks source
   `$NVM_LOAD` first (nvm is not `set -e` safe).
 - Menu redraw and spinner paths must not fork: string helpers (`ui_trunc`,
-  `ui_pad`, `ui_rep`, `ui_ascii_text`, `ui_bar`, `ui_pill`, `item_chip`, `fmt_secs`) return via `REPLY`.
+  `ui_pad`, `ui_rep`, `ui_ascii_text`, `ui_bar`, `ui_pill`, `ui_badge`, `item_chip`, `fmt_secs`) return via `REPLY`.
   Widths are counted on plain text under `LC_ALL=C.UTF-8`; cursor rows only
   switch foreground (`FG0`/`NOBOLD`) so the background survives.
 - Never name an array `GROUPS` (bash reserves it).

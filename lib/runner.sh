@@ -198,6 +198,7 @@ main() {
     if [[ "$MODE" == "uninstall" ]]; then
         ACTION_LABEL="Remove"; ACTION_GERUND="Removing"; ACTION_PAST="removed"
     fi
+    mode_theme
 
     init_defaults
 
