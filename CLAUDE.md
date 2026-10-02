@@ -70,9 +70,9 @@ is missing.
 
 ## Git, PRs and releases
 
-- Script changes (`install-app.sh`, `lib/`, `apps/`) go on a `feat/…` / `fix/…`
-  branch and reach `main` through a squash-merged PR. Docs-only changes may be
-  committed to `main` directly.
+- `main` is protected (admins included): every change, docs too, goes on a
+  `feat/…` / `fix/…` / `docs/…` branch and reaches `main` through a squash-merged
+  PR. No force-push or deletion of `main`.
 - Versions follow SemVer in `TOOLKIT_VERSION` (`lib/core.sh`; not `VERSION`, which `/etc/os-release` defines): MAJOR for removed apps,
   flags or behaviour users rely on; MINOR for new apps or options; PATCH for fixes.
 - Release: bump `TOOLKIT_VERSION` in the PR, then after merge tag `main` as `vX.Y.Z` and
