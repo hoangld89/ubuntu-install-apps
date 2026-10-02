@@ -61,7 +61,7 @@ MIRRORS=(
 
 # Format: "groupkey|Title|Short|icon|ascii-icon" — menu order is array order; Short fits the two-pane group list.
 APP_GROUPS=(
-    "system|System & Shell|System|⚙|#"
+    "system|System & Shell|System|≡|#"
     "dev|Languages & IDEs|Languages|◆|>"
     "devops|DevOps & Cloud|DevOps|▲|^"
     "database|Databases|Databases|⬡|="

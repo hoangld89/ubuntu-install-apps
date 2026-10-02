@@ -14,8 +14,10 @@ strip_escapes() { sed $'s/\033\\[[0-9;?]*[A-Za-z]//g'; }
 
 # The terminal gets the coloured line, the log a plain copy.
 run_emit() {
-    printf '%s\n' "$1"
-    if [[ -n "$LOG_FILE" ]]; then printf '%s\n' "$1" | strip_escapes >> "$LOG_FILE"; fi
+    local l=$1
+    (( UI_ASCII )) && { ui_ascii_text "$l"; l=$REPLY; }
+    printf '%s\n' "$l"
+    if [[ -n "$LOG_FILE" ]]; then printf '%s\n' "$l" | strip_escapes >> "$LOG_FILE"; fi
 }
 
 run_header() {
@@ -99,8 +101,8 @@ step_report() {
 
 summary_row() {
     local namecell
-    ui_pad "$3" 20; namecell=$REPLY
-    ui_trunc "$4" $(( UI_W - 26 ))
+    ui_pad "$3" $(( STEP_PREFIX_W - 7 )); namecell=$REPLY
+    ui_trunc "$4" $(( UI_W - STEP_PREFIX_W + 1 ))
     run_emit "  ${5}${RB_V}${NC} ${1}${2}${NC} ${C_TEXT}${namecell}${NC} ${C_SUBTEXT}${REPLY}${NC}"
 }
 

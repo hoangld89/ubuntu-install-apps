@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-TOOLKIT_VERSION="1.1.0"
+TOOLKIT_VERSION="1.1.1"
 
 # Catppuccin Mocha; each colour carries its nearest xterm-256 index for terminals without truecolor.
 TRUECOLOR=0
@@ -100,6 +100,12 @@ ui_rep() {  # $1 count, $2 char → REPLY: char repeated
     REPLY=${REPLY// /$2}
 }
 
+ui_ascii_text() {  # $1 text → REPLY: one-column 7-bit stand-ins for the punctuation that messages and registry labels use
+    REPLY=$1
+    (( UI_ASCII )) || return 0
+    REPLY=${REPLY//—/-}; REPLY=${REPLY//·/$G_DOT}; REPLY=${REPLY//…/$G_ELLIPSIS}
+}
+
 RUN_DIR=/run/install-app            # per-run scratch: reboot reasons, step errors
 STATE_DIR=/var/lib/install-app      # markers that must survive a reboot
 LOG_DIR=/var/log/install-app
@@ -109,18 +115,26 @@ export DEBIAN_FRONTEND=noninteractive
 
 # Inside a step (STEP_ACTIVE=1) info also feeds the spinner's sub-status and warn the warnings shown under the result line.
 STEP_ACTIVE=0
+MSG=""
+status_msg() {  # $1 leading text $2 colour $3 glyph, rest message → MSG: the message as printed
+    local lead=$1 col=$2 glyph=$3
+    shift 3
+    MSG=$*
+    (( UI_ASCII )) && { ui_ascii_text "$MSG"; MSG=$REPLY; }
+    echo -e "${lead}  ${col}${glyph}${NC} $MSG"
+}
 info() {
-    echo -e "\n  ${C_BLUE}${G_INFO}${NC} $*"
+    status_msg '\n' "$C_BLUE" "$G_INFO" "$@"
     if (( STEP_ACTIVE )); then
-        { printf '%s\n' "$*" > "$RUN_DIR/status.tmp" && mv -f "$RUN_DIR/status.tmp" "$RUN_DIR/status"; } 2>/dev/null || true
+        { printf '%s\n' "$MSG" > "$RUN_DIR/status.tmp" && mv -f "$RUN_DIR/status.tmp" "$RUN_DIR/status"; } 2>/dev/null || true
     fi
 }
-success() { echo -e "  ${C_GREEN}${G_OK}${NC} $*"; }
+success() { status_msg '' "$C_GREEN" "$G_OK" "$@"; }
 warn() {
-    echo -e "  ${C_YELLOW}${G_WARN}${NC} $*"
-    if (( STEP_ACTIVE )); then printf '%s\n' "$*" >> "$RUN_DIR/step-warnings" 2>/dev/null || true; fi
+    status_msg '' "$C_YELLOW" "$G_WARN" "$@"
+    if (( STEP_ACTIVE )); then printf '%s\n' "$MSG" >> "$RUN_DIR/step-warnings" 2>/dev/null || true; fi
 }
-fail()    { echo -e "  ${C_RED}${G_ERR}${NC} $*"; }
+fail()    { status_msg '' "$C_RED" "$G_ERR" "$@"; }
 
 need_root() {
     if [[ $EUID -ne 0 ]]; then

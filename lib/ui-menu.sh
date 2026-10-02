@@ -129,6 +129,7 @@ BANNER_KEY=""
 
 FOCUS_COL=""
 SEL_COL=""
+WINCHED=0
 
 ui_add() { MENU_LINES+=("$1"); }
 
@@ -168,6 +169,7 @@ render_menu() {
     local _l
     printf '\033[H'
     for _l in "${MENU_LINES[@]}"; do
+        (( UI_ASCII )) && { ui_ascii_text "$_l"; _l=$REPLY; }
         printf '%s\033[K\n' "$_l"
     done
     printf '\033[J'
@@ -352,6 +354,7 @@ RIGHT_W=40
 PANE_L=()
 PANE_R=()
 PANE_ROWS=0
+PANE_CHROME=3  # top rule, bottom rule and detail_line
 SHOW_BANNER=1
 
 settings_row() {  # $1 key $2 name $3 value → one Settings row of the left pane
@@ -374,7 +377,7 @@ groups_pane() {  # → PANE_L: group rows, then Settings in install mode
         if (( i == GROUP_CURSOR )); then
             bar=" "
             [[ "$FOCUS" == groups ]] && bar="${FOCUS_COL}${G_BAR}"
-            PANE_L+=("${BG_SURFACE} ${bar} ${C_LAVENDER}${icon} ${C_TEXT}${BOLD}${label}${NOBOLD}${GSTAT_COL}${count}   ${NC}")
+            PANE_L+=("${BG_SURFACE}${bar}  ${C_LAVENDER}${icon} ${C_TEXT}${BOLD}${label}${NOBOLD}${GSTAT_COL}${count}   ${NC}")
         else
             PANE_L+=("   ${C_LAVENDER}${icon} ${C_TEXT}${label}${GSTAT_COL}${count}   ${NC}")
         fi
@@ -508,7 +511,7 @@ build_footer() {  # $1 selected count → FOOTER_LINES: hints, then quit and the
 }
 
 pane_rows() {  # → PANE_ROWS (0 when the panes don't fit) and SHOW_BANNER; needs PANE_L built
-    local avail=$(( UI_ROWS - 1 - ${#FOOTER_LINES[@]} - 2 )) left=${#PANE_L[@]} full
+    local avail=$(( UI_ROWS - 1 - ${#FOOTER_LINES[@]} - PANE_CHROME )) left=${#PANE_L[@]} full
     full=$(( left > MAX_GROUP_SIZE ? left : MAX_GROUP_SIZE ))
     PANE_ROWS=0; SHOW_BANNER=0
     if (( avail - ${#BANNER_LINES[@]} >= full )); then
@@ -519,6 +522,15 @@ pane_rows() {  # → PANE_ROWS (0 when the panes don't fit) and SHOW_BANNER; nee
         PANE_ROWS=$avail
     fi
     return 0
+}
+
+# The apps pane cuts taglines at 80 columns, so the focused app's full tagline gets its own row.
+detail_line() {
+    local tag=""
+    if [[ "$FOCUS" == apps ]]; then app_cells "${FOCUS_APPS[APP_CURSOR]}" 1; tag=$CELL_TAG; fi
+    if [[ -z "$tag" ]]; then ui_add ""; return 0; fi
+    ui_trunc "$tag" $(( UI_W - 3 ))
+    ui_add "   ${C_OVERLAY}${G_INFO} ${C_SUBTEXT}${REPLY}${NC}"
 }
 
 two_pane_menu() {
@@ -544,6 +556,7 @@ two_pane_menu() {
     pane_rule "$LEFT_W" "$lc" "$RB_BL" "$RB_BR"; bot_l=$REPLY
     pane_rule "$RIGHT_W" "$rc" "$RB_BL" "$RB_BR"
     ui_add "  ${bot_l} ${REPLY}"
+    detail_line
     MENU_LINES+=("${FOOTER_LINES[@]}")
 }
 
@@ -646,7 +659,8 @@ configure_mirror() {
         IFS='|' read -r host label <<< "$m"
         local mark="  "
         [[ "$host" == "$MIRROR_HOST" ]] && mark="${C_GREEN}${G_ON}${NC}"
-        echo -e "    ${mark} ${BOLD}${C_TEXT}${i}${NC}) ${label} ${C_SUBTEXT}(${host})${NC}"
+        ui_ascii_text "$label"
+        echo -e "    ${mark} ${BOLD}${C_TEXT}${i}${NC}) ${REPLY} ${C_SUBTEXT}(${host})${NC}"
         i=$((i + 1))
     done
     echo ""
@@ -668,7 +682,8 @@ configure_input_method() {
         [[ "$ekey" == "$IME_ENGINE" ]] && mark="${C_GREEN}${G_ON}${NC}"
         local note=""
         [[ "$ekey" == "lotus" ]] && note=" ${C_SUBTEXT}(third-party apt repo)${NC}"
-        echo -e "    ${mark} ${BOLD}${C_TEXT}${i}${NC}) ${elabel}${note}"
+        ui_ascii_text "$elabel"
+        echo -e "    ${mark} ${BOLD}${C_TEXT}${i}${NC}) ${REPLY}${note}"
         i=$((i + 1))
     done
     echo ""
@@ -691,7 +706,9 @@ toggle_login_shell() {
 read_key() {
     # A bare ESC or EOF makes read fail, which would abort the script under set -e.
     local key rest="" st=0
-    IFS= read -rsn1 key || st=$?
+    # Times out every 0.5 s (TICK) so the menu loop can redraw after a resize.
+    IFS= read -rsn1 -t 0.5 key || st=$?
+    if (( st > 128 )); then echo "TICK"; return 0; fi
     # EOF means quit, so a closed stdin can't spin the loop forever.
     if (( st > 0 )) && [[ -z "$key" ]]; then echo "QUIT"; return 0; fi
     if [[ "$key" == $'\x1b' ]]; then
@@ -724,18 +741,23 @@ read_key() {
 }
 
 menu_ui_start() { printf '\033[?1049h\033[H'; tput civis 2>/dev/null || true; }
-menu_ui_stop()  { tput cnorm 2>/dev/null || true; printf '\033[?1049l'; }
+menu_ui_stop()  { trap - WINCH; tput cnorm 2>/dev/null || true; printf '\033[?1049l'; }
 
 interactive_menu() {
     local login_shell
     login_shell=$(user_login_shell)
     MENU_INFO="v${TOOLKIT_VERSION} ${G_DOT} Ubuntu $(get_ubuntu_version) ${G_DOT} ${REAL_USER} ${G_DOT} ${login_shell##*/} ${G_DOT} ${#APPS[@]} apps"
     menu_ui_start
+    # read_key runs in a subshell, where this trap is reset, so a resize never interrupts its read.
+    trap 'WINCHED=1' WINCH
     trap 'menu_ui_stop' EXIT
     trap 'menu_ui_stop; trap - EXIT; exit 130' INT TERM
+    local key=""
     while true; do
-        print_menu
-        local key
+        if [[ "$key" != TICK ]] || (( WINCHED )); then
+            WINCHED=0
+            print_menu
+        fi
         key=$(read_key)
         local vis_total=${#VIS_TYPES[@]}
         local vtype="${VIS_TYPES[$CURSOR]}"
