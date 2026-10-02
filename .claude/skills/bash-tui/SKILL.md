@@ -5,146 +5,90 @@ description: Design, build or review the pure-bash TUI of this toolkit (menu in 
 
 # Bash TUI
 
-The UI is hand-drawn with ANSI escapes: no gum, dialog, whiptail or other binary.
-Read the file you change first; the invariants in `CLAUDE.md` still apply.
+Hand-drawn ANSI, no gum/dialog/whiptail. Read the file you change first;
+`CLAUDE.md` invariants apply and are not repeated here.
 
 ## Building blocks
 
-| Need | Use | Where |
-|---|---|---|
-| Colour | `C_*` fg, `BG_SURFACE` / `BG_MAUVE` / `BG_RED`, `BOLD` / `NOBOLD`, `FG0` / `BG0`, `NC` | `lib/core.sh` |
-| New colour | `rgb_esc 38\|48 <hex> <xterm-256>` with the Catppuccin Mocha hex and nearest 256 index; also blank it in `ui_plain` | `lib/core.sh` |
-| Glyph | `G_*`, box `RB_*`, spinner `G_SPIN`; every new glyph gets a 7-bit twin in `setup_glyphs` | `lib/core.sh` |
-| Cut / pad / repeat | `ui_trunc`, `ui_pad`, `ui_rep` → `REPLY` | `lib/core.sh` |
-| ASCII text | `ui_ascii_text` (`—` `·` `…` → 7-bit, same width); `render_menu`, `run_emit` and `status_msg` (behind `info`/`success`/`warn`/`fail`) already apply it | `lib/core.sh` |
-| Progress bar | `ui_bar filled total width colour fill empty` → `REPLY` | `lib/ui-menu.sh` |
-| Key | `ui_pill key`: upper-cased bold lavender, as wide as the key; footer hints join `KEY label` with ` · ` | `lib/ui-menu.sh` |
-| Badge / button | `ui_badge text bg cap fg`: text on `bg` between `G_CAP_L`/`G_CAP_R` half blocks drawn in `cap` (the bg as fg), `${#text} + 2` wide; brackets in ASCII mode. Used for the `SETUP` badge in the run header and the action button | `lib/ui-menu.sh` |
-| Row with cursor | `ui_row on left left_len right right_len` (one-column layout) | `lib/ui-menu.sh` |
-| Pane frame | `pane_top`, `pane_divider` (titled `├─ SETTINGS ─┤` at `PANE_SEP`; title never highlights since settings take no cursor), `pane_rule` | `lib/ui-menu.sh` |
-| Scrolling | `scroll_window cursor items rows TOP_VAR` → `SCROLL_FROM` / `SCROLL_TO`, plus `↑ n more` / `↓ n more` rows | `lib/ui-menu.sh` |
-| Footer hint | `hint key label` inside `build_hints` | `lib/ui-menu.sh` |
-| Step / summary line | `step_line`, `run_footer`, `summary_row`, `run_emit` | `lib/ui-run.sh` |
+| Need | Use |
+|---|---|
+| Colour (`lib/core.sh`) | `C_*`, `BG_SURFACE`/`BG_MAUVE`/`BG_RED`, `BOLD`/`NOBOLD`, `FG0`/`BG0`, `NC`. New: `rgb_esc 38\|48 <hex> <256-index>` (Catppuccin Mocha hex, nearest index), blanked in `ui_plain` |
+| Glyph (`lib/core.sh`) | `G_*`, box `RB_*`, `G_SPIN`; each new one gets a 7-bit twin in `setup_glyphs` |
+| Text (`lib/core.sh`) | `ui_trunc`, `ui_pad`, `ui_rep`; `ui_ascii_text` (`—` `·` `…` → 7-bit), already applied by `render_menu`, `run_emit`, `status_msg`; any new output path must call it |
+| Menu (`lib/ui-menu.sh`) | `ui_bar filled total width colour fill empty`; `ui_pill key` (upper-case bold lavender); `ui_badge text bg cap fg` (half-block caps, `${#text}+2` wide, brackets in ASCII); `ui_row on left left_len right right_len` (one-column); `pane_top`/`pane_divider`/`pane_rule`; `scroll_window cursor items rows TOP_VAR` → `SCROLL_FROM`/`SCROLL_TO`; `hint key label` in `build_hints` |
+| Run (`lib/ui-run.sh`) | `step_line`, `run_footer`, `summary_row`, `run_emit` |
 
-## Rendering rules
+## Rendering
 
-- Build lines into `MENU_LINES` (`ui_add`), then `render_menu` paints from `\033[H`
-  with `\033[K` per line and `\033[J` at the end. Never `clear` (it flickers).
-- The menu lives in the alternate screen (`menu_ui_start` / `menu_ui_stop`, cursor
-  hidden). Any path that leaves the loop — `i`, `q`, EOF, INT/TERM — must restore it.
-- Fork budget: one fork per keypress or per 0.5 s idle tick is fine (`read_key`
-  via `$(...)`, `tput` in `ui_term_size` on redraw); nothing per row, per cell or
-  per spinner frame besides the spinner's `sleep`. Helpers called per row return
-  through `REPLY` or named globals (`GSTAT_*`, `CELL_*`, `PANE_*`), never
-  `echo` + `$(...)`.
-- Resize: the WINCH trap only sets `WINCHED`; `read_key` times out every 0.5 s
-  with `TICK`, and the loop redraws on a key or on a tick with `WINCHED=1`. Keep
-  `read_key` in its subshell: bash 5.3 handles a trap that interrupts `read`
-  inconsistently (it resumes, or returns an empty key that reads as Enter).
-- A helper that sets `REPLY` overwrites the caller's: copy it (`x=$REPLY`) before
-  the next helper call.
-- Expensive, rarely changing parts are cached by a key string (`BANNER_KEY`,
-  `HINTS_KEY`); add every input that changes the output to that key.
+- Lines go into `MENU_LINES` (`ui_add`); `render_menu` paints from `\033[H`, `\033[K`
+  per line, `\033[J` at the end. Never `clear`.
+- Alternate screen via `menu_ui_start`/`menu_ui_stop`, cursor hidden. Every exit
+  from the loop (`i`, `q`, EOF, INT/TERM) restores it.
+- Allowed forks: one per keypress or 0.5 s tick (`read_key`, `tput` on redraw) and
+  the spinner's `sleep`. Per-row helpers return via `REPLY` or globals (`GSTAT_*`,
+  `CELL_*`, `PANE_*`); copy `REPLY` before the next helper call.
+- Resize: WINCH only sets `WINCHED`; the loop redraws on a key or on a `TICK` with
+  `WINCHED=1`. Keep `read_key` in its subshell: bash 5.3 can turn a trap during
+  `read` into an empty key that reads as Enter.
+- Cached parts (`BANNER_KEY`, `HINTS_KEY`): every input that changes the output
+  goes into the key.
 
-## Width and alignment
+## Layout
 
-- `UI_W` is the content width (terminal − 3, clamped 40–96); every row fits in it.
-  Rows start with a two-space gutter.
-- Measure plain text only: declare `local LC_ALL=C.UTF-8` in the function and take
-  `${#var}` before adding escapes. Functions that join coloured pieces take the
-  plain length as a separate argument (`ui_row`, `hint`'s `len|coloured`).
-- Glyphs used in measured text must be one column wide. No emoji or East Asian
-  wide characters; group icons follow the same rule (`⚙` is an emoji that some
-  terminals draw two columns wide).
-- Columns: `ui_pad` fixed cells (name 18–20), `ui_trunc` the flexible one (tagline,
-  detail), compute the gap with `ui_rep`. Clamp a gap to ≥ 1.
-- Layout switch: two panes at ≥ 80 columns when `pane_rows` finds room, else one
-  column. Below the panes `detail_line` shows the focused app's full tagline
-  (blank while the groups pane has focus), so rows may cut taglines; the pane
-  height reserves it through `PANE_CHROME`.
-- Banner: two-row gradient block logo (`LOGO_FULL` "UBUNTU SETUP", `LOGO_SHORT`
-  "SETUP" when the info would not fit beside `LOGO_FULL`, plain text in ASCII
-  mode) with the two `MENU_INFO` parts right-aligned beside it, then a gradient
-  `G_PROG_F` rule across `UI_W`. Logo letters are 3-4 columns of `█▀▄`; new
-  letters follow the same font. The banner drops first when height is short.
+- `UI_W` = terminal − 3, clamped 40–96; rows start with a two-space gutter.
+- Joiners of coloured pieces take the plain length separately (`ui_row`, `hint`'s
+  `len|coloured`).
+- Measured glyphs are one column: no emoji or wide characters (`⚙` draws two).
+- Fixed cells with `ui_pad` (name 18–20), the flexible one with `ui_trunc`, gap with
+  `ui_rep`, clamped ≥ 1.
+- Two panes at ≥ 80 columns when `pane_rows` finds room, else one column.
+  `detail_line` under the panes shows the full tagline, so rows may cut it;
+  `PANE_CHROME` reserves its row.
+- Banner: two-row gradient logo in 3-4 column `█▀▄` letters (`LOGO_FULL`, or
+  `LOGO_SHORT` when `MENU_INFO` won't fit beside it; text in ASCII), `MENU_INFO`
+  right-aligned, a `G_PROG_F` rule below. It drops first when height is short.
 
 ## Colour and emphasis
 
-- Meaning, not decoration: green selected/ok, yellow partial/warning, red
-  error/uninstall, overlay for off/secondary, sapphire for setting values, mauve
-  for focus and progress. `mode_theme` (called once in `main`) sets `FOCUS_COL`,
-  `SEL_COL`, `ACCENT_BG` and `ACCENT_RAMP`: mauve for install, red for uninstall.
-  Read those instead of testing `MODE` for a colour.
-- Cursor row: `BG_SURFACE` + `FOCUS_COL` `G_BAR`, name in `BOLD`. Inside it only
-  switch foreground (`FG0`, `NOBOLD`); `NC` or `BG0` mid-row cuts the highlight.
-  End the row with a pad of spaces before `NC` so the background reaches the edge.
-- Case: chrome is upper-case and bold (keys, the fixed `GROUPS` / `SETTINGS`
-  titles, the action button, the logo); content keeps its own case (group and app
-  names, also as the apps pane title, taglines, setting values), since all-caps
-  lists are slow to scan and upper-casing breaks acronyms (`IDEs` → `IDES`). No
-  letter-spacing: monospace caps are already evenly spaced; space around elements.
-- State never relies on colour alone: pair it with a glyph (`G_ON`/`G_OFF`,
-  `G_OK`/`G_WARN`/`G_ERR`) or a count (`3/5`).
-- Truecolor comes from `COLORTERM`; the 256-colour index must stay close to the hex.
+- Green selected/ok, yellow partial/warning, red error/uninstall, overlay
+  off/secondary, sapphire setting values, mauve focus/progress. Use `FOCUS_COL`,
+  `SEL_COL`, `ACCENT_BG`, `ACCENT_RAMP` from `mode_theme`, not `MODE` tests.
+- Cursor row: `BG_SURFACE` + `FOCUS_COL` `G_BAR`, name `BOLD`, space-padded to the
+  edge before `NC`.
+- Chrome (keys, `GROUPS`/`SETTINGS`, action button, logo) is upper-case bold;
+  content keeps its case (`IDEs`). No letter-spacing.
+- State pairs colour with a glyph (`G_ON`/`G_OFF`, `G_OK`/`G_WARN`/`G_ERR`) or a
+  count (`3/5`).
 
-## Keys and input
+## Keys
 
-- `read_key` maps arrows (CSI and SS3 forms), `hjkl`, Enter, Space, Tab, bare ESC
-  and EOF (→ `QUIT`) to names; add new special keys there. Letters pass through
-  lower-cased, so an upper-case key on screen works with or without Shift.
-- A new binding needs: the `case` in `interactive_menu`, a `hint` in `build_hints`
-  (only for layouts where it works), and in two-pane mode a Settings row via
-  `settings_row` if it changes a setting.
-- Install-only keys check `MODE`. Prompts (`configure_*`) are the only place
-  `read -rp` is used; `interactive_menu` shows the cursor (`tput cnorm`) before
-  calling one and hides it after, so the prompt itself does not touch the cursor.
+- `read_key` names arrows (CSI/SS3), `hjkl`, Enter, Space, Tab, ESC, EOF (→ `QUIT`);
+  letters pass through lower-cased, so on-screen upper-case keys need no Shift.
+- A new binding: `case` in `interactive_menu`, `hint` in `build_hints` for layouts
+  where it works, and `settings_row` in two-pane mode if it changes a setting.
+  Install-only keys check `MODE`.
+- `configure_*` prompts are the only `read -rp`; `interactive_menu` toggles the
+  cursor around them.
 
 ## Run view
 
-- Steps never draw: they call `info` (spinner sub-status) and `warn` (shown under
-  the result line). Only `run_emit` writes to the terminal, and it copies a plain
-  version to the log.
-- Spinner is a background subshell that redraws one step line plus the footer bar
-  every 0.1 s and stops when `$RUN_DIR/spinning` disappears. It only runs when
-  `RUN_TTY=1`; non-tty output must still read correctly line by line.
-- Detail text starts `STEP_PREFIX_W` columns in, both in step lines (glyph +
-  20-column name) and in summary rows (box edge + glyph + name cell derived from
-  `STEP_PREFIX_W`); keep new line types on that grid.
+- Steps never draw: `info` feeds the spinner, `warn` shows under the result line.
+  Only `run_emit` writes, copying plain text to the log.
+- The spinner subshell redraws one step line and the footer every 0.1 s until
+  `$RUN_DIR/spinning` is gone, only when `RUN_TTY=1`; non-tty output reads line by
+  line.
+- Detail text starts at `STEP_PREFIX_W` in step lines and summary rows; new line
+  types use that grid.
 
-## Testing
+## Check and review
 
-Render a frame without a terminal (as `frame` in `docs/screenshot.sh` does) and
-check rows and widths at each size; prefix `MINT_ASCII=1`, `COLORTERM=` or
-`MODE=uninstall` for the other modes:
+Run `.claude/skills/bash-tui/check.sh`: the static checks from `CLAUDE.md`, then
+the menu frame rendered headless at 120x40, 80x24 and 60x20 in install, ASCII,
+256-colour and uninstall mode. It prints failures only, else one `ok` line.
 
-```bash
-for size in 120x40 80x24 60x20; do
-    out=$(COLS=${size%x*} ROWS=${size#*x} bash -c '
-        source ./install-app.sh; setup_glyphs
-        tput() { case "$1" in cols) echo "$COLS" ;; lines) echo "$ROWS" ;; esac; }
-        get_ubuntu_version() { echo 26.04; }; user_login_shell() { echo /usr/bin/zsh; }
-        REAL_USER=user MODE=${MODE:-install}; mode_theme; init_defaults; build_menu_info; print_menu' </dev/null \
-        | sed 's/\x1b\[[0-9;?]*[A-Za-z]//g')
-    echo "$size: $(wc -l <<< "$out") rows, widest $(LC_ALL=C.UTF-8 wc -L <<< "$out")"
-done
-```
+It does not cover the run view and summary, keys, resize, the cursor highlight or
+terminal restore after `i`, `q`, Ctrl-C and closed stdin: check those in a real
+run. A visible menu change re-runs `docs/screenshot.sh`.
 
-Rows must stay ≤ the terminal height and the widest row < its width. In ASCII
-mode `LC_ALL=C grep -c $'[\x80-\xff]' <<< "$out"` must print 0. Measure with
-`wc -L`, not `awk`: mawk counts bytes. Key handling, resize and terminal restore
-still need a real run.
-
-## Review checklist
-
-1. `bash -n`, `shellcheck -x install-app.sh`, `validate_registry`.
-2. No new fork in a per-row or per-frame path; `REPLY` copied before reuse.
-3. Widths measured on plain text under `C.UTF-8`; the [Testing](#testing) check
-   passes at 120, 80 and 60 columns.
-4. ASCII mode (`MINT_ASCII=1`) prints none of the toolkit's own non-ASCII text
-   (command output in error tails passes through) and 256-colour mode
-   (`COLORTERM=`) renders; every new glyph and colour has its fallback, and new
-   output paths go through `ui_ascii_text`.
-5. Cursor highlight runs to the row end in both layouts; uninstall mode recolours.
-6. Terminal is restored (main screen, cursor visible) after `i`, `q`, Ctrl-C and
-   closed stdin.
-7. A visible menu change re-runs `docs/screenshot.sh` so the README image matches.
+Report review findings most severe first, each with `file:line` and the rule it
+breaks.
