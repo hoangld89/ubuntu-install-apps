@@ -13,7 +13,7 @@ STEP_TMP=""
 
 usage() {
     cat <<EOF
-SETUP v${TOOLKIT_VERSION} — Post-install toolkit for Ubuntu 26.04
+SETUP v${TOOLKIT_VERSION} - Post-install toolkit for Ubuntu 26.04
 
 Usage:
   ./install-app.sh              Interactive install menu

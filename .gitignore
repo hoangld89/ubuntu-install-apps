@@ -3,7 +3,8 @@
 Thumbs.db
 
 # IDE
-.claude/
+.claude/*
+!.claude/skills/
 .vscode/
 .idea/
 *.swp

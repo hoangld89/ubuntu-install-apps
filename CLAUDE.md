@@ -32,7 +32,7 @@ is missing.
   command. `su - user -c` blocks start with `set -e`; nvm blocks source
   `$NVM_LOAD` first (nvm is not `set -e` safe).
 - Menu redraw and spinner paths must not fork: string helpers (`ui_trunc`,
-  `ui_pad`, `ui_rep`, `ui_bar`, `ui_pill`, `item_chip`, `fmt_secs`) return via `REPLY`.
+  `ui_pad`, `ui_rep`, `ui_ascii_text`, `ui_bar`, `ui_pill`, `item_chip`, `fmt_secs`) return via `REPLY`.
   Widths are counted on plain text under `LC_ALL=C.UTF-8`; cursor rows only
   switch foreground (`FG0`/`NOBOLD`) so the background survives.
 - Never name an array `GROUPS` (bash reserves it).
