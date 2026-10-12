@@ -24,7 +24,7 @@
 ## Features
 
 - **36 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
-- **Idempotent** — re-runs skip what is installed and move old installs onto the current upstream method.
+- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, ABP CLI, AzCopy, yq, Oh My Zsh and Trae to their latest release, and move old installs onto the current upstream method.
 - **Reversible** — every app has an uninstall that removes its packages, repos, keys and shell config.
 - **Isolated steps** — a failing app ends only its own step; the rest of the run continues.
 - **Vietnam-ready** — fast local APT mirrors, Fcitx5 Vietnamese input, fonts with full diacritics.
@@ -93,7 +93,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 
 | App | How |
 |-----|-----|
-| Node.js LTS | nvm, `nvm install --lts`; a re-run moves to the next LTS line |
+| Node.js LTS | nvm, `nvm install --lts`; a re-run updates nvm, moves to the latest LTS release and removes older releases of that line |
 | Bun | `bun.sh/install`, per user |
 | pnpm, Yarn 4 | corepack npm package (needs Node.js) |
 | .NET SDK | 10 from the archive, 8/9 from `ppa:dotnet/backports` (end of support 2026-11-10) |
@@ -184,7 +184,7 @@ Kept on purpose: `git`, `curl`, Docker data (`/var/lib/docker`, `/var/lib/contai
 "terminal.integrated.fontFamily": "'DejaVu Sans Mono', 'Noto Sans Mono', monospace"
 ```
 
-**A step failed** — the summary shows the failing command and its last log lines; the full output is in the log file. Fix the cause and re-run: installed apps are skipped.
+**A step failed** — the summary shows the failing command and its last log lines; the full output is in the log file. Fix the cause and re-run: up-to-date apps are skipped.
 
 ## Contributing
 

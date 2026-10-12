@@ -34,7 +34,7 @@ corepack_latest() {
     local cache="$RUN_DIR/corepack-latest"
     if [[ ! -s "$cache" ]]; then
         mkdir -p "$RUN_DIR"
-        su - "$REAL_USER" -c "$NVM_LOAD"'; npm view corepack version' 2>/dev/null > "$cache" || rm -f "$cache"
+        npm_latest corepack > "$cache"
     fi
     cat "$cache" 2>/dev/null || true
 }
@@ -50,6 +50,21 @@ ensure_corepack() {
         [ "$(corepack --version 2>/dev/null)" = "'"$latest"'" ] && exit 0
         npm install -g "corepack@'"$latest"'"
     '
+}
+
+npm_latest() {  # $1 package → its latest version on npm, empty when offline
+    su - "$REAL_USER" -c "$NVM_LOAD"'; npm view '"$1"' version' 2>/dev/null || true
+}
+
+redirect_target() {  # $1 URL → the URL it finally redirects to, empty when offline
+    local url
+    url=$(curl -fsSLI --connect-timeout 10 --max-time 30 -o /dev/null -w '%{url_effective}' "$1" 2>/dev/null) && printf '%s' "$url"
+    return 0
+}
+
+github_latest_tag() {  # $1 owner/repo → tag of its latest release (vX.Y.Z), empty when offline; avoids the API rate limit
+    [[ "$(redirect_target "https://github.com/$1/releases/latest")" =~ /tag/(v[0-9.]+)$ ]] && printf '%s' "${BASH_REMATCH[1]}"
+    return 0
 }
 
 corepack_pm_version() {
