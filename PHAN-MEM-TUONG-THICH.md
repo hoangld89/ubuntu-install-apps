@@ -11,7 +11,7 @@ Tuy nhiên, có **5 nhóm phần mềm** sẽ không dùng đúng app cũ như t
 | 📄 **Văn phòng (Word / Excel / PowerPoint)** | Microsoft Office | **ONLYOFFICE** |
 | ⌨️ **Gõ tiếng Việt** | Unikey | **Fcitx5** (bộ gõ Unikey / Bamboo / Lotus) |
 | 📸 **Chụp ảnh màn hình** | Snipping Tool / Snip & Sketch | **Flameshot** (phím **Print**) |
-| 📱 **Giả lập mobile (chạy app Android)** | BlueStacks / LDPlayer / NoxPlayer | **Waydroid** / **Android Emulator** |
+| 📱 **Giả lập mobile (chạy app Android)** | BlueStacks / LDPlayer / NoxPlayer | **Android Emulator** |
 | 🎥 **Quay màn hình** | Bandicam / Camtasia | **OBS Studio** |
 
 ## Lưu ý nhanh cho từng phần mềm
@@ -19,7 +19,6 @@ Tuy nhiên, có **5 nhóm phần mềm** sẽ không dùng đúng app cũ như t
 - **ONLYOFFICE:** Giao diện ribbon giống Microsoft Office, mở và lưu thẳng `.docx` / `.xlsx` / `.pptx`; mặc định không chọn. Chọn thêm **MS Fonts** để Calibri, Times New Roman… hiển thị đúng.
 - **Gõ tiếng Việt (Fcitx5):** Sau khi cài, chuyển đổi tiếng Việt ↔ tiếng Anh bằng phím tắt (thường là `Ctrl + Space`). Hỗ trợ cả kiểu gõ Telex và VNI như Unikey.
 - **Chụp màn hình (Flameshot):** Nhấn phím `Print` để chọn vùng chụp, có sẵn công cụ vẽ / mũi tên / làm mờ trước khi lưu hoặc copy. Chụp nhanh cả màn hình của Ubuntu vẫn ở `Shift + Print`.
-- **Waydroid:** Cho phép chạy ứng dụng Android ngay trong Ubuntu, thay cho các trình giả lập trên Windows.
 - **Android Emulator:** Trình giả lập chính thức của Google, Android mới nhất kèm Google Play; mặc định không chọn (cần KVM, ~8 GB đĩa, ~3 GB RAM khi chạy).
 - **OBS Studio:** Miễn phí, mạnh mẽ, quay màn hình và livestream chuyên nghiệp — cũng có sẵn bản Windows nên nếu quen rồi thì dùng luôn.
 
