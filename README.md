@@ -23,7 +23,7 @@
 
 ## Features
 
-- **37 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
+- **38 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
 - **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, ABP CLI, AzCopy, yq, Oh My Zsh, Trae and the Android SDK to their latest release, and move old installs onto the current upstream method.
 - **Reversible** — every app has an uninstall that removes its packages, repos, keys and shell config.
 - **Isolated steps** — a failing app ends only its own step; the rest of the run continues.
@@ -140,6 +140,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Fcitx5 | Unikey or Bamboo (archive) or Lotus (third-party repo); sets IM env vars, autostart, profile |
 | Postman | Tarball → `/opt/Postman` |
 | Waydroid | Official repo; needs Wayland + `binder`, run `waydroid init` once; re-runs update its Android images |
+| ONLYOFFICE | Off by default. Official apt repo, without recommends (MS Fonts covers the Office fonts) |
 | VLC | apt |
 | OBS Studio | `ppa:obsproject/obs-studio` |
 | AnyDesk, TeamViewer | Official repos |

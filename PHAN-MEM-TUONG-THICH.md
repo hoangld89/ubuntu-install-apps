@@ -4,10 +4,11 @@ Phần lớn phần mềm quen thuộc trên Windows **đã có sẵn phiên b�
 
 Các **công cụ lập trình dòng lệnh** cũng chạy y hệt trên Ubuntu, dùng đúng lệnh như trên Windows: Node.js, **Yarn**, pnpm, Bun, .NET SDK, **ABP CLI** (lệnh `abp`), Docker, Azure CLI, Terraform… Không cần đổi công cụ, chỉ cài qua script cài đặt là dùng được.
 
-Tuy nhiên, có **4 nhóm phần mềm** sẽ không dùng đúng app cũ như trên Windows, mà chuyển sang **phần mềm tương đương** trên Ubuntu. Chức năng giống hệt, chỉ khác tên và đôi chút thao tác:
+Tuy nhiên, có **5 nhóm phần mềm** sẽ không dùng đúng app cũ như trên Windows, mà chuyển sang **phần mềm tương đương** trên Ubuntu. Chức năng giống hệt, chỉ khác tên và đôi chút thao tác:
 
 | Nhu cầu | Trên Windows | Trên Ubuntu (dùng thay thế) |
 |---|---|---|
+| 📄 **Văn phòng (Word / Excel / PowerPoint)** | Microsoft Office | **ONLYOFFICE** |
 | ⌨️ **Gõ tiếng Việt** | Unikey | **Fcitx5** (bộ gõ Unikey / Bamboo / Lotus) |
 | 📸 **Chụp ảnh màn hình** | Snipping Tool / Snip & Sketch | **Flameshot** (hoặc phím **Print Screen** có sẵn) |
 | 📱 **Giả lập mobile (chạy app Android)** | BlueStacks / LDPlayer / NoxPlayer | **Waydroid** / **Android Emulator** |
@@ -15,6 +16,7 @@ Tuy nhiên, có **4 nhóm phần mềm** sẽ không dùng đúng app cũ như t
 
 ## Lưu ý nhanh cho từng phần mềm
 
+- **ONLYOFFICE:** Giao diện ribbon giống Microsoft Office, mở và lưu thẳng `.docx` / `.xlsx` / `.pptx`; mặc định không chọn. Chọn thêm **MS Fonts** để Calibri, Times New Roman… hiển thị đúng.
 - **Gõ tiếng Việt (Fcitx5):** Sau khi cài, chuyển đổi tiếng Việt ↔ tiếng Anh bằng phím tắt (thường là `Ctrl + Space`). Hỗ trợ cả kiểu gõ Telex và VNI như Unikey.
 - **Chụp màn hình (Flameshot):** Nhấn phím `Print Screen` để mở Flameshot, chọn vùng chụp, có sẵn công cụ vẽ / mũi tên / làm mờ trước khi lưu hoặc copy. Ngoài ra vẫn dùng được công cụ chụp có sẵn của Ubuntu bằng phím `Print`. Xem cách gán / đổi phím chụp bên dưới nếu Flameshot chưa mở khi nhấn `Print`.
 - **Waydroid:** Cho phép chạy ứng dụng Android ngay trong Ubuntu, thay cho các trình giả lập trên Windows.
