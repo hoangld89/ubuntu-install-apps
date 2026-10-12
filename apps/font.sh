@@ -5,26 +5,18 @@ apply_terminal_font() {
     command -v gnome-terminal &>/dev/null || return 0
     command -v gsettings     &>/dev/null || return 0
 
-    local font_script
-    font_script=$(mktemp /tmp/term-font-XXXXXX.sh)
-    cat > "$font_script" << 'FONT_EOF'
-runtime_bus="/run/user/$(id -u)/bus"
-[ -S "$runtime_bus" ] && export DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_bus"
-
+    if run_in_user_session << 'FONT_EOF'
 profile=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d "'")
 [ -z "$profile" ] && exit 1
 base="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile/"
 gsettings set "$base" use-system-font false || exit 1
 gsettings set "$base" font 'MesloLGS NF 12'  || exit 1
 FONT_EOF
-    chmod a+rx "$font_script"
-
-    if su - "$REAL_USER" -c "bash $font_script" 2>/dev/null; then
+    then
         success "gnome-terminal font set to 'MesloLGS NF' (reopen the terminal to see icons)"
     else
         warn "Could not auto-set the terminal font — set it to 'MesloLGS NF' manually so icons render"
     fi
-    rm -f "$font_script"
 }
 
 # Sites fall back to system fonts for Vietnamese diacritics: Noto covers them and emoji, Liberation the Arial/Helvetica stacks.
@@ -103,12 +95,7 @@ revert_terminal_font() {
     command -v gnome-terminal &>/dev/null || return 0
     command -v gsettings     &>/dev/null || return 0
 
-    local font_script
-    font_script=$(mktemp /tmp/term-font-XXXXXX.sh)
-    cat > "$font_script" << 'FONT_EOF'
-runtime_bus="/run/user/$(id -u)/bus"
-[ -S "$runtime_bus" ] && export DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_bus"
-
+    run_in_user_session << 'FONT_EOF' || true
 profile=$(gsettings get org.gnome.Terminal.ProfilesList default 2>/dev/null | tr -d "'")
 [ -z "$profile" ] && exit 1
 base="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$profile/"
@@ -116,9 +103,6 @@ base="org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$p
 [ "$(gsettings get "$base" font 2>/dev/null | tr -d "'")" = "MesloLGS NF 12" ] || exit 0
 gsettings set "$base" use-system-font true
 FONT_EOF
-    chmod a+rx "$font_script"
-    su - "$REAL_USER" -c "bash $font_script" 2>/dev/null || true
-    rm -f "$font_script"
 }
 
 undo_font() {

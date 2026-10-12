@@ -10,7 +10,7 @@ Tuy nhiên, có **5 nhóm phần mềm** sẽ không dùng đúng app cũ như t
 |---|---|---|
 | 📄 **Văn phòng (Word / Excel / PowerPoint)** | Microsoft Office | **ONLYOFFICE** |
 | ⌨️ **Gõ tiếng Việt** | Unikey | **Fcitx5** (bộ gõ Unikey / Bamboo / Lotus) |
-| 📸 **Chụp ảnh màn hình** | Snipping Tool / Snip & Sketch | **Flameshot** (hoặc phím **Print Screen** có sẵn) |
+| 📸 **Chụp ảnh màn hình** | Snipping Tool / Snip & Sketch | **Flameshot** (phím **Print**) |
 | 📱 **Giả lập mobile (chạy app Android)** | BlueStacks / LDPlayer / NoxPlayer | **Waydroid** / **Android Emulator** |
 | 🎥 **Quay màn hình** | Bandicam / Camtasia | **OBS Studio** |
 
@@ -18,28 +18,16 @@ Tuy nhiên, có **5 nhóm phần mềm** sẽ không dùng đúng app cũ như t
 
 - **ONLYOFFICE:** Giao diện ribbon giống Microsoft Office, mở và lưu thẳng `.docx` / `.xlsx` / `.pptx`; mặc định không chọn. Chọn thêm **MS Fonts** để Calibri, Times New Roman… hiển thị đúng.
 - **Gõ tiếng Việt (Fcitx5):** Sau khi cài, chuyển đổi tiếng Việt ↔ tiếng Anh bằng phím tắt (thường là `Ctrl + Space`). Hỗ trợ cả kiểu gõ Telex và VNI như Unikey.
-- **Chụp màn hình (Flameshot):** Nhấn phím `Print Screen` để mở Flameshot, chọn vùng chụp, có sẵn công cụ vẽ / mũi tên / làm mờ trước khi lưu hoặc copy. Ngoài ra vẫn dùng được công cụ chụp có sẵn của Ubuntu bằng phím `Print`. Xem cách gán / đổi phím chụp bên dưới nếu Flameshot chưa mở khi nhấn `Print`.
+- **Chụp màn hình (Flameshot):** Nhấn phím `Print` để chọn vùng chụp, có sẵn công cụ vẽ / mũi tên / làm mờ trước khi lưu hoặc copy. Chụp nhanh cả màn hình của Ubuntu vẫn ở `Shift + Print`.
 - **Waydroid:** Cho phép chạy ứng dụng Android ngay trong Ubuntu, thay cho các trình giả lập trên Windows.
 - **Android Emulator:** Trình giả lập chính thức của Google, Android mới nhất kèm Google Play; mặc định không chọn (cần KVM, ~8 GB đĩa, ~3 GB RAM khi chạy).
 - **OBS Studio:** Miễn phí, mạnh mẽ, quay màn hình và livestream chuyên nghiệp — cũng có sẵn bản Windows nên nếu quen rồi thì dùng luôn.
 
-## Cách gán / đổi phím chụp cho Flameshot
+## Đổi phím chụp cho Flameshot
 
-Flameshot **không tự tạo phím tắt** khi cài — bạn phải gán tay. Lệnh mở chụp nhanh là `flameshot gui`.
+Lần cài đầu, script gán sẵn phím `Print` cho lệnh `flameshot gui`. Muốn đổi sang phím khác: **Settings → Keyboard → Keyboard Shortcuts → View and Customize Shortcuts → Custom Shortcuts → Flameshot**, nhấn phím mới rồi lưu. Muốn trả `Print` về công cụ chụp của Ubuntu: xoá shortcut Flameshot, rồi vào mục **Screenshots** gán lại `Print` cho **Take a screenshot interactively**.
 
-**Các bước (trên GNOME / Ubuntu):**
-
-1. Mở **Settings → Keyboard → Keyboard Shortcuts → View and Customize Shortcuts**.
-2. Nếu muốn dùng phím `Print`: vào mục **Screenshots**, tắt / đổi shortcut mặc định đang chiếm phím `Print` (Ubuntu gán sẵn phím này cho công cụ chụp có sẵn).
-3. Kéo xuống cuối, chọn **Custom Shortcuts → dấu `+`** và điền:
-   - **Name:** `Flameshot`
-   - **Command:** `flameshot gui`
-   - **Shortcut:** nhấn phím bạn muốn (ví dụ `Print`, hoặc tổ hợp như `Ctrl + Alt + S`).
-4. Lưu lại là dùng được ngay.
-
-**Lưu ý khi cài bản snap (từ App Center):**
-- Lần đầu nên chạy lệnh `flameshot` một lần trong Terminal để khởi động daemon, rồi mới gán phím tắt.
-- Nếu đang chạy **Wayland** mà nhấn phím không chụp được (màn hình đen / không phản hồi): đăng nhập lại và chọn phiên **"Ubuntu on Xorg"** ở màn hình login, hoặc liên hệ IT để cài lại bản `.deb`/apt.
+**Trên Wayland**, chạy `flameshot gui` thẳng từ Terminal có thể báo không chụp được màn hình; hãy chụp qua phím tắt hoặc biểu tượng Flameshot.
 
 ## Đổi mật khẩu đăng nhập sau khi cài
 

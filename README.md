@@ -23,8 +23,8 @@
 
 ## Features
 
-- **38 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
-- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, ABP CLI, AzCopy, yq, Oh My Zsh, Trae and the Android SDK to their latest release, and move old installs onto the current upstream method.
+- **41 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
+- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, ABP CLI, AzCopy, sqlcmd, yq, Oh My Zsh, Trae and the Android SDK to their latest release, and move old installs onto the current upstream method.
 - **Reversible** — every app has an uninstall that removes its packages, repos, keys and shell config.
 - **Isolated steps** — a failing app ends only its own step; the rest of the run continues.
 - **Vietnam-ready** — fast local APT mirrors, Fcitx5 Vietnamese input, fonts with full diacritics.
@@ -96,6 +96,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Node.js LTS | nvm, `nvm install --lts`; a re-run updates nvm, moves to the latest LTS release and removes older releases of that line |
 | Bun | `bun.sh/install`, per user |
 | pnpm, Yarn 4 | corepack npm package (needs Node.js) |
+| uv | `astral.sh/uv/install.sh` into `~/.local/bin`, per user; re-runs run `uv self update` |
 | .NET SDK | 10 from the archive, 8/9 from `ppa:dotnet/backports` (end of support 2026-11-10) |
 | ABP CLI | `Volo.Abp.Studio.Cli` dotnet tool (needs .NET) |
 | VS Code | Microsoft apt repo |
@@ -124,6 +125,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | App | How |
 |-----|-----|
 | MySQL / PostgreSQL clients | apt |
+| sqlcmd | Go `sqlcmd` from `microsoft/go-sqlcmd` releases → `/usr/local/bin/sqlcmd`; reinstalled when a new release appears |
 | DBeaver CE | `dbeaver.io` apt repo |
 | Navicat Premium Lite 18 | AppImage in `/opt`, `navicat` command; backs up `~/.config/navicat` on upgrade |
 
@@ -138,6 +140,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Edge | Microsoft apt repo |
 | Teams for Linux | `repo.teamsforlinux.de` (unofficial Electron client) |
 | Fcitx5 | Unikey or Bamboo (archive) or Lotus (third-party repo); sets IM env vars, autostart, profile |
+| Flameshot | apt; on first install binds Print to `flameshot gui` (GNOME's screenshot UI leaves Print) and pre-grants screen capture in the portal; uninstall restores both |
 | Postman | Tarball → `/opt/Postman` |
 | Waydroid | Official repo; needs Wayland + `binder`, run `waydroid init` once; re-runs update its Android images |
 | ONLYOFFICE | Off by default. Official apt repo, without recommends (MS Fonts covers the Office fonts) |
@@ -153,7 +156,7 @@ Coming from Windows? [PHAN-MEM-TUONG-THICH.md](PHAN-MEM-TUONG-THICH.md) (Vietnam
 
 - **Steps:** one line per app with a spinner, then `✓` / `!` (warnings listed under it) / `✗` with the failing command and the step's last 15 log lines.
 - **Log:** full output in `/var/log/install-app/<YYYYmmdd-HHMMSS>.log`; `tail -f` it to watch a step.
-- **Shell integration:** runtime PATH/env (nvm, Bun, pnpm, .NET, Azure completion, Claude Code, Android SDK) is one `# --- Tool integrations ---` block in `.bashrc`, and in `.zshrc` when zsh is installed.
+- **Shell integration:** runtime PATH/env (nvm, Bun, pnpm, uv, .NET, Azure completion, Claude Code, Android SDK) is one `# --- Tool integrations ---` block in `.bashrc`, and in `.zshrc` when zsh is installed.
 - **Wayland IME:** Chromium/Electron launchers (Chrome, Edge, VS Code, Teams, Trae, Postman) get flags so fcitx5 can type into them; an apt hook re-applies them after upgrades.
 - **Ctrl-C** prints a partial summary. apt waits up to 10 minutes for a busy dpkg lock.
 - **Reboot/re-login** is suggested only when needed (docker group, login shell, `/etc/environment`, `/var/run/reboot-required`), with the reasons.

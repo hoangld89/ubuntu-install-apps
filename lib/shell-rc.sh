@@ -46,7 +46,7 @@ target_shell_rcs() {
 
 runtimes_present() {
     [[ -d "$REAL_HOME/.nvm" || -d "$REAL_HOME/.bun" || -x /usr/bin/dotnet || -d "$REAL_HOME/.dotnet/tools" \
-        || -x /usr/bin/az || -e "$REAL_HOME/.local/bin/claude" || -d "$REAL_HOME/.local/share/pnpm" \
+        || -x /usr/bin/az || -e "$REAL_HOME/.local/bin/claude" || -e "$REAL_HOME/.local/bin/uv" || -d "$REAL_HOME/.local/share/pnpm" \
         || -d "$REAL_HOME/Android/Sdk" ]]
 }
 
@@ -86,7 +86,7 @@ if [ -f /etc/bash_completion.d/azure-cli ]; then
     source /etc/bash_completion.d/azure-cli
 fi
 
-# Claude Code (native installer symlinks the CLI into ~/.local/bin)
+# Claude Code and uv install into ~/.local/bin
 if [ -d "$HOME/.local/bin" ]; then
     case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH" ;; esac
 fi
