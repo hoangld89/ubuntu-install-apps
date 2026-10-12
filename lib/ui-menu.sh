@@ -193,7 +193,6 @@ ui_term_size() {
     [[ "$UI_COLS" =~ ^[0-9]+$ ]] || UI_COLS=80
     [[ "$UI_ROWS" =~ ^[0-9]+$ ]] || UI_ROWS=24
     UI_W=$(( UI_COLS - 3 ))
-    (( UI_W > 96 )) && UI_W=96
     (( UI_W < 40 )) && UI_W=40
     return 0
 }
@@ -544,9 +543,7 @@ pane_rows() {  # → PANE_ROWS (0 when the panes don't fit) and SHOW_BANNER; nee
     full=$(( left > MAX_GROUP_SIZE ? left : MAX_GROUP_SIZE ))
     PANE_ROWS=0; SHOW_BANNER=0
     if (( avail - ${#BANNER_LINES[@]} >= full )); then
-        PANE_ROWS=$full; SHOW_BANNER=1
-    elif (( avail >= full )); then
-        PANE_ROWS=$full
+        PANE_ROWS=$(( avail - ${#BANNER_LINES[@]} )); SHOW_BANNER=1
     elif (( avail >= left )); then
         PANE_ROWS=$avail
     fi
