@@ -1,12 +1,13 @@
 # shellcheck shell=bash
 
 do_yarn() {
-    local ver
-    if ver=$(corepack_pm_version yarn) && [[ "$ver" =~ ^([0-9]+)\. ]] && (( BASH_REMATCH[1] >= 4 )); then
+    local ver latest
+    if ver=$(corepack_pm_version yarn) && [[ "$ver" =~ ^([0-9]+)\. ]] && (( BASH_REMATCH[1] >= 4 )) \
+        && latest=$(npm_latest @yarnpkg/cli-dist) && [[ -z "$latest" || "$ver" == "$latest" ]]; then
         success "Yarn $ver already installed via corepack, skipping"
         return
     fi
-    corepack_install_pm "Yarn 4" yarn@stable
+    corepack_install_pm "Yarn 4" "yarn@${latest:-stable}"
 }
 
 undo_yarn() {

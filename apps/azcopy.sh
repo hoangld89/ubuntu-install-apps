@@ -1,12 +1,15 @@
 # shellcheck shell=bash
 
 do_azcopy() {
-    if command -v azcopy &>/dev/null; then
+    local latest
+    latest=$(github_latest_tag Azure/azure-storage-azcopy)
+    latest=${latest#v}
+    if command -v azcopy &>/dev/null && [[ -z "$latest" || "$(azcopy --version 2>/dev/null)" == *" $latest" ]]; then
         success "AzCopy already installed, skipping"
         return
     fi
 
-    info "Installing AzCopy..."
+    info "Installing AzCopy${latest:+ $latest}..."
     apt-get install -y wget tar
 
     step_tmpdir

@@ -1,12 +1,12 @@
 # shellcheck shell=bash
 
 do_pnpm() {
-    local ver
-    if ver=$(corepack_pm_version pnpm); then
+    local ver latest
+    if ver=$(corepack_pm_version pnpm) && latest=$(npm_latest pnpm) && [[ -z "$latest" || "$ver" == "$latest" ]]; then
         success "pnpm $ver already installed via corepack, skipping"
         return
     fi
-    corepack_install_pm pnpm pnpm@latest
+    corepack_install_pm pnpm "pnpm@${latest:-latest}"
 }
 
 undo_pnpm() {

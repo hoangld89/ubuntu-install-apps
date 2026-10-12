@@ -41,8 +41,9 @@ is missing.
 
 ## Conventions
 
-- **Idempotent:** every `do_` skips already-installed state, and re-runs move
-  old installs onto the current upstream method.
+- **Idempotent:** every `do_` skips up-to-date state; a tool installed outside apt
+  with an update path updates on re-run; re-runs move old installs onto the
+  current upstream method.
 - **Output:** `info` / `success` / `warn` / `fail`, never raw `echo` for status.
   Colours are the `C_*` / `BG_SURFACE` names, glyphs the `G_*` / `RB_*` names
   (ASCII fallback via `setup_glyphs`); no hardcoded escapes or symbols.
@@ -54,7 +55,7 @@ is missing.
 - **Electron/Chromium apps:** add the `.desktop` path to `WAYLAND_IME_LAUNCHERS`
   and the key to `ELECTRON_KEYS`; runtimes go in `RUNTIME_KEYS`.
 - **Helpers to reuse:** `add_apt_repo`, `add_apt_source`, `ensure_microsoft_gpg`,
-  `run_remote_script`, `download_deb`, `pkg_installed` / `pkg_up_to_date`,
+  `run_remote_script`, `download_deb`, `npm_latest`, `github_latest_tag`, `pkg_installed` / `pkg_up_to_date`,
   `has_font` (never `fc-list | grep -q`: SIGPIPE + pipefail turns a match into
   a miss), `apt_purge`, `get_ubuntu_codename` / `get_ubuntu_version`.
 

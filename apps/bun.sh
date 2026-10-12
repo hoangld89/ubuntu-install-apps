@@ -2,7 +2,12 @@
 
 do_bun() {
     if [[ -x "$REAL_HOME/.bun/bin/bun" ]]; then
-        success "Bun already installed, skipping"
+        info "Updating Bun..."
+        if su - "$REAL_USER" -c '"$HOME/.bun/bin/bun" upgrade'; then
+            success "Bun $("$REAL_HOME/.bun/bin/bun" --version 2>/dev/null) is the latest release"
+        else
+            warn "Bun update failed — run 'bun upgrade' later"
+        fi
         return
     fi
 

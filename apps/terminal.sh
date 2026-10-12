@@ -14,8 +14,10 @@ do_terminal() {
         ln -sf "$(command -v batcat)" /usr/local/bin/bat
     fi
 
-    if ! command -v yq &>/dev/null; then
-        info "Installing yq..."
+    local yq_latest
+    yq_latest=$(github_latest_tag mikefarah/yq)
+    if ! command -v yq &>/dev/null || [[ -n "$yq_latest" && "$(yq --version 2>/dev/null)" != *" $yq_latest" ]]; then
+        info "Installing yq${yq_latest:+ $yq_latest}..."
         step_tmpdir
         if wget -q --tries=3 --timeout=30 -O "$STEP_TMP/yq" "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" \
             && [[ -s "$STEP_TMP/yq" ]]; then
@@ -26,7 +28,9 @@ do_terminal() {
     fi
 
     if [[ -d "$REAL_HOME/.oh-my-zsh" ]]; then
-        success "Oh My Zsh already installed for '$REAL_USER'"
+        info "Updating Oh My Zsh..."
+        su - "$REAL_USER" -c 'ZSH="$HOME/.oh-my-zsh" zsh -f "$HOME/.oh-my-zsh/tools/upgrade.sh"' \
+            || warn "Oh My Zsh update failed — run 'omz update' later"
     else
         info "Installing Oh My Zsh for '$REAL_USER'..."
         # --unattended implies RUNZSH=no CHSH=no, which `su -` would otherwise strip from the environment.
@@ -36,7 +40,11 @@ do_terminal() {
 
     local plugin
     for plugin in zsh-autosuggestions zsh-syntax-highlighting; do
-        [[ -d "$REAL_HOME/.oh-my-zsh/custom/plugins/$plugin" ]] && continue
+        if [[ -d "$REAL_HOME/.oh-my-zsh/custom/plugins/$plugin" ]]; then
+            su - "$REAL_USER" -c "git -C \"\$HOME/.oh-my-zsh/custom/plugins/$plugin\" pull -q --ff-only" \
+                || warn "Could not update $plugin"
+            continue
+        fi
         su - "$REAL_USER" -c "git clone --depth 1 https://github.com/zsh-users/$plugin \"\$HOME/.oh-my-zsh/custom/plugins/$plugin\"" \
             || { fail "Could not clone $plugin"; return 1; }
     done

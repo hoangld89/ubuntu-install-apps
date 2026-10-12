@@ -10,7 +10,12 @@ do_abp() {
 
     # The Volo.Abp.Studio.Cli global tool provides `abp` in ~/.dotnet/tools (on PATH via Tool integrations).
     if su - "$REAL_USER" -c "$DOTNET_ENV"'; command -v abp' &>/dev/null; then
-        success "ABP CLI already installed, skipping"
+        info "Updating ABP CLI..."
+        su - "$REAL_USER" -c "$DOTNET_ENV"'
+            set -e
+            dotnet tool update -g Volo.Abp.Studio.Cli
+        ' || { warn "ABP CLI update failed — run 'dotnet tool update -g Volo.Abp.Studio.Cli' later"; return 0; }
+        success "ABP CLI is the latest release"
         return
     fi
 
