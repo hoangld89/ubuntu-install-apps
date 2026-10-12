@@ -23,8 +23,8 @@
 
 ## Features
 
-- **36 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
-- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, ABP CLI, AzCopy, yq, Oh My Zsh and Trae to their latest release, and move old installs onto the current upstream method.
+- **37 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
+- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, ABP CLI, AzCopy, yq, Oh My Zsh, Trae and the Android SDK to their latest release, and move old installs onto the current upstream method.
 - **Reversible** — every app has an uninstall that removes its packages, repos, keys and shell config.
 - **Isolated steps** — a failing app ends only its own step; the rest of the run continues.
 - **Vietnam-ready** — fast local APT mirrors, Fcitx5 Vietnamese input, fonts with full diacritics.
@@ -100,6 +100,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | ABP CLI | `Volo.Abp.Studio.Cli` dotnet tool (needs .NET) |
 | VS Code | Microsoft apt repo |
 | Trae IDE | `.deb` from Trae's release API; reinstalled when a new build appears |
+| Android Emulator | Off by default (~8 GB disk, ~3 GB RAM running). Google's command-line tools + OpenJDK 21; creates a `medium_phone` AVD with the latest stable Play Store image, GPU mode `host`; re-runs run `android sdk update` |
 | Claude Code | `claude.ai/install.sh` |
 
 </details>
@@ -151,7 +152,7 @@ Coming from Windows? [PHAN-MEM-TUONG-THICH.md](PHAN-MEM-TUONG-THICH.md) (Vietnam
 
 - **Steps:** one line per app with a spinner, then `✓` / `!` (warnings listed under it) / `✗` with the failing command and the step's last 15 log lines.
 - **Log:** full output in `/var/log/install-app/<YYYYmmdd-HHMMSS>.log`; `tail -f` it to watch a step.
-- **Shell integration:** runtime PATH/env (nvm, Bun, pnpm, .NET, Azure completion, Claude Code) is one `# --- Tool integrations ---` block in `.bashrc`, and in `.zshrc` when zsh is installed.
+- **Shell integration:** runtime PATH/env (nvm, Bun, pnpm, .NET, Azure completion, Claude Code, Android SDK) is one `# --- Tool integrations ---` block in `.bashrc`, and in `.zshrc` when zsh is installed.
 - **Wayland IME:** Chromium/Electron launchers (Chrome, Edge, VS Code, Teams, Trae, Postman) get flags so fcitx5 can type into them; an apt hook re-applies them after upgrades.
 - **Ctrl-C** prints a partial summary. apt waits up to 10 minutes for a busy dpkg lock.
 - **Reboot/re-login** is suggested only when needed (docker group, login shell, `/etc/environment`, `/var/run/reboot-required`), with the reasons.
@@ -171,7 +172,7 @@ Coming from Windows? [PHAN-MEM-TUONG-THICH.md](PHAN-MEM-TUONG-THICH.md) (Vietnam
 
 In uninstall mode every app starts unselected and `i` asks for confirmation. Each app's uninstall purges its packages, apt repo and key, downloaded binaries and the rc blocks it added; the mirror is restored from its backups.
 
-Kept on purpose: `git`, `curl`, Docker data (`/var/lib/docker`, `/var/lib/containerd`, `/etc/docker`), `unixodbc-dev`, `~/.claude`, and a completed system upgrade.
+Kept on purpose: `git`, `curl`, Docker data (`/var/lib/docker`, `/var/lib/containerd`, `/etc/docker`), `unixodbc-dev`, `unzip`, `~/.claude`, `~/.android` apart from the `medium_phone` AVD, an `~/Android/Sdk` that existed before the toolkit, and a completed system upgrade.
 
 ## Troubleshooting
 

@@ -21,6 +21,7 @@ APPS=(
     "teams|desktop|Microsoft Teams::a native client built for Linux|1"
     "vscode|dev|VS Code::the editor that does it all|1"
     "trae|dev|Trae IDE::AI-native coding by ByteDance|1"
+    "android|dev|Android Emulator::Google's emulator, latest Android + Play Store|0"
     "terraform|devops|Terraform::infrastructure as code, done right|1"
     "azcli|devops|Azure CLI::command the Azure cloud from your shell|1"
     "azcopy|devops|AzCopy::blazing-fast Azure Storage transfers|1"
