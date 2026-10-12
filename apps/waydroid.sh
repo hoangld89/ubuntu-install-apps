@@ -38,7 +38,8 @@ undo_waydroid() {
     apt_purge waydroid
     rm -f /etc/apt/sources.list.d/waydroid.list /usr/share/keyrings/waydroid.gpg
     rm -rf /var/lib/waydroid
-    su - "$REAL_USER" -c 'rm -rf "$HOME/.local/share/waydroid"' 2>/dev/null || true
+    # The container writes files under its own uids here, so the user can't delete them.
+    rm -rf "$REAL_HOME/.local/share/waydroid" "$REAL_HOME"/.local/share/applications/waydroid.*.desktop
     warn "Waydroid data removed; a reboot clears the leftover container/network state"
     success "Waydroid removed"
 }
