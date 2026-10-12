@@ -18,7 +18,7 @@ Tuy nhiên, có **5 nhóm phần mềm** sẽ không dùng đúng app cũ như t
 
 - **ONLYOFFICE:** Giao diện ribbon giống Microsoft Office, mở và lưu thẳng `.docx` / `.xlsx` / `.pptx`; mặc định không chọn. Chọn thêm **MS Fonts** để Calibri, Times New Roman… hiển thị đúng.
 - **Gõ tiếng Việt (Fcitx5):** Sau khi cài, chuyển đổi tiếng Việt ↔ tiếng Anh bằng phím tắt (thường là `Ctrl + Space`). Hỗ trợ cả kiểu gõ Telex và VNI như Unikey.
-- **Chụp màn hình (Flameshot):** Nhấn phím `Print Screen` để mở Flameshot, chọn vùng chụp, có sẵn công cụ vẽ / mũi tên / làm mờ trước khi lưu hoặc copy. Ngoài ra vẫn dùng được công cụ chụp có sẵn của Ubuntu bằng phím `Print`. Xem cách gán / đổi phím chụp bên dưới nếu Flameshot chưa mở khi nhấn `Print`.
+- **Chụp màn hình (Flameshot):** Chọn vùng chụp, có sẵn công cụ vẽ / mũi tên / làm mờ trước khi lưu hoặc copy. Sau khi cài phải tự gán phím tắt (xem bên dưới); trước đó phím `Print` vẫn mở công cụ chụp có sẵn của Ubuntu.
 - **Waydroid:** Cho phép chạy ứng dụng Android ngay trong Ubuntu, thay cho các trình giả lập trên Windows.
 - **Android Emulator:** Trình giả lập chính thức của Google, Android mới nhất kèm Google Play; mặc định không chọn (cần KVM, ~8 GB đĩa, ~3 GB RAM khi chạy).
 - **OBS Studio:** Miễn phí, mạnh mẽ, quay màn hình và livestream chuyên nghiệp — cũng có sẵn bản Windows nên nếu quen rồi thì dùng luôn.
@@ -37,9 +37,7 @@ Flameshot **không tự tạo phím tắt** khi cài — bạn phải gán tay. 
    - **Shortcut:** nhấn phím bạn muốn (ví dụ `Print`, hoặc tổ hợp như `Ctrl + Alt + S`).
 4. Lưu lại là dùng được ngay.
 
-**Lưu ý khi cài bản snap (từ App Center):**
-- Lần đầu nên chạy lệnh `flameshot` một lần trong Terminal để khởi động daemon, rồi mới gán phím tắt.
-- Nếu đang chạy **Wayland** mà nhấn phím không chụp được (màn hình đen / không phản hồi): đăng nhập lại và chọn phiên **"Ubuntu on Xorg"** ở màn hình login, hoặc liên hệ IT để cài lại bản `.deb`/apt.
+**Trên Wayland**, chạy `flameshot gui` thẳng từ Terminal có thể báo không chụp được màn hình; hãy chụp qua phím tắt vừa gán.
 
 ## Đổi mật khẩu đăng nhập sau khi cài
 
