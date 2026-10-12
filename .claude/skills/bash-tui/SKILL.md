@@ -35,7 +35,7 @@ Hand-drawn ANSI, no gum/dialog/whiptail. Read the file you change first;
 
 ## Layout
 
-- `UI_W` = terminal − 3, clamped 40–96; rows start with a two-space gutter.
+- `UI_W` = terminal − 3, at least 40; panes stretch to the terminal height; rows start with a two-space gutter.
 - Joiners of coloured pieces take the plain length separately (`ui_row`, `hint`'s
   `len|coloured`).
 - Measured glyphs are one column: no emoji or wide characters (`⚙` draws two).
