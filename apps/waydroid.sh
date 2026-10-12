@@ -2,7 +2,17 @@
 
 do_waydroid() {
     if command -v waydroid &>/dev/null; then
-        success "Waydroid already installed, skipping"
+        if [[ ! -f /var/lib/waydroid/waydroid.cfg ]]; then
+            success "Waydroid already installed, skipping"
+            return
+        fi
+        if [[ "$(waydroid status 2>/dev/null)" =~ Session:[[:space:]]+RUNNING ]]; then
+            warn "Waydroid is running — stop it ('waydroid session stop') and re-run to update its Android images"
+            return
+        fi
+        info "Updating Waydroid Android images..."
+        waydroid upgrade
+        success "Waydroid images up to date"
         return
     fi
 

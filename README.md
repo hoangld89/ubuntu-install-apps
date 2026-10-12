@@ -138,7 +138,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Teams for Linux | `repo.teamsforlinux.de` (unofficial Electron client) |
 | Fcitx5 | Unikey or Bamboo (archive) or Lotus (third-party repo); sets IM env vars, autostart, profile |
 | Postman | Tarball → `/opt/Postman` |
-| Waydroid | Official repo; needs Wayland + `binder`, run `waydroid init` once |
+| Waydroid | Official repo; needs Wayland + `binder`, run `waydroid init` once; re-runs update its Android images |
 | VLC | apt |
 | OBS Studio | `ppa:obsproject/obs-studio` |
 | AnyDesk, TeamViewer | Official repos |
