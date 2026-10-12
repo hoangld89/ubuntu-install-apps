@@ -90,3 +90,12 @@ corepack_install_pm() {
         corepack install -g '"$spec" || { fail "corepack install -g $spec failed"; return 1; }
     success "$label installed for '$REAL_USER' via corepack (open a new shell to use it)"
 }
+
+# gsettings and the portal permission store need REAL_USER's dconf and DBus session, so the script on stdin runs as that user.
+run_in_user_session() {
+    {
+        echo 'runtime_bus="/run/user/$(id -u)/bus"'
+        echo '[ -S "$runtime_bus" ] && export DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_bus"'
+        cat
+    } | su - "$REAL_USER" -c 'bash -s'
+}

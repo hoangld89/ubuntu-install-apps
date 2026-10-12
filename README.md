@@ -140,7 +140,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Edge | Microsoft apt repo |
 | Teams for Linux | `repo.teamsforlinux.de` (unofficial Electron client) |
 | Fcitx5 | Unikey or Bamboo (archive) or Lotus (third-party repo); sets IM env vars, autostart, profile |
-| Flameshot | apt; bind `flameshot gui` to a key yourself (see PHAN-MEM-TUONG-THICH.md) |
+| Flameshot | apt; on first install binds Print to `flameshot gui` (GNOME's screenshot UI leaves Print) and pre-grants screen capture in the portal; uninstall restores both |
 | Postman | Tarball → `/opt/Postman` |
 | Waydroid | Official repo; needs Wayland + `binder`, run `waydroid init` once; re-runs update its Android images |
 | ONLYOFFICE | Off by default. Official apt repo, without recommends (MS Fonts covers the Office fonts) |
