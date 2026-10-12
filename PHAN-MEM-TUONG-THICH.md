@@ -10,7 +10,7 @@ Tuy nhiên, có **4 nhóm phần mềm** sẽ không dùng đúng app cũ như t
 |---|---|---|
 | ⌨️ **Gõ tiếng Việt** | Unikey | **Fcitx5** (bộ gõ Unikey / Bamboo / Lotus) |
 | 📸 **Chụp ảnh màn hình** | Snipping Tool / Snip & Sketch | **Flameshot** (hoặc phím **Print Screen** có sẵn) |
-| 📱 **Giả lập mobile (chạy app Android)** | BlueStacks / LDPlayer / NoxPlayer | **Waydroid** |
+| 📱 **Giả lập mobile (chạy app Android)** | BlueStacks / LDPlayer / NoxPlayer | **Waydroid** / **Android Emulator** |
 | 🎥 **Quay màn hình** | Bandicam / Camtasia | **OBS Studio** |
 
 ## Lưu ý nhanh cho từng phần mềm
@@ -18,6 +18,7 @@ Tuy nhiên, có **4 nhóm phần mềm** sẽ không dùng đúng app cũ như t
 - **Gõ tiếng Việt (Fcitx5):** Sau khi cài, chuyển đổi tiếng Việt ↔ tiếng Anh bằng phím tắt (thường là `Ctrl + Space`). Hỗ trợ cả kiểu gõ Telex và VNI như Unikey.
 - **Chụp màn hình (Flameshot):** Nhấn phím `Print Screen` để mở Flameshot, chọn vùng chụp, có sẵn công cụ vẽ / mũi tên / làm mờ trước khi lưu hoặc copy. Ngoài ra vẫn dùng được công cụ chụp có sẵn của Ubuntu bằng phím `Print`. Xem cách gán / đổi phím chụp bên dưới nếu Flameshot chưa mở khi nhấn `Print`.
 - **Waydroid:** Cho phép chạy ứng dụng Android ngay trong Ubuntu, thay cho các trình giả lập trên Windows.
+- **Android Emulator:** Trình giả lập chính thức của Google, Android mới nhất kèm Google Play; mặc định không chọn (cần KVM, ~8 GB đĩa, ~3 GB RAM khi chạy).
 - **OBS Studio:** Miễn phí, mạnh mẽ, quay màn hình và livestream chuyên nghiệp — cũng có sẵn bản Windows nên nếu quen rồi thì dùng luôn.
 
 ## Cách gán / đổi phím chụp cho Flameshot

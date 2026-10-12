@@ -46,7 +46,8 @@ target_shell_rcs() {
 
 runtimes_present() {
     [[ -d "$REAL_HOME/.nvm" || -d "$REAL_HOME/.bun" || -x /usr/bin/dotnet || -d "$REAL_HOME/.dotnet/tools" \
-        || -x /usr/bin/az || -e "$REAL_HOME/.local/bin/claude" || -d "$REAL_HOME/.local/share/pnpm" ]]
+        || -x /usr/bin/az || -e "$REAL_HOME/.local/bin/claude" || -d "$REAL_HOME/.local/share/pnpm" \
+        || -d "$REAL_HOME/Android/Sdk" ]]
 }
 
 tool_integrations_block() {
@@ -70,6 +71,12 @@ if [ -x /usr/bin/dotnet ]; then
     export DOTNET_ROOT
 fi
 [ -d "$HOME/.dotnet/tools" ] && export PATH="$PATH:$HOME/.dotnet/tools"
+
+# Android SDK
+if [ -d "$HOME/Android/Sdk" ]; then
+    export ANDROID_HOME="$HOME/Android/Sdk"
+    export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator"
+fi
 
 # Azure CLI completions
 if [ -f /etc/bash_completion.d/azure-cli ]; then
