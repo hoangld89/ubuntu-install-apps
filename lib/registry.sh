@@ -34,6 +34,7 @@ APPS=(
     "fcitx5|desktop|Fcitx5::Vietnamese typing — Unikey / Bamboo / Lotus|1"
     "postman|desktop|Postman::the API platform for building & testing|1"
     "waydroid|desktop|Waydroid::run Android apps in a container (Wayland)|1"
+    "onlyoffice|desktop|ONLYOFFICE::office suite that keeps Word, Excel & PowerPoint layouts|0"
     "vlc|desktop|VLC::plays every media format on earth|1"
     "obs|desktop|OBS Studio::record & stream your screen, pro-grade|1"
     "anydesk|desktop|AnyDesk::fast remote desktop & support|1"
