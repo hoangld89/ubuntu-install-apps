@@ -114,10 +114,14 @@ DEOF
 }
 
 undo_zalo() {
-    local pkgs=()
+    local pkgs=() f
     info "Removing Zalo..."
     rm -rf "$ZALO_DIR"
     rm -f /usr/share/applications/zalo.desktop /usr/local/bin/zalo /usr/share/icons/hicolor/512x512/apps/zalo.png
+    # Zalo's "start with system" setting names the entry after the AppImage file, so match on Exec.
+    for f in "$REAL_HOME"/.config/autostart/*.desktop; do
+        grep -qE '^Exec=\S*[Zz]alo[^/ ]*\.AppImage( |$)' "$f" 2>/dev/null && rm -f "$f"
+    done
     gtk-update-icon-cache -q /usr/share/icons/hicolor 2>/dev/null || true
     if [[ -f "$ZALO_APPARMOR" ]]; then
         apparmor_parser -R "$ZALO_APPARMOR" 2>/dev/null || true
