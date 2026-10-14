@@ -23,8 +23,8 @@
 
 ## Features
 
-- **41 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
-- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, ABP CLI, AzCopy, sqlcmd, yq, Oh My Zsh, Trae, Zalo and the Android SDK to their latest release, and move old installs onto the current upstream method.
+- **43 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
+- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, ABP CLI, AzCopy, kubectl, k3d, sqlcmd, yq, Oh My Zsh, Trae, Zalo and the Android SDK to their latest release, and move old installs onto the current upstream method.
 - **Reversible** — every app has an uninstall that removes its packages, repos, keys and shell config.
 - **Isolated steps** — a failing app ends only its own step; the rest of the run continues.
 - **Vietnam-ready** — fast local APT mirrors, Fcitx5 Vietnamese input, fonts with full diacritics.
@@ -115,6 +115,8 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Azure CLI | Microsoft apt repo |
 | AzCopy | v10 tarball → `/usr/local/bin/azcopy` |
 | Docker | Docker apt repo (CE, Compose, buildx); removes conflicting distro packages, adds you to `docker` |
+| kubectl | Stable binary from `dl.k8s.io`, sha256-checked → `/usr/local/bin/kubectl`; updated when a new stable release appears |
+| k3d | Binary from `k3d-io/k3d` releases, sha256-checked → `/usr/local/bin/k3d`; updated on a new release; uninstall deletes its clusters |
 | BrowserStack Local | Official zip → `/usr/local/bin/BrowserStackLocal` |
 
 </details>
@@ -176,7 +178,7 @@ Coming from Windows? [PHAN-MEM-TUONG-THICH.md](PHAN-MEM-TUONG-THICH.md) (Vietnam
 
 In uninstall mode every app starts unselected and `i` asks for confirmation. Each app's uninstall purges its packages, apt repo and key, downloaded binaries and the rc blocks it added; the mirror is restored from its backups.
 
-Kept on purpose: `git`, `curl`, Docker data (`/var/lib/docker`, `/var/lib/containerd`, `/etc/docker`), `unixodbc-dev`, `unzip`, `~/.claude`, `~/.android` apart from the `medium_phone` AVD, Zalo messages and settings (`~/.config/ZaloData`), an `~/Android/Sdk` that existed before the toolkit, and a completed system upgrade.
+Kept on purpose: `git`, `curl`, Docker data (`/var/lib/docker`, `/var/lib/containerd`, `/etc/docker`), `unixodbc-dev`, `unzip`, `~/.claude`, `~/.kube`, `~/.android` apart from the `medium_phone` AVD, Zalo messages and settings (`~/.config/ZaloData`), an `~/Android/Sdk` that existed before the toolkit, and a completed system upgrade.
 
 ## Troubleshooting
 

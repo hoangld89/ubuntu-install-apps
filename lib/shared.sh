@@ -99,3 +99,19 @@ run_in_user_session() {
         cat
     } | su - "$REAL_USER" -c 'bash -s'
 }
+
+install_verified_binary() {  # $1 URL, $2 expected sha256, $3 destination path
+    local tmp
+    [[ -n "$2" ]] || { fail "Could not fetch the checksum for $1"; return 1; }
+    step_tmpdir && [[ -n "$STEP_TMP" ]] || { fail "Could not create a temp dir"; return 1; }
+    tmp="$STEP_TMP/${3##*/}"
+    if ! curl -fsSL --retry 3 --connect-timeout 15 --max-time 300 -o "$tmp" "$1"; then
+        fail "Could not download $1"
+        return 1
+    fi
+    if ! sha256sum -c --status <<< "$2  $tmp"; then
+        fail "Could not verify the checksum of $1"
+        return 1
+    fi
+    install -m 755 "$tmp" "$3"
+}
