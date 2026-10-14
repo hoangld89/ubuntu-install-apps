@@ -28,6 +28,8 @@ APPS=(
     "azcli|devops|Azure CLI::command the Azure cloud from your shell|1"
     "azcopy|devops|AzCopy::blazing-fast Azure Storage transfers|1"
     "docker|devops|Docker::container engine + Compose plugin|1"
+    "kubectl|devops|kubectl::drive any Kubernetes cluster from the shell|1"
+    "k3d|devops|k3d::throwaway k3s clusters running in Docker|1"
     "browserstack|devops|BrowserStack Local::secure tunnel for local cross-browser testing|1"
     "mysqlclient|database|MySQL Client::CLI shell + mysqldump backups|1"
     "pgclient|database|PostgreSQL Client::psql shell + pg_dump backups|1"

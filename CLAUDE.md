@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Bash post-install toolkit for Ubuntu 26.04 (resolute): a TUI menu picks which of
-41 apps to install or uninstall, then runs each one as a step. Other releases get
+43 apps to install or uninstall, then runs each one as a step. Other releases get
 a warning and the run continues.
 
 ## Layout
