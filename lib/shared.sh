@@ -62,8 +62,8 @@ redirect_target() {  # $1 URL → the URL it finally redirects to, empty when of
     return 0
 }
 
-github_latest_tag() {  # $1 owner/repo → tag of its latest release (vX.Y.Z), empty when offline; avoids the API rate limit
-    [[ "$(redirect_target "https://github.com/$1/releases/latest")" =~ /tag/(v[0-9.]+)$ ]] && printf '%s' "${BASH_REMATCH[1]}"
+github_latest_tag() {  # $1 owner/repo → tag of its latest release (vX.Y.Z or X.Y.Z), empty when offline; avoids the API rate limit
+    [[ "$(redirect_target "https://github.com/$1/releases/latest")" =~ /tag/(v?[0-9.]+)$ ]] && printf '%s' "${BASH_REMATCH[1]}"
     return 0
 }
 

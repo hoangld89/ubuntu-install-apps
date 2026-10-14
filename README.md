@@ -23,8 +23,8 @@
 
 ## Features
 
-- **40 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
-- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, ABP CLI, AzCopy, sqlcmd, yq, Oh My Zsh, Trae and the Android SDK to their latest release, and move old installs onto the current upstream method.
+- **41 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
+- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, ABP CLI, AzCopy, sqlcmd, yq, Oh My Zsh, Trae, Zalo and the Android SDK to their latest release, and move old installs onto the current upstream method.
 - **Reversible** — every app has an uninstall that removes its packages, repos, keys and shell config.
 - **Isolated steps** — a failing app ends only its own step; the rest of the run continues.
 - **Vietnam-ready** — fast local APT mirrors, Fcitx5 Vietnamese input, fonts with full diacritics.
@@ -139,6 +139,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Chrome | `.deb` |
 | Edge | Microsoft apt repo |
 | Teams for Linux | `repo.teamsforlinux.de` (unofficial Electron client) |
+| Zalo | Off by default. `VN-Linux-Family/zalo-for-linux` Full AppImage (bundled Wine for calls) in `/opt/zalo`, `zalo` command; enables i386 for the 32-bit libraries Wine needs, adds the share-screen bridge packages for Wayland and an AppArmor profile for the Chromium sandbox; re-runs update to the latest release |
 | Fcitx5 | Unikey or Bamboo (archive) or Lotus (third-party repo); sets IM env vars, autostart, profile |
 | Flameshot | apt; on first install binds Print to `flameshot gui` (GNOME's screenshot UI leaves Print) and pre-grants screen capture in the portal; uninstall restores both |
 | Postman | Tarball → `/opt/Postman` |
@@ -175,7 +176,7 @@ Coming from Windows? [PHAN-MEM-TUONG-THICH.md](PHAN-MEM-TUONG-THICH.md) (Vietnam
 
 In uninstall mode every app starts unselected and `i` asks for confirmation. Each app's uninstall purges its packages, apt repo and key, downloaded binaries and the rc blocks it added; the mirror is restored from its backups.
 
-Kept on purpose: `git`, `curl`, Docker data (`/var/lib/docker`, `/var/lib/containerd`, `/etc/docker`), `unixodbc-dev`, `unzip`, `~/.claude`, `~/.android` apart from the `medium_phone` AVD, an `~/Android/Sdk` that existed before the toolkit, and a completed system upgrade.
+Kept on purpose: `git`, `curl`, Docker data (`/var/lib/docker`, `/var/lib/containerd`, `/etc/docker`), `unixodbc-dev`, `unzip`, `~/.claude`, `~/.android` apart from the `medium_phone` AVD, Zalo messages and settings (`~/.config/ZaloData`), an `~/Android/Sdk` that existed before the toolkit, and a completed system upgrade.
 
 ## Troubleshooting
 
