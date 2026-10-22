@@ -705,7 +705,7 @@ configure_input_method() {
         local mark="  "
         [[ "$ekey" == "$IME_ENGINE" ]] && mark="${C_GREEN}${G_ON}${NC}"
         local note=""
-        [[ "$ekey" == "lotus" ]] && note=" ${C_SUBTEXT}(third-party apt repo)${NC}"
+        [[ "$ekey" == lotus || "$ekey" == ngosen ]] && note=" ${C_SUBTEXT}(third-party apt repo)${NC}"
         ui_ascii_text "$elabel"
         echo -e "    ${mark} ${BOLD}${C_TEXT}${i}${NC}) ${REPLY}${note}"
         i=$((i + 1))

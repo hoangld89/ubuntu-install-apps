@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-TOOLKIT_VERSION="2.2.1"
+TOOLKIT_VERSION="2.3.0"
 
 # Catppuccin Mocha; each colour carries its nearest xterm-256 index for terminals without truecolor.
 TRUECOLOR=0
@@ -106,7 +106,7 @@ ui_rep() {  # $1 count, $2 char → REPLY: char repeated
 ui_ascii_text() {  # $1 text → REPLY: one-column 7-bit stand-ins for the punctuation that messages and registry labels use
     REPLY=$1
     (( UI_ASCII )) || return 0
-    REPLY=${REPLY//—/-}; REPLY=${REPLY//·/$G_DOT}; REPLY=${REPLY//…/$G_ELLIPSIS}
+    REPLY=${REPLY//—/-}; REPLY=${REPLY//·/$G_DOT}; REPLY=${REPLY//…/$G_ELLIPSIS}; REPLY=${REPLY//ó/o}
 }
 
 RUN_DIR=/run/install-app            # per-run scratch: reboot reasons, step errors

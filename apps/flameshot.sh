@@ -21,11 +21,7 @@ schema="org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$FLAMESHO
 gsettings set "\$schema" name 'Flameshot'
 gsettings set "\$schema" command 'flameshot gui'
 gsettings set "\$schema" binding 'Print'
-case "\$list" in
-    "@as []"|"[]") list="['$FLAMESHOT_KEY_PATH']" ;;
-    *) list="\${list%]}, '$FLAMESHOT_KEY_PATH']" ;;
-esac
-gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "\$list"
+gsettings_list_add org.gnome.settings-daemon.plugins.media-keys custom-keybindings '$FLAMESHOT_KEY_PATH'
 EOF
 }
 
@@ -37,10 +33,8 @@ gdbus call --session --dest org.freedesktop.impl.portal.PermissionStore \
     --method org.freedesktop.impl.portal.PermissionStore.DeletePermission \
     screenshot screenshot org.flameshot.Flameshot >/dev/null 2>&1
 gsettings writable org.gnome.shell.keybindings show-screenshot-ui >/dev/null 2>&1 || exit 0
-list=\$(gsettings get org.gnome.settings-daemon.plugins.media-keys custom-keybindings)
-case "\$list" in *"'$FLAMESHOT_KEY_PATH'"*) ;; *) exit 0 ;; esac
-list=\$(printf '%s' "\$list" | sed -e "s#, '$FLAMESHOT_KEY_PATH'##" -e "s#'$FLAMESHOT_KEY_PATH', ##" -e "s#'$FLAMESHOT_KEY_PATH'##")
-gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "\$list" && dconf reset -f "$FLAMESHOT_KEY_PATH"
+case "\$(gsettings get org.gnome.settings-daemon.plugins.media-keys custom-keybindings)" in *"'$FLAMESHOT_KEY_PATH'"*) ;; *) exit 0 ;; esac
+gsettings_list_remove org.gnome.settings-daemon.plugins.media-keys custom-keybindings '$FLAMESHOT_KEY_PATH' && dconf reset -f "$FLAMESHOT_KEY_PATH"
 if [ "\$(gsettings get org.gnome.shell.keybindings show-screenshot-ui)" = "@as []" ]; then
     gsettings reset org.gnome.shell.keybindings show-screenshot-ui
 fi

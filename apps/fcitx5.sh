@@ -4,13 +4,14 @@ do_fcitx5() {
     # Per-engine package, plus the IM addon name written into the fcitx5 profile.
     local im_name="$IME_ENGINE" engine_pkg
     case "$IME_ENGINE" in
-        bamboo|lotus) engine_pkg="fcitx5-$IME_ENGINE" ;;
-        *)            im_name="unikey"; engine_pkg="fcitx5-unikey" ;;
+        bamboo|lotus|ngosen) engine_pkg="fcitx5-$IME_ENGINE" ;;
+        *)                   im_name="unikey"; engine_pkg="fcitx5-unikey" ;;
     esac
 
     if pkg_installed fcitx5 && pkg_installed "$engine_pkg" \
         && grep -qx 'GTK_IM_MODULE=fcitx' /etc/environment \
         && grep -qx "Name=${im_name}" "$REAL_HOME/.config/fcitx5/profile" 2>/dev/null; then
+        [[ "$im_name" == ngosen ]] && ngosen_enable_key_fix
         success "Fcitx5 + ${im_name} already installed & configured, skipping"
         return
     fi
@@ -20,15 +21,19 @@ do_fcitx5() {
     apt-get install -y fcitx5 fcitx5-config-qt \
         fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5
 
-    if [[ "$im_name" == lotus ]]; then
-        # Lotus is not in Ubuntu's archive; its signed apt repo is keyed per codename.
-        local lotus_list=/etc/apt/sources.list.d/fcitx5-lotus.list lotus_key=/etc/apt/keyrings/fcitx5-lotus.gpg lotus_codename
-        lotus_codename=$(get_ubuntu_codename)
-        if [[ ! -f "$lotus_list" || ! -s "$lotus_key" ]]; then
-            add_apt_repo "$lotus_list" https://fcitx5-lotus.pages.dev/pubkey.gpg "$lotus_key" 1 \
-                "deb [arch=amd64 signed-by=$lotus_key] https://fcitx5-lotus.pages.dev/apt/${lotus_codename} ${lotus_codename} main" \
-                || return 1
-        fi
+    # Lotus and Ngó Sen are not in Ubuntu's archive; their signed apt repos are keyed per codename.
+    local codename repo_list repo_key
+    codename=$(get_ubuntu_codename)
+    repo_list="/etc/apt/sources.list.d/${engine_pkg}.list"
+    repo_key="/etc/apt/keyrings/${engine_pkg}.gpg"
+    if [[ "$im_name" == lotus && ( ! -f "$repo_list" || ! -s "$repo_key" ) ]]; then
+        add_apt_repo "$repo_list" https://fcitx5-lotus.pages.dev/pubkey.gpg "$repo_key" 1 \
+            "deb [arch=amd64 signed-by=$repo_key] https://fcitx5-lotus.pages.dev/apt/${codename} ${codename} main" \
+            || return 1
+    elif [[ "$im_name" == ngosen && ( ! -f "$repo_list" || ! -s "$repo_key" ) ]]; then
+        add_apt_repo "$repo_list" https://ngosen.github.io/ngosen/apt/ngosen.gpg "$repo_key" 0 \
+            "deb [arch=amd64 signed-by=$repo_key] https://ngosen.github.io/ngosen/apt ${codename} main" \
+            || return 1
     fi
     apt-get install -y "$engine_pkg"
 
@@ -79,6 +84,7 @@ Layout=
 0=Default
 PROFEOF
     chown -R "$REAL_USER:$REAL_USER" "$autostart_dir" "$fcitx_conf_dir"
+    [[ "$im_name" == ngosen ]] && ngosen_enable_key_fix
 
     # An older script version wrote these locations; stale settings would fight the new ones.
     rm -f "$REAL_HOME/.pam_environment"
@@ -90,13 +96,38 @@ PROFEOF
     success "Fcitx5 + ${im_name} installed & configured (log out and back in to activate)"
 }
 
+NGOSEN_KEY_FIX_UUID=forward-keys@ngosen.github.io
+NGOSEN_KEY_FIX_DIR=/usr/share/gnome-shell/extensions/$NGOSEN_KEY_FIX_UUID
+
+# GNOME 50.0-50.3 drop keys an IME forwards, Ngó Sen's extension delivers them: https://bugs.launchpad.net/ubuntu/+source/mutter/+bug/2169784
+ngosen_enable_key_fix() {
+    local uuid=$NGOSEN_KEY_FIX_UUID re='^GNOME Shell 50\.[0-3]$'
+    [[ -d "$NGOSEN_KEY_FIX_DIR" ]] || return 0
+    [[ "$(gnome-shell --version 2>/dev/null)" =~ $re ]] || return 0
+    run_in_user_session <<EOF \
+        || warn "Ngó Sen's GNOME typing fix is off; log in, turn Extensions on, then run: gnome-extensions enable $uuid"
+set -e
+[ -S "\$runtime_bus" ]
+[ "\$(gsettings get org.gnome.shell disable-user-extensions)" = false ]
+gsettings_list_remove org.gnome.shell disabled-extensions '$uuid'
+gsettings_list_add org.gnome.shell enabled-extensions '$uuid'
+EOF
+}
+
+ngosen_disable_key_fix() {
+    [[ -d "$NGOSEN_KEY_FIX_DIR" ]] || return 0
+    run_in_user_session <<<"gsettings_list_remove org.gnome.shell enabled-extensions '$NGOSEN_KEY_FIX_UUID'" || true
+}
+
 undo_fcitx5() {
     info "Removing Fcitx5..."
+    ngosen_disable_key_fix
     # Purge every engine we might have installed, whichever was selected.
-    apt_purge fcitx5 fcitx5-unikey fcitx5-bamboo fcitx5-lotus fcitx5-config-qt \
+    apt_purge fcitx5 fcitx5-unikey fcitx5-bamboo fcitx5-lotus fcitx5-ngosen fcitx5-config-qt \
         fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt5
 
-    rm -f /etc/apt/sources.list.d/fcitx5-lotus.list /etc/apt/keyrings/fcitx5-lotus.gpg
+    rm -f /etc/apt/sources.list.d/fcitx5-lotus.list /etc/apt/keyrings/fcitx5-lotus.gpg \
+        /etc/apt/sources.list.d/fcitx5-ngosen.list /etc/apt/keyrings/fcitx5-ngosen.gpg
 
     grep -qE '^(GTK_IM_MODULE|QT_IM_MODULE|XMODIFIERS)=' /etc/environment && need_reboot "/etc/environment changed (fcitx5 variables removed)"
     sed -i -E '/^(GTK_IM_MODULE|QT_IM_MODULE|XMODIFIERS|SDL_IM_MODULE|GLFW_IM_MODULE)=/d' /etc/environment
