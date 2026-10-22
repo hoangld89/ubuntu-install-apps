@@ -96,8 +96,29 @@ run_in_user_session() {
     {
         echo 'runtime_bus="/run/user/$(id -u)/bus"'
         echo '[ -S "$runtime_bus" ] && export DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime_bus"'
+        declare -f gsettings_list_add gsettings_list_remove
         cat
     } | su - "$REAL_USER" -c 'bash -s'
+}
+
+# run_in_user_session ships these to REAL_USER's shell, so they must not use toolkit globals or helpers.
+gsettings_list_add() {
+    local list
+    list=$(gsettings get "$1" "$2") || return 1
+    case "$list" in
+        *"'$3'"*) return 0 ;;
+        "@as []"|"[]") list="['$3']" ;;
+        *) list="${list%]}, '$3']" ;;
+    esac
+    gsettings set "$1" "$2" "$list"
+}
+
+gsettings_list_remove() {
+    local list
+    list=$(gsettings get "$1" "$2") || return 1
+    case "$list" in *"'$3'"*) ;; *) return 0 ;; esac
+    list=$(printf '%s' "$list" | sed -e "s#, '$3'##" -e "s#'$3', ##" -e "s#'$3'##")
+    gsettings set "$1" "$2" "$list"
 }
 
 install_verified_binary() {  # $1 URL, $2 expected sha256, $3 destination path

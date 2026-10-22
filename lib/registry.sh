@@ -36,7 +36,7 @@ APPS=(
     "sqlcmd|database|sqlcmd::query SQL Server & Azure SQL|1"
     "dbeaver|database|DBeaver CE::one GUI for every database|1"
     "navicat|database|Navicat Lite 18::a sleek database workbench|1"
-    "fcitx5|desktop|Fcitx5::Vietnamese typing — Unikey / Bamboo / Lotus|1"
+    "fcitx5|desktop|Fcitx5::Vietnamese typing — Unikey / Bamboo / Lotus / Ngó Sen|1"
     "flameshot|desktop|Flameshot::screenshots with arrows, blur & text|1"
     "postman|desktop|Postman::the API platform for building & testing|1"
     "onlyoffice|desktop|ONLYOFFICE::office suite that keeps Word, Excel & PowerPoint layouts|0"
@@ -48,12 +48,13 @@ APPS=(
 )
 DOTNET_VERSIONS=(10)
 
-# `lotus` is a third-party addon with its own apt repo; unikey and bamboo ship in Ubuntu's archive.
+# `lotus` and `ngosen` are third-party addons with their own apt repos; unikey and bamboo ship in Ubuntu's archive.
 IME_ENGINE="unikey"
 INPUT_ENGINES=(
     "unikey|Unikey"
     "bamboo|Bamboo"
     "lotus|Lotus"
+    "ngosen|Ngó Sen"
 )
 
 MIRROR_HOST="mirror.bizflycloud.vn"

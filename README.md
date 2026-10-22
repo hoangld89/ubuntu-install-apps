@@ -142,7 +142,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Edge | Microsoft apt repo |
 | Teams for Linux | `repo.teamsforlinux.de` (unofficial Electron client) |
 | Zalo | Off by default. `VN-Linux-Family/zalo-for-linux` Full AppImage (bundled Wine for calls) in `/opt/zalo`, `zalo` command; enables i386 for the 32-bit libraries Wine needs, adds the share-screen bridge packages for Wayland and an AppArmor profile for the Chromium sandbox; re-runs update to the latest release |
-| Fcitx5 | Unikey or Bamboo (archive) or Lotus (third-party repo); sets IM env vars, autostart, profile |
+| Fcitx5 | Unikey or Bamboo (archive) or Lotus / Ngó Sen (third-party repos; Ngó Sen also enables its GNOME 50.0–50.3 typing fix); sets IM env vars, autostart, profile |
 | Flameshot | apt; on first install binds Print to `flameshot gui` (GNOME's screenshot UI leaves Print) and pre-grants screen capture in the portal; uninstall restores both |
 | Postman | Tarball → `/opt/Postman` |
 | ONLYOFFICE | Off by default. Official apt repo, without recommends (MS Fonts covers the Office fonts) |
