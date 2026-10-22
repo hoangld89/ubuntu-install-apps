@@ -23,8 +23,8 @@
 
 ## Features
 
-- **43 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
-- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, ABP CLI, AzCopy, kubectl, k3d, sqlcmd, yq, Oh My Zsh, Trae, Zalo and the Android SDK to their latest release, and move old installs onto the current upstream method.
+- **51 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
+- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, ABP CLI, AzCopy, kubectl, k3d, lazygit, lazydocker, sqlcmd, yq, Oh My Zsh, Trae, Zalo, LocalSend and the Android SDK to their latest release, and move old installs onto the current upstream method.
 - **Reversible** — every app has an uninstall that removes its packages, repos, keys and shell config.
 - **Isolated steps** — a failing app ends only its own step; the rest of the run continues.
 - **Vietnam-ready** — fast local APT mirrors, Fcitx5 Vietnamese input, fonts with full diacritics.
@@ -84,7 +84,9 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Terminal Kit | zsh + Oh My Zsh (git, zsh-autosuggestions, zsh-syntax-highlighting), tmux, htop, jq, yq, ripgrep, fzf, bat |
 | Fonts | MesloLGS NF (set in gnome-terminal), Noto + Liberation for Vietnamese diacritics in browsers |
 | MS Fonts | `ttf-mscorefonts-installer` plus Calibri/ClearType faces from PowerPoint Viewer |
-| eza, Fastfetch | Ubuntu archive; eza adds `ls`/`ll`/`la`/`lt` aliases |
+| eza, Fastfetch, btop | Ubuntu archive; eza adds `ls`/`ll`/`la`/`lt` aliases |
+| zoxide | Ubuntu archive; hooks `z` / `zi` into `.bashrc`, and `.zshrc` when zsh is installed |
+| lazygit | Binary from `jesseduffield/lazygit` releases, sha256-checked → `/usr/local/bin/lazygit`; updated on a new release (replaces the older archive package) |
 
 </details>
 
@@ -111,11 +113,13 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 
 | App | How |
 |-----|-----|
+| GitHub CLI | `cli.github.com` apt repo (replaces the older archive package) |
 | Terraform | HashiCorp apt repo |
 | Azure CLI | Microsoft apt repo |
 | AzCopy | v10 tarball → `/usr/local/bin/azcopy` |
 | Docker | Docker apt repo (CE, Compose, buildx); removes conflicting distro packages, adds you to `docker` |
 | kubectl | Stable binary from `dl.k8s.io`, sha256-checked → `/usr/local/bin/kubectl`; updated when a new stable release appears |
+| lazydocker | Binary from `jesseduffield/lazydocker` releases, sha256-checked → `/usr/local/bin/lazydocker`; updated on a new release |
 | k3d | Binary from `k3d-io/k3d` releases, sha256-checked → `/usr/local/bin/k3d`; updated on a new release; uninstall deletes its clusters |
 | BrowserStack Local | Official zip → `/usr/local/bin/BrowserStackLocal` |
 
@@ -142,8 +146,11 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Edge | Microsoft apt repo |
 | Teams for Linux | `repo.teamsforlinux.de` (unofficial Electron client) |
 | Zalo | Off by default. `VN-Linux-Family/zalo-for-linux` Full AppImage (bundled Wine for calls) in `/opt/zalo`, `zalo` command; enables i386 for the 32-bit libraries Wine needs, adds the share-screen bridge packages for Wayland and an AppArmor profile for the Chromium sandbox; re-runs update to the latest release |
-| Fcitx5 | Unikey or Bamboo (archive) or Lotus / Ngó Sen (third-party repos; Ngó Sen also enables its GNOME 50.0–50.3 typing fix); sets IM env vars, autostart, profile |
+| Fcitx5 | Unikey (archive) or Lotus / Ngó Sen (third-party repos; Ngó Sen also enables its GNOME 50.0–50.3 typing fix); sets IM env vars, autostart, profile |
 | Flameshot | apt; on first install binds Print to `flameshot gui` (GNOME's screenshot UI leaves Print) and pre-grants screen capture in the portal; uninstall restores both |
+| KeePassXC | `ppa:phoerious/keepassxc` (upstream) |
+| LocalSend | `.deb` from `localsend/localsend` releases; updated on a new release |
+| Extension Manager | Ubuntu archive (`gnome-shell-extension-manager`) |
 | Postman | Tarball → `/opt/Postman` |
 | ONLYOFFICE | Off by default. Official apt repo, without recommends (MS Fonts covers the Office fonts) |
 | VLC | apt |

@@ -4,8 +4,8 @@ do_fcitx5() {
     # Per-engine package, plus the IM addon name written into the fcitx5 profile.
     local im_name="$IME_ENGINE" engine_pkg
     case "$IME_ENGINE" in
-        bamboo|lotus|ngosen) engine_pkg="fcitx5-$IME_ENGINE" ;;
-        *)                   im_name="unikey"; engine_pkg="fcitx5-unikey" ;;
+        lotus|ngosen) engine_pkg="fcitx5-$IME_ENGINE" ;;
+        *)            im_name="unikey"; engine_pkg="fcitx5-unikey" ;;
     esac
 
     if pkg_installed fcitx5 && pkg_installed "$engine_pkg" \
@@ -84,6 +84,8 @@ Layout=
 0=Default
 PROFEOF
     chown -R "$REAL_USER:$REAL_USER" "$autostart_dir" "$fcitx_conf_dir"
+    # Bamboo is no longer offered; the profile above no longer points at it.
+    apt_purge fcitx5-bamboo
     [[ "$im_name" == ngosen ]] && ngosen_enable_key_fix
 
     # An older script version wrote these locations; stale settings would fight the new ones.

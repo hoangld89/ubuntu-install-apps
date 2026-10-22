@@ -10,6 +10,9 @@ APPS=(
     "msfonts|system|MS Fonts::Arial, Times New Roman, Calibri & ClearType fonts|1"
     "eza|system|eza::a modern ls with icons & git awareness|1"
     "fastfetch|system|Fastfetch::system info at a glance, neofetch reborn|1"
+    "btop|system|btop::CPU, memory, disk & network monitor in the terminal|1"
+    "zoxide|system|zoxide::a smarter cd that remembers your folders|1"
+    "lazygit|system|lazygit::git in a fast terminal UI|1"
     "nvm|dev|Node.js LTS::managed by nvm, swap versions on the fly|1"
     "bun|dev|Bun::all-in-one JS runtime & toolkit, blazing fast|1"
     "pnpm|dev|pnpm::fast, disk-efficient package manager via corepack|1"
@@ -24,11 +27,13 @@ APPS=(
     "vscode|dev|VS Code::the editor that does it all|1"
     "trae|dev|Trae IDE::AI-native coding by ByteDance|1"
     "android|dev|Android Emulator::Google's emulator, latest Android + Play Store|0"
+    "gh|devops|GitHub CLI::PRs, issues & releases from the shell|1"
     "terraform|devops|Terraform::infrastructure as code, done right|1"
     "azcli|devops|Azure CLI::command the Azure cloud from your shell|1"
     "azcopy|devops|AzCopy::blazing-fast Azure Storage transfers|1"
     "docker|devops|Docker::container engine + Compose plugin|1"
     "kubectl|devops|kubectl::drive any Kubernetes cluster from the shell|1"
+    "lazydocker|devops|lazydocker::containers, logs & images in a terminal UI|1"
     "k3d|devops|k3d::throwaway k3s clusters running in Docker|1"
     "browserstack|devops|BrowserStack Local::secure tunnel for local cross-browser testing|1"
     "mysqlclient|database|MySQL Client::CLI shell + mysqldump backups|1"
@@ -36,8 +41,11 @@ APPS=(
     "sqlcmd|database|sqlcmd::query SQL Server & Azure SQL|1"
     "dbeaver|database|DBeaver CE::one GUI for every database|1"
     "navicat|database|Navicat Lite 18::a sleek database workbench|1"
-    "fcitx5|desktop|Fcitx5::Vietnamese typing — Unikey / Bamboo / Lotus / Ngó Sen|1"
+    "fcitx5|desktop|Fcitx5::Vietnamese typing — Unikey / Lotus / Ngó Sen|1"
     "flameshot|desktop|Flameshot::screenshots with arrows, blur & text|1"
+    "keepassxc|desktop|KeePassXC::offline password manager, KeePass format|1"
+    "localsend|desktop|LocalSend::share files with nearby phones & PCs, no cloud|1"
+    "extmgr|desktop|Extension Manager::browse & install GNOME Shell extensions|1"
     "postman|desktop|Postman::the API platform for building & testing|1"
     "onlyoffice|desktop|ONLYOFFICE::office suite that keeps Word, Excel & PowerPoint layouts|0"
     "vlc|desktop|VLC::plays every media format on earth|1"
@@ -48,11 +56,10 @@ APPS=(
 )
 DOTNET_VERSIONS=(10)
 
-# `lotus` and `ngosen` are third-party addons with their own apt repos; unikey and bamboo ship in Ubuntu's archive.
+# `lotus` and `ngosen` are third-party addons with their own apt repos; unikey ships in Ubuntu's archive.
 IME_ENGINE="unikey"
 INPUT_ENGINES=(
     "unikey|Unikey"
-    "bamboo|Bamboo"
     "lotus|Lotus"
     "ngosen|Ngó Sen"
 )

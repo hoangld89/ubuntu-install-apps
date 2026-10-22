@@ -121,18 +121,34 @@ gsettings_list_remove() {
     gsettings set "$1" "$2" "$list"
 }
 
-install_verified_binary() {  # $1 URL, $2 expected sha256, $3 destination path
-    local tmp
+download_verified() {  # $1 URL, $2 expected sha256, $3 destination file
     [[ -n "$2" ]] || { fail "Could not fetch the checksum for $1"; return 1; }
-    step_tmpdir && [[ -n "$STEP_TMP" ]] || { fail "Could not create a temp dir"; return 1; }
-    tmp="$STEP_TMP/${3##*/}"
-    if ! curl -fsSL --retry 3 --connect-timeout 15 --max-time 300 -o "$tmp" "$1"; then
+    if ! curl -fsSL --retry 3 --connect-timeout 15 --max-time 300 -o "$3" "$1"; then
         fail "Could not download $1"
         return 1
     fi
-    if ! sha256sum -c --status <<< "$2  $tmp"; then
+    if ! sha256sum -c --status <<< "$2  $3"; then
         fail "Could not verify the checksum of $1"
         return 1
     fi
+}
+
+install_verified_binary() {  # $1 URL, $2 expected sha256, $3 destination path
+    local tmp
+    step_tmpdir && [[ -n "$STEP_TMP" ]] || { fail "Could not create a temp dir"; return 1; }
+    tmp="$STEP_TMP/${3##*/}"
+    download_verified "$1" "$2" "$tmp" || return 1
     install -m 755 "$tmp" "$3"
+}
+
+install_release_tarball() {  # $1 .tar.gz URL, $2 checksums.txt URL listing it, $3 binary inside the tarball → /usr/local/bin/$3
+    local archive=${1##*/} sha
+    sha=$(curl -fsSL --retry 3 --max-time 30 "$2" 2>/dev/null | awk -v f="$archive" '$2 == f { print $1 }' || true)
+    step_tmpdir && [[ -n "$STEP_TMP" ]] || { fail "Could not create a temp dir"; return 1; }
+    download_verified "$1" "$sha" "$STEP_TMP/$archive" || return 1
+    if ! tar -xzf "$STEP_TMP/$archive" -C "$STEP_TMP" "$3"; then
+        fail "Could not extract $3 from $archive"
+        return 1
+    fi
+    install -m 755 "$STEP_TMP/$3" "/usr/local/bin/$3"
 }

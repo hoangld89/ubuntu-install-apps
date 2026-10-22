@@ -9,7 +9,7 @@ Tuy nhiên, có **5 nhóm phần mềm** sẽ không dùng đúng app cũ như t
 | Nhu cầu | Trên Windows | Trên Ubuntu (dùng thay thế) |
 |---|---|---|
 | 📄 **Văn phòng (Word / Excel / PowerPoint)** | Microsoft Office | **ONLYOFFICE** |
-| ⌨️ **Gõ tiếng Việt** | Unikey | **Fcitx5** (bộ gõ Unikey / Bamboo / Lotus) |
+| ⌨️ **Gõ tiếng Việt** | Unikey | **Fcitx5** (bộ gõ Unikey / Lotus / Ngó Sen) |
 | 📸 **Chụp ảnh màn hình** | Snipping Tool / Snip & Sketch | **Flameshot** (phím **Print**) |
 | 📱 **Giả lập mobile (chạy app Android)** | BlueStacks / LDPlayer / NoxPlayer | **Android Emulator** |
 | 🎥 **Quay màn hình** | Bandicam / Camtasia | **OBS Studio** |
