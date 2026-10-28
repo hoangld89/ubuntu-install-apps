@@ -47,7 +47,7 @@ target_shell_rcs() {
 runtimes_present() {
     [[ -d "$REAL_HOME/.nvm" || -d "$REAL_HOME/.bun" || -x /usr/bin/dotnet || -d "$REAL_HOME/.dotnet/tools" \
         || -x /usr/bin/az || -e "$REAL_HOME/.local/bin/claude" || -e "$REAL_HOME/.local/bin/uv" || -d "$REAL_HOME/.local/share/pnpm" \
-        || -d "$REAL_HOME/Android/Sdk" ]]
+        || -d "$REAL_HOME/Android/Sdk" || -x /usr/local/go/bin/go ]]
 }
 
 tool_integrations_block() {
@@ -64,6 +64,11 @@ export NVM_DIR="$HOME/.nvm"
 # pnpm
 export PNPM_HOME="$HOME/.local/share/pnpm"
 case ":$PATH:" in *":$PNPM_HOME:"*) ;; *) export PATH="$PNPM_HOME:$PATH" ;; esac
+
+# Go
+if [ -x /usr/local/go/bin/go ]; then
+    case ":$PATH:" in *":/usr/local/go/bin:"*) ;; *) export PATH="/usr/local/go/bin:$PATH:$HOME/go/bin" ;; esac
+fi
 
 # .NET
 if [ -x /usr/bin/dotnet ]; then

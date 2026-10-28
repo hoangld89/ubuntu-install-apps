@@ -23,8 +23,8 @@
 
 ## Features
 
-- **51 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
-- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, ABP CLI, AzCopy, kubectl, k3d, lazygit, lazydocker, sqlcmd, yq, Oh My Zsh, Trae, Zalo, LocalSend and the Android SDK to their latest release, and move old installs onto the current upstream method.
+- **52 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
+- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, Go, ABP CLI, AzCopy, kubectl, k3d, lazygit, lazydocker, sqlcmd, yq, Oh My Zsh, Trae, Zalo, LocalSend and the Android SDK to their latest release, and move old installs onto the current upstream method.
 - **Reversible** — every app has an uninstall that removes its packages, repos, keys and shell config.
 - **Isolated steps** — a failing app ends only its own step; the rest of the run continues.
 - **Vietnam-ready** — fast local APT mirrors, Fcitx5 Vietnamese input, fonts with full diacritics.
@@ -99,6 +99,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Bun | `bun.sh/install`, per user |
 | pnpm, Yarn 4 | corepack npm package (needs Node.js) |
 | uv | `astral.sh/uv/install.sh` into `~/.local/bin`, per user; re-runs run `uv self update` |
+| Go | Official tarball from `go.dev`, sha256-checked → `/usr/local/go`; replaced when a new release appears |
 | .NET SDK | 10 from the archive, 8/9 from `ppa:dotnet/backports` (end of support 2026-11-10) |
 | ABP CLI | `Volo.Abp.Studio.Cli` dotnet tool (needs .NET) |
 | VS Code | Microsoft apt repo |
@@ -165,7 +166,7 @@ Coming from Windows? [PHAN-MEM-TUONG-THICH.md](PHAN-MEM-TUONG-THICH.md) (Vietnam
 
 - **Steps:** one line per app with a spinner, then `✓` / `!` (warnings listed under it) / `✗` with the failing command and the step's last 15 log lines.
 - **Log:** full output in `/var/log/install-app/<YYYYmmdd-HHMMSS>.log`; `tail -f` it to watch a step.
-- **Shell integration:** runtime PATH/env (nvm, Bun, pnpm, uv, .NET, Azure completion, Claude Code, Android SDK) is one `# --- Tool integrations ---` block in `.bashrc`, and in `.zshrc` when zsh is installed.
+- **Shell integration:** runtime PATH/env (nvm, Bun, pnpm, uv, Go, .NET, Azure completion, Claude Code, Android SDK) is one `# --- Tool integrations ---` block in `.bashrc`, and in `.zshrc` when zsh is installed.
 - **Wayland IME:** Chromium/Electron launchers (Chrome, Edge, VS Code, Teams, Trae, Postman) get flags so fcitx5 can type into them; an apt hook re-applies them after upgrades.
 - **Ctrl-C** prints a partial summary. apt waits up to 10 minutes for a busy dpkg lock.
 - **Reboot/re-login** is suggested only when needed (docker group, login shell, `/etc/environment`, `/var/run/reboot-required`), with the reasons.
@@ -185,7 +186,7 @@ Coming from Windows? [PHAN-MEM-TUONG-THICH.md](PHAN-MEM-TUONG-THICH.md) (Vietnam
 
 In uninstall mode every app starts unselected and `i` asks for confirmation. Each app's uninstall purges its packages, apt repo and key, downloaded binaries and the rc blocks it added; the mirror is restored from its backups.
 
-Kept on purpose: `git`, `curl`, Docker data (`/var/lib/docker`, `/var/lib/containerd`, `/etc/docker`), `unixodbc-dev`, `unzip`, `~/.claude`, `~/.kube`, `~/.android` apart from the `medium_phone` AVD, Zalo messages and settings (`~/.config/ZaloData`), an `~/Android/Sdk` that existed before the toolkit, and a completed system upgrade.
+Kept on purpose: `git`, `curl`, Docker data (`/var/lib/docker`, `/var/lib/containerd`, `/etc/docker`), `unixodbc-dev`, `unzip`, `~/.claude`, `~/.kube`, `~/go` when it holds `go install` binaries or sources, `~/.android` apart from the `medium_phone` AVD, Zalo messages and settings (`~/.config/ZaloData`), an `~/Android/Sdk` that existed before the toolkit, and a completed system upgrade.
 
 ## Troubleshooting
 

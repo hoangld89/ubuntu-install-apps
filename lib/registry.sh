@@ -18,6 +18,7 @@ APPS=(
     "pnpm|dev|pnpm::fast, disk-efficient package manager via corepack|1"
     "yarn|dev|Yarn 4::the Berry JS package manager via corepack|1"
     "uv|dev|uv::fast Python installs, venvs & tools|1"
+    "go|dev|Go::the official Go toolchain from go.dev|1"
     "dotnet|dev|.NET SDK::build & run cross-platform .NET|1"
     "abp|dev|ABP CLI::ABP Studio CLI for building ABP apps|1"
     "chrome|desktop|Google Chrome::the web's default browser|1"
