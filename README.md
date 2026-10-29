@@ -9,7 +9,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/hoangld89/ubuntu-install-apps?style=flat-square" alt="MIT License" /></a>
 </p>
 
-<p align="center"><img src="docs/images/menu.png" alt="Two-pane install menu: groups and settings on the left, apps of the focused group on the right" width="900" /></p>
+<p align="center"><img src="https://raw.githubusercontent.com/hoangld89/ubuntu-install-apps/assets/menu.png" alt="Two-pane install menu: groups and settings on the left, apps of the focused group on the right" width="900" /></p>
 
 <p align="center">
   <a href="#features">Features</a> ·

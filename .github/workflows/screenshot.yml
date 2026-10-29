@@ -1,0 +1,47 @@
+name: Screenshot
+
+on:
+  push:
+    branches: [main]
+    paths: [install-app.sh, 'lib/**', 'apps/**', docs/screenshot.sh, .github/workflows/screenshot.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: screenshot
+
+jobs:
+  menu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install python3-rich, Pillow and MesloLGS NF
+        run: |
+          sudo apt-get install -y --no-install-recommends python3-rich python3-pil
+          fonts=~/.local/share/fonts && mkdir -p "$fonts"
+          for face in Regular Bold Italic 'Bold Italic'; do
+            curl -fsSL -o "$fonts/MesloLGS NF $face.ttf" \
+              "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20${face// /%20}.ttf"
+          done
+          fc-cache -f
+
+      - name: Render the menu
+        run: docs/screenshot.sh "$RUNNER_TEMP/menu.png"
+
+      # main is protected for admins too, so the image lives on its own unprotected branch the README links to.
+      - name: Publish to the assets branch
+        run: |
+          if git fetch -q --depth=1 origin assets && git show FETCH_HEAD:menu.png > "$RUNNER_TEMP/old.png" \
+             && cmp -s "$RUNNER_TEMP/menu.png" "$RUNNER_TEMP/old.png"; then
+            echo "menu.png unchanged"
+            exit 0
+          fi
+          cd "$RUNNER_TEMP" && rm -rf assets && mkdir assets && cd assets
+          git init -q -b assets && cp ../menu.png . && git add menu.png
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -m "menu screenshot for ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" assets
+        env:
+          GH_TOKEN: ${{ github.token }}

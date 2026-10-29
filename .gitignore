@@ -18,5 +18,6 @@ Thumbs.db
 *.tmp
 *.bak
 
-# docs/screenshot.sh scratch
+# docs/screenshot.sh scratch and output
 docs/.shot.*/
+docs/images/
