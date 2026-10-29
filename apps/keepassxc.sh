@@ -1,31 +1,34 @@
 # shellcheck shell=bash
 
-KEEPASSXC_PPA=ppa:phoerious/keepassxc
-
-keepassxc_ppa_added() { compgen -G '/etc/apt/sources.list.d/phoerious-ubuntu-keepassxc-*' >/dev/null; }
+remove_keepassxc_ppa() {
+    add-apt-repository -y --remove ppa:phoerious/keepassxc 2>/dev/null || true
+    rm -f /etc/apt/sources.list.d/phoerious-ubuntu-keepassxc-*.list \
+          /etc/apt/sources.list.d/phoerious-ubuntu-keepassxc-*.sources
+}
 
 do_keepassxc() {
-    if keepassxc_ppa_added && pkg_up_to_date keepassxc; then
-        success "KeePassXC already installed (updates via its PPA), skipping"
+    local ppa_source installed
+    ppa_source=$(compgen -G '/etc/apt/sources.list.d/phoerious-ubuntu-keepassxc-*' || true)
+    installed=$(dpkg-query -W -f='${Version}' keepassxc 2>/dev/null || true)
+    if [[ -n "$ppa_source" || "$installed" == *ppa* ]]; then
+        info "Moving KeePassXC from its PPA to the Ubuntu archive..."
+        remove_keepassxc_ppa
+        apt-get update
+        # The PPA build does not Replace keepassxc-full's files, so it must go before the install.
+        apt_purge keepassxc
+    fi
+    if pkg_up_to_date keepassxc-full; then
+        success "KeePassXC already installed, skipping"
         return
     fi
-    # The upstream PPA ships releases months before Ubuntu's archive; add-apt-repository -y already refreshes apt.
-    keepassxc_ppa_added || add_ppa "$KEEPASSXC_PPA" || return 1
-    if pkg_installed keepassxc; then
-        info "Moving KeePassXC onto its PPA..."
-    else
-        info "Installing KeePassXC..."
-    fi
-    # Ubuntu's keepassxc is a transitional package; keepassxc-full owns the binary, and the PPA build does not Replace it.
-    apt-get install -y keepassxc keepassxc-full- keepassxc-minimal-
-    success "KeePassXC installed (updates via its PPA)"
+    info "Installing KeePassXC..."
+    apt-get install -y keepassxc-full
+    success "KeePassXC installed"
 }
 
 undo_keepassxc() {
     info "Removing KeePassXC..."
     apt_purge keepassxc keepassxc-full keepassxc-minimal
-    add-apt-repository -y --remove "$KEEPASSXC_PPA" 2>/dev/null || true
-    rm -f /etc/apt/sources.list.d/phoerious-ubuntu-keepassxc-*.list \
-          /etc/apt/sources.list.d/phoerious-ubuntu-keepassxc-*.sources
-    success "KeePassXC removed (package & PPA; your .kdbx databases left intact)"
+    remove_keepassxc_ppa
+    success "KeePassXC removed (your .kdbx databases left intact)"
 }
