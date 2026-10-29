@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency: release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tag and release TOOLKIT_VERSION if new
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(sed -n 's/^TOOLKIT_VERSION="\([0-9.]*\)"$/\1/p' lib/core.sh)
+          [[ -n "$version" ]] || { echo "::error::TOOLKIT_VERSION not found in lib/core.sh"; exit 1; }
+          tag="v$version"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "$tag already released"
+            exit 0
+          fi
+          gh release create "$tag" --target "$GITHUB_SHA" --generate-notes

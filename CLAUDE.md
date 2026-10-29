@@ -76,7 +76,9 @@ is missing.
   PR. No force-push or deletion of `main`.
 - Versions follow SemVer in `TOOLKIT_VERSION` (`lib/core.sh`; not `VERSION`, which `/etc/os-release` defines): MAJOR for removed apps,
   flags or behaviour users rely on; MINOR for new apps or options; PATCH for fixes.
-- Release: bump `TOOLKIT_VERSION` in the PR, then after merge tag `main` as `vX.Y.Z` and
-  run `gh release create vX.Y.Z --generate-notes`.
+- Release: bump `TOOLKIT_VERSION` in the PR; on merge `.github/workflows/release.yml`
+  tags `main` as `vX.Y.Z` and creates the release with generated notes.
+- After `gh pr create`, run `gh pr merge --auto --squash`: the required `lint` check (`ci.yml`)
+  gates the merge.
 - Verify before a PR: `bash -n` on every file, `shellcheck -x install-app.sh`,
   and `validate_registry` (source `install-app.sh`, call it).
