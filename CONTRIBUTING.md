@@ -6,7 +6,7 @@
 install-app.sh     entrypoint
 lib/               core, registry (APPS, APP_GROUPS), apt, shell-rc, shared, ui-menu, ui-run, runner
 apps/<key>.sh      do_<key> (install) + undo_<key> (uninstall), one file per app
-docs/screenshot.sh regenerates docs/images/menu.png (needs python3-rich and Chrome/Chromium)
+docs/screenshot.sh renders the menu PNG; the README image is re-rendered on merge to main
 ```
 
 ## Adding an app

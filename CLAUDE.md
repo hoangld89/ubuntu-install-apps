@@ -13,8 +13,9 @@ a warning and the run continues.
 - `apps/<key>.sh` — `do_<key>`, `undo_<key>` and helpers only that app uses.
   Helpers shared by two or more apps go in `lib/shared.sh`.
 - Lib and app files only define functions and constants.
-- `docs/screenshot.sh` regenerates `docs/images/menu.png` (README) from the menu
-  code; needs python3-rich and Chrome/Chromium.
+- `docs/screenshot.sh [out.png]` renders the menu (default `docs/images/menu.png`,
+  gitignored); needs python3-rich and Chrome/Chromium. On merge,
+  `.github/workflows/screenshot.yml` re-renders the README image onto the `assets` branch.
 
 **Adding an app:** add its `APPS` line, create `apps/<key>.sh` with both
 functions. `validate_registry` exits at startup if the group, file or a function

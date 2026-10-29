@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-OUT="$ROOT/docs/images/menu.png"
+OUT=$(realpath -m "${1:-$ROOT/docs/images/menu.png}")
 COLS=100
 ROWS=30
 
@@ -61,6 +61,7 @@ read -r width height <<< "$dims"
 
 printf '<!doctype html><style>html,body{margin:0}img{display:block;width:%spx}</style><img src="menu.svg">\n' "$width" > "$WORK/page.html"
 rm -f "$OUT"
+mkdir -p "$(dirname "$OUT")"
 "$CHROME" --headless=new --no-sandbox --disable-gpu --hide-scrollbars --force-device-scale-factor=2 \
     --default-background-color=00000000 --window-size="$width,$height" \
     --screenshot="$OUT" "file://$WORK/page.html" > "$WORK/chrome.log" 2>&1 || true
