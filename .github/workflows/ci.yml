@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    env:
+      SHELLCHECK_VERSION: v0.11.0
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Syntax check
+        run: |
+          find . -name '*.sh' -not -path './.git/*' -print0 | xargs -0 -n1 bash -n
+
+      # The runner's apt shellcheck lags; pin the version used locally so both report the same warnings.
+      - name: Install shellcheck
+        run: |
+          curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
+            | tar -xJ --strip-components=1 -C /usr/local/bin "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+          shellcheck --version
+
+      - name: shellcheck
+        run: shellcheck -x install-app.sh
+
+      - name: validate_registry
+        run: bash -c 'source ./install-app.sh && validate_registry'
