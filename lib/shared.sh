@@ -152,3 +152,9 @@ install_release_tarball() {  # $1 .tar.gz URL, $2 checksums.txt URL listing it, 
     fi
     install -m 755 "$STEP_TMP/$3" "/usr/local/bin/$3"
 }
+
+ensure_multiverse() {  # $1 package that lives in multiverse
+    apt-cache policy "$1" 2>/dev/null | grep -q 'Candidate: [0-9]' && return 0
+    add-apt-repository -y multiverse >/dev/null 2>&1 || true
+    apt-get update >/dev/null 2>&1 || true
+}

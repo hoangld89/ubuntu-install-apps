@@ -23,7 +23,7 @@
 
 ## Features
 
-- **52 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
+- **53 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
 - **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, Go, ABP CLI, AzCopy, kubectl, k3d, lazygit, lazydocker, sqlcmd, yq, Oh My Zsh, Trae, Zalo, LocalSend and the Android SDK to their latest release, and move old installs onto the current upstream method.
 - **Reversible** — every app has an uninstall that removes its packages, repos, keys and shell config.
 - **Isolated steps** — a failing app ends only its own step; the rest of the run continues.
@@ -84,6 +84,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Terminal Kit | zsh + Oh My Zsh (git, zsh-autosuggestions, zsh-syntax-highlighting), tmux, htop, jq, yq, ripgrep, fzf, bat |
 | Fonts | MesloLGS NF (set in gnome-terminal), Noto + Liberation for Vietnamese diacritics in browsers |
 | MS Fonts | `ttf-mscorefonts-installer` plus Calibri/ClearType faces from PowerPoint Viewer |
+| Video Acceleration | Intel GPUs only: `intel-media-va-driver-non-free` (multiverse; hardware encode for OBS) + `vainfo`. AMD gets VA-API from Mesa |
 | eza, Fastfetch, btop | Ubuntu archive; eza adds `ls`/`ll`/`la`/`lt` aliases |
 | zoxide | Ubuntu archive; hooks `z` / `zi` into `.bashrc`, and `.zshrc` when zsh is installed |
 | lazygit | Binary from `jesseduffield/lazygit` releases, sha256-checked → `/usr/local/bin/lazygit`; updated on a new release (replaces the older archive package) |

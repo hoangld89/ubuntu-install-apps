@@ -8,6 +8,7 @@ APPS=(
     "terminal|system|Terminal Kit::zsh · oh-my-zsh · tmux · fzf · rg · bat · jq|1"
     "font|system|Fonts::Nerd Font glyphs + Vietnamese web fonts (Facebook/Chrome)|1"
     "msfonts|system|MS Fonts::Arial, Times New Roman, Calibri & ClearType fonts|1"
+    "vaapi|system|Video Acceleration::hardware video for browsers, VLC & OBS on Intel GPUs|1"
     "eza|system|eza::a modern ls with icons & git awareness|1"
     "fastfetch|system|Fastfetch::system info at a glance, neofetch reborn|1"
     "btop|system|btop::CPU, memory, disk & network monitor in the terminal|1"
