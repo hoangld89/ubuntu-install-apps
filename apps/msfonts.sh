@@ -9,11 +9,7 @@ do_msfonts() {
         success "MS core fonts already installed (Arial / Times New Roman / …)"
     else
         info "Installing MS core fonts (Arial, Times New Roman, Courier New, Georgia, Verdana…)..."
-        # The package lives in the `multiverse` component — enable it if missing.
-        if ! apt-cache policy ttf-mscorefonts-installer 2>/dev/null | grep -q 'Candidate: [0-9]'; then
-            add-apt-repository -y multiverse >/dev/null 2>&1 || true
-            apt-get update >/dev/null 2>&1 || true
-        fi
+        ensure_multiverse ttf-mscorefonts-installer
         # Pre-accept the EULA so apt doesn't stop for the interactive prompt.
         echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true \
             | debconf-set-selections 2>/dev/null || true
