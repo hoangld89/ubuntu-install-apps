@@ -5,37 +5,73 @@ ZALO_DIR=/opt/zalo
 ZALO_APPARMOR=/etc/apparmor.d/zalo-appimage
 ZALO_PKGS_MARKER="$STATE_DIR/zalo-packages"
 ZALO_I386_MARKER="$STATE_DIR/zalo-i386"
-# The bundled Wine is 32-bit (not WoW64), so ZaloCall needs these i386 libraries.
-ZALO_I386_LIBS=(
-    libc6 libx11-6 libxext6 libxrender1 libxrandr2 libxi6 libxcursor1 libxcomposite1 libxinerama1 libxfixes3
-    libfreetype6 libfontconfig1 libgl1 libgl1-mesa-dri libegl1 libasound2t64 libasound2-plugins libpulse0
-    libgnutls30t64 libglib2.0-0t64 libgstreamer1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good
-    libudev1 libdbus-1-3
-)
-# Wine can't capture a Wayland screen; Zalo's share-screen bridge feeds it through Xvfb and the ScreenCast portal.
-ZALO_BRIDGE_PKGS=(xvfb xdotool python3-dbus gstreamer1.0-plugins-base gstreamer1.0-plugins-bad)
+ZALO_CALL_PKGS=(python3 libopus0 pulseaudio-utils)
 
-zalo_appimage_url() {  # $1 tag → URL of its Original Full x86_64 AppImage (the name carries a commit hash), empty when offline
+zalo_appimage_url() {  # $1 tag, $2 arch → URL of its Original AppImage (the name carries a commit hash), empty when offline
     local href
     href=$(curl -fsSL --connect-timeout 10 --max-time 60 "https://github.com/$ZALO_REPO/releases/expanded_assets/$1" 2>/dev/null \
-        | grep -o "href=\"[^\"]*/Zalo-$1-Original-[0-9a-f]*-Full-x86_64\.AppImage\"" | head -n 1 || true)
+        | grep -o "href=\"[^\"]*/Zalo-$1-Original-[0-9a-f]*-$2\.AppImage\"" | head -n 1 || true)
     [[ -n "$href" ]] && printf 'https://github.com%s' "$(cut -d'"' -f2 <<< "$href")"
     return 0
 }
 
+# Mark auto, not purge: autoremove keeps whatever another package (wine32, Steam...) now depends on.
+zalo_release_packages() {
+    local pkgs=()
+    [[ -f "$ZALO_PKGS_MARKER" ]] || return 0
+    mapfile -t pkgs < <(sort -u "$ZALO_PKGS_MARKER")
+    apt-mark auto "${pkgs[@]}" >/dev/null 2>&1 || true
+    apt-get autoremove --purge -y >/dev/null 2>&1 || true
+    rm -f "$ZALO_PKGS_MARKER"
+}
+
+# autoremove keeps required libs (libc6:i386); purge the rest only when no amd64 package (wine, Steam...) needs them.
+zalo_remove_i386() {
+    local pkgs=()
+    [[ -f "$ZALO_I386_MARKER" ]] || return 0
+    mapfile -t pkgs < <(dpkg-query -W -f='${Package}:${Architecture}\n' 2>/dev/null | grep ':i386$' || true)
+    if (( ${#pkgs[@]} )) && ! apt-mark showmanual | grep ':i386$' >/dev/null \
+        && ! apt-get purge -s --allow-remove-essential "${pkgs[@]}" 2>/dev/null | grep -E '^Purg [^ :]+ ' >/dev/null; then
+        apt-get purge -y --allow-remove-essential "${pkgs[@]}" >/dev/null 2>&1 || true
+    fi
+    if dpkg --remove-architecture i386 2>/dev/null; then
+        apt-get update >/dev/null 2>&1 || true
+        rm -f "$ZALO_I386_MARKER"
+    else
+        warn "Other packages still use i386 — kept the i386 architecture"
+    fi
+}
+
+# Runs only once the installed AppImage has native calls: the old Full build's Wine needs these libraries.
+zalo_drop_wine_libs() {
+    local old=() removable=() keep=()
+    if [[ -f "$ZALO_PKGS_MARKER" ]]; then
+        mapfile -t old < <(grep -vxF -f <(printf '%s\n' "${ZALO_CALL_PKGS[@]}") "$ZALO_PKGS_MARKER" | sort -u || true)
+    fi
+    (( ${#old[@]} )) || [[ -f "$ZALO_I386_MARKER" ]] || return 0
+    info "Removing the i386 Wine libraries older Zalo releases needed..."
+    if (( ${#old[@]} )); then
+        apt-mark auto "${old[@]}" >/dev/null 2>&1 || true
+        mapfile -t removable < <(apt-get autoremove -s 2>/dev/null | awk '/^Remv /{print $2}' | grep -xF -f <(printf '%s\n' "${old[@]}") || true)
+        if (( ${#removable[@]} )); then
+            apt-get purge -y "${removable[@]}" >/dev/null 2>&1 || true
+        fi
+        mapfile -t keep < <(grep -xF -f <(printf '%s\n' "${ZALO_CALL_PKGS[@]}") "$ZALO_PKGS_MARKER" | sort -u || true)
+        if (( ${#keep[@]} )); then printf '%s\n' "${keep[@]}" > "$ZALO_PKGS_MARKER"; else rm -f "$ZALO_PKGS_MARKER"; fi
+    fi
+    if [[ -f "$ZALO_I386_MARKER" ]]; then
+        zalo_remove_i386
+        rm -f "$ZALO_I386_MARKER"
+    fi
+}
+
 zalo_install_deps() {
     local p missing=()
-    if ! dpkg --print-foreign-architectures | grep -qx i386; then
-        info "Enabling i386 packages for Zalo calls..."
-        dpkg --add-architecture i386 || return 1
-        { mkdir -p "$STATE_DIR" && touch "$ZALO_I386_MARKER"; } || return 1
-        apt-get update || warn "apt-get update reported errors — installing the i386 libraries anyway"
-    fi
-    for p in "${ZALO_I386_LIBS[@]/%/:i386}" "${ZALO_BRIDGE_PKGS[@]}"; do
+    for p in "${ZALO_CALL_PKGS[@]}"; do
         pkg_installed "$p" || missing+=("$p")
     done
     (( ${#missing[@]} )) || return 0
-    info "Installing 32-bit libraries for Zalo calls..."
+    info "Installing the packages Zalo calls need..."
     apt-get install -y "${missing[@]}" || return 1
     { mkdir -p "$STATE_DIR" && printf '%s\n' "${missing[@]}" >> "$ZALO_PKGS_MARKER"; } || return 1
 }
@@ -55,9 +91,10 @@ AAEOF
 }
 
 do_zalo() {
-    local tag url appimage="$ZALO_DIR/zalo.AppImage"
-    if [[ "$(uname -m)" != x86_64 ]]; then
-        warn "Zalo calls need x86_64 — skipped on $(uname -m)"
+    local tag url arch appimage="$ZALO_DIR/zalo.AppImage"
+    arch=$(uname -m)
+    if [[ "$arch" != x86_64 && "$arch" != aarch64 ]]; then
+        warn "Zalo for Linux ships x86_64 and aarch64 builds only — skipped on $arch"
         return
     fi
 
@@ -73,6 +110,7 @@ do_zalo() {
         return
     fi
     if [[ -f "$appimage" && "$(cat "$ZALO_DIR/VERSION" 2>/dev/null)" == "$tag" ]]; then
+        zalo_drop_wine_libs
         success "Zalo $tag already installed, skipping"
         return
     fi
@@ -80,10 +118,10 @@ do_zalo() {
         warn "Zalo is running — quit it (tray icon too) and re-run to install Zalo $tag"
         return
     fi
-    url=$(zalo_appimage_url "$tag")
+    url=$(zalo_appimage_url "$tag" "$arch")
     [[ -n "$url" ]] || { fail "Could not find the Zalo $tag AppImage"; return 1; }
 
-    info "Downloading Zalo $tag (~290 MB)..."
+    info "Downloading Zalo $tag (~160 MB)..."
     step_tmpdir
     if ! wget -q --tries=3 --timeout=30 -O "$STEP_TMP/zalo.AppImage" "$url" || [[ ! -s "$STEP_TMP/zalo.AppImage" ]]; then
         fail "Could not download $url"
@@ -110,11 +148,12 @@ Categories=Network;InstantMessaging;
 DEOF
     ln -sf "$appimage" /usr/local/bin/zalo
     echo "$tag" > "$ZALO_DIR/VERSION"
+    zalo_drop_wine_libs
     success "Zalo $tag installed (run 'zalo' or from app menu)"
 }
 
 undo_zalo() {
-    local pkgs=() f
+    local f
     info "Removing Zalo..."
     rm -rf "$ZALO_DIR"
     rm -f /usr/share/applications/zalo.desktop /usr/local/bin/zalo /usr/share/icons/hicolor/512x512/apps/zalo.png
@@ -128,26 +167,7 @@ undo_zalo() {
         rm -f "$ZALO_APPARMOR"
     fi
 
-    # Mark auto, not purge: autoremove keeps whatever another package (wine32, Steam...) now depends on.
-    if [[ -f "$ZALO_PKGS_MARKER" ]]; then
-        mapfile -t pkgs < <(sort -u "$ZALO_PKGS_MARKER")
-        apt-mark auto "${pkgs[@]}" >/dev/null 2>&1 || true
-        apt-get autoremove --purge -y >/dev/null 2>&1 || true
-        rm -f "$ZALO_PKGS_MARKER"
-    fi
-    # autoremove keeps required libs (libc6:i386); purge the rest only when no amd64 package (wine, Steam...) needs them.
-    if [[ -f "$ZALO_I386_MARKER" ]]; then
-        mapfile -t pkgs < <(dpkg-query -W -f='${Package}:${Architecture}\n' 2>/dev/null | grep ':i386$' || true)
-        if (( ${#pkgs[@]} )) && ! apt-mark showmanual | grep ':i386$' >/dev/null \
-            && ! apt-get purge -s --allow-remove-essential "${pkgs[@]}" 2>/dev/null | grep -E '^Purg [^ :]+ ' >/dev/null; then
-            apt-get purge -y --allow-remove-essential "${pkgs[@]}" >/dev/null 2>&1 || true
-        fi
-        if dpkg --remove-architecture i386 2>/dev/null; then
-            apt-get update >/dev/null 2>&1 || true
-            rm -f "$ZALO_I386_MARKER"
-        else
-            warn "Other packages still use i386 — kept the i386 architecture"
-        fi
-    fi
+    zalo_release_packages
+    zalo_remove_i386
     success "Zalo removed"
 }

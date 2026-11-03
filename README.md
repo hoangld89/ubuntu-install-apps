@@ -148,7 +148,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Chrome | `.deb` |
 | Edge | Microsoft apt repo |
 | Teams for Linux | `repo.teamsforlinux.de` (unofficial Electron client) |
-| Zalo | Off by default. `VN-Linux-Family/zalo-for-linux` Full AppImage (bundled Wine for calls) in `/opt/zalo`, `zalo` command; enables i386 for the 32-bit libraries Wine needs, adds the share-screen bridge packages for Wayland and an AppArmor profile for the Chromium sandbox; re-runs update to the latest release |
+| Zalo | Off by default. `VN-Linux-Family/zalo-for-linux` Original AppImage in `/opt/zalo`, `zalo` command; adds `python3`, `libopus0` and `pulseaudio-utils` for its native calls and an AppArmor profile for the Chromium sandbox; re-runs update to the latest release and remove the i386 Wine libraries older releases needed |
 | Fcitx5 | Unikey (archive) or Lotus / Ngó Sen (third-party repos; Ngó Sen also enables its GNOME 50.0–50.3 typing fix); sets IM env vars, autostart, profile |
 | Flameshot | apt; on first install binds Print to `flameshot gui` (GNOME's screenshot UI leaves Print) and pre-grants screen capture in the portal; uninstall restores both |
 | KeePassXC | Ubuntu archive (`keepassxc-full`) |
