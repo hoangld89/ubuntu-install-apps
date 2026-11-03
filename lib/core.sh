@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-TOOLKIT_VERSION="3.3.1"
+TOOLKIT_VERSION="3.4.0"
 
 # Catppuccin Mocha; each colour carries its nearest xterm-256 index for terminals without truecolor.
 TRUECOLOR=0

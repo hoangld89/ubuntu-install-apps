@@ -26,6 +26,7 @@ APPS=(
     "edge|desktop|Microsoft Edge::Chromium with a Microsoft accent|1"
     "teams|desktop|Microsoft Teams::a native client built for Linux|1"
     "zalo|desktop|Zalo::chat & calls on Linux, unofficial port|0"
+    "telegram|desktop|Telegram::fast, synced chats with huge file sharing|0"
     "vscode|dev|VS Code::the editor that does it all|1"
     "trae|dev|Trae IDE::AI-native coding by ByteDance|1"
     "android|dev|Android Emulator::Google's emulator, latest Android + Play Store|0"
