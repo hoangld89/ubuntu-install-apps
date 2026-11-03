@@ -33,6 +33,7 @@ APPS=(
     "terraform|devops|Terraform::infrastructure as code, done right|1"
     "azcli|devops|Azure CLI::command the Azure cloud from your shell|1"
     "azcopy|devops|AzCopy::blazing-fast Azure Storage transfers|1"
+    "storageexplorer|devops|Storage Explorer::Azure blobs, files, queues & tables in a GUI|1"
     "docker|devops|Docker::container engine + Compose plugin|1"
     "kubectl|devops|kubectl::drive any Kubernetes cluster from the shell|1"
     "lazydocker|devops|lazydocker::containers, logs & images in a terminal UI|1"

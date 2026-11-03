@@ -131,6 +131,7 @@ WAYLAND_IME_LAUNCHERS=(
     /usr/share/applications/code.desktop
     /usr/share/applications/trae.desktop
     /usr/share/applications/postman.desktop
+    /usr/share/applications/storage-explorer.desktop
 )
 WAYLAND_IME_HOOK=/usr/local/sbin/wayland-ime-launchers
 WAYLAND_IME_APT_CONF=/etc/apt/apt.conf.d/99wayland-ime-launchers
