@@ -121,9 +121,9 @@ gsettings_list_remove() {
     gsettings set "$1" "$2" "$list"
 }
 
-download_verified() {  # $1 URL, $2 expected sha256, $3 destination file
+download_verified() {  # $1 URL, $2 expected sha256, $3 destination file, $4 max seconds (default 300)
     [[ -n "$2" ]] || { fail "Could not fetch the checksum for $1"; return 1; }
-    if ! curl -fsSL --retry 3 --connect-timeout 15 --max-time 300 -o "$3" "$1"; then
+    if ! curl -fsSL --retry 3 --connect-timeout 15 --max-time "${4:-300}" -o "$3" "$1"; then
         fail "Could not download $1"
         return 1
     fi

@@ -38,7 +38,7 @@ RUN_WARNED=()
 RUN_WARNED_WHY=()
 STEP_WARNINGS=()
 RUNTIME_KEYS=(nvm bun pnpm yarn uv go dotnet abp azcli claude android)
-ELECTRON_KEYS=(chrome edge teams vscode trae postman)
+ELECTRON_KEYS=(chrome edge teams vscode trae postman storageexplorer)
 STEP_RC=0
 CURRENT_STEP=""
 

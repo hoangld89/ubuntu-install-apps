@@ -60,6 +60,7 @@ undo_dotnet() {
         success "Removed $DOTNET_PPA"
     fi
     rm -rf /usr/share/dotnet
+    [[ -d /opt/StorageExplorer ]] && warn "Azure Storage Explorer needs the .NET 10 runtime — re-run its install or uninstall it too"
     if [[ -L /usr/bin/dotnet && ! -e /usr/bin/dotnet ]]; then
         rm -f /usr/bin/dotnet
     fi

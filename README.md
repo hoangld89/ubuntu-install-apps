@@ -23,8 +23,8 @@
 
 ## Features
 
-- **53 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
-- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, Go, ABP CLI, AzCopy, kubectl, k3d, lazygit, lazydocker, sqlcmd, yq, Oh My Zsh, Trae, Zalo, LocalSend and the Android SDK to their latest release, and move old installs onto the current upstream method.
+- **54 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
+- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, Go, ABP CLI, AzCopy, Storage Explorer, kubectl, k3d, lazygit, lazydocker, sqlcmd, yq, Oh My Zsh, Trae, Zalo, LocalSend and the Android SDK to their latest release, and move old installs onto the current upstream method.
 - **Reversible** — every app has an uninstall that removes its packages, repos, keys and shell config.
 - **Isolated steps** — a failing app ends only its own step; the rest of the run continues.
 - **Vietnam-ready** — fast local APT mirrors, Fcitx5 Vietnamese input, fonts with full diacritics.
@@ -119,6 +119,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Terraform | HashiCorp apt repo |
 | Azure CLI | Microsoft apt repo |
 | AzCopy | v10 tarball → `/usr/local/bin/azcopy` |
+| Storage Explorer | Tarball from `microsoft/AzureStorageExplorer` releases, sha256-checked → `/opt/StorageExplorer` + `dotnet-runtime-10.0` from the Ubuntu archive; updated on a new release |
 | Docker | Docker apt repo (CE, Compose, buildx); removes conflicting distro packages, adds you to `docker` |
 | kubectl | Stable binary from `dl.k8s.io`, sha256-checked → `/usr/local/bin/kubectl`; updated when a new stable release appears |
 | lazydocker | Binary from `jesseduffield/lazydocker` releases, sha256-checked → `/usr/local/bin/lazydocker`; updated on a new release |
@@ -168,7 +169,7 @@ Coming from Windows? [PHAN-MEM-TUONG-THICH.md](PHAN-MEM-TUONG-THICH.md) (Vietnam
 - **Steps:** one line per app with a spinner, then `✓` / `!` (warnings listed under it) / `✗` with the failing command and the step's last 15 log lines.
 - **Log:** full output in `/var/log/install-app/<YYYYmmdd-HHMMSS>.log`; `tail -f` it to watch a step.
 - **Shell integration:** runtime PATH/env (nvm, Bun, pnpm, uv, Go, .NET, Azure completion, Claude Code, Android SDK) is one `# --- Tool integrations ---` block in `.bashrc`, and in `.zshrc` when zsh is installed.
-- **Wayland IME:** Chromium/Electron launchers (Chrome, Edge, VS Code, Teams, Trae, Postman) get flags so fcitx5 can type into them; an apt hook re-applies them after upgrades.
+- **Wayland IME:** Chromium/Electron launchers (Chrome, Edge, VS Code, Teams, Trae, Postman, Storage Explorer) get flags so fcitx5 can type into them; an apt hook re-applies them after upgrades.
 - **Ctrl-C** prints a partial summary. apt waits up to 10 minutes for a busy dpkg lock.
 - **Reboot/re-login** is suggested only when needed (docker group, login shell, `/etc/environment`, `/var/run/reboot-required`), with the reasons.
 
@@ -187,7 +188,7 @@ Coming from Windows? [PHAN-MEM-TUONG-THICH.md](PHAN-MEM-TUONG-THICH.md) (Vietnam
 
 In uninstall mode every app starts unselected and `i` asks for confirmation. Each app's uninstall purges its packages, apt repo and key, downloaded binaries and the rc blocks it added; the mirror is restored from its backups.
 
-Kept on purpose: `git`, `curl`, Docker data (`/var/lib/docker`, `/var/lib/containerd`, `/etc/docker`), `unixodbc-dev`, `unzip`, `~/.claude`, `~/.kube`, `~/go` when it holds `go install` binaries or sources, `~/.android` apart from the `medium_phone` AVD, Zalo messages and settings (`~/.config/ZaloData`), an `~/Android/Sdk` that existed before the toolkit, and a completed system upgrade.
+Kept on purpose: `git`, `curl`, Docker data (`/var/lib/docker`, `/var/lib/containerd`, `/etc/docker`), `unixodbc-dev`, `unzip`, the .NET 10 runtime Storage Explorer installs (unless .NET SDK is uninstalled too), `~/.claude`, `~/.kube`, `~/go` when it holds `go install` binaries or sources, `~/.android` apart from the `medium_phone` AVD, Zalo messages and settings (`~/.config/ZaloData`), an `~/Android/Sdk` that existed before the toolkit, and a completed system upgrade.
 
 ## Troubleshooting
 
