@@ -23,8 +23,8 @@
 
 ## Features
 
-- **54 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
-- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, Go, ABP CLI, AzCopy, Storage Explorer, kubectl, k3d, lazygit, lazydocker, sqlcmd, yq, Oh My Zsh, Trae, Zalo, LocalSend and the Android SDK to their latest release, and move old installs onto the current upstream method.
+- **55 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
+- **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, Go, ABP CLI, AzCopy, Storage Explorer, kubectl, k3d, lazygit, lazydocker, sqlcmd, yq, Oh My Zsh, Trae, Zalo, Telegram, LocalSend and the Android SDK to their latest release, and move old installs onto the current upstream method.
 - **Reversible** — every app has an uninstall that removes its packages, repos, keys and shell config.
 - **Isolated steps** — a failing app ends only its own step; the rest of the run continues.
 - **Vietnam-ready** — fast local APT mirrors, Fcitx5 Vietnamese input, fonts with full diacritics.
@@ -149,6 +149,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Edge | Microsoft apt repo |
 | Teams for Linux | `repo.teamsforlinux.de` (unofficial Electron client) |
 | Zalo | Off by default. `VN-Linux-Family/zalo-for-linux` Original AppImage in `/opt/zalo`, `zalo` command; adds `python3`, `libopus0` and `pulseaudio-utils` for its native calls and an AppArmor profile for the Chromium sandbox; re-runs update to the latest release and remove the i386 Wine libraries older releases needed |
+| Telegram | Off by default. Official tarball (x86_64) → `/opt/telegram`, `telegram` command; skipped when apt's `telegram-desktop` is installed; its self-updater is turned off via `externalupdater.d` and re-runs update to the latest release |
 | Fcitx5 | Unikey (archive) or Lotus / Ngó Sen (third-party repos; Ngó Sen also enables its GNOME 50.0–50.3 typing fix); sets IM env vars, autostart, profile |
 | Flameshot | apt; on first install binds Print to `flameshot gui` (GNOME's screenshot UI leaves Print) and pre-grants screen capture in the portal; uninstall restores both |
 | KeePassXC | Ubuntu archive (`keepassxc-full`) |
@@ -188,7 +189,7 @@ Coming from Windows? [PHAN-MEM-TUONG-THICH.md](PHAN-MEM-TUONG-THICH.md) (Vietnam
 
 In uninstall mode every app starts unselected and `i` asks for confirmation. Each app's uninstall purges its packages, apt repo and key, downloaded binaries and the rc blocks it added; the mirror is restored from its backups.
 
-Kept on purpose: `git`, `curl`, Docker data (`/var/lib/docker`, `/var/lib/containerd`, `/etc/docker`), `unixodbc-dev`, `unzip`, the .NET 10 runtime Storage Explorer installs (unless .NET SDK is uninstalled too), `~/.claude`, `~/.kube`, `~/go` when it holds `go install` binaries or sources, `~/.android` apart from the `medium_phone` AVD, Zalo messages and settings (`~/.config/ZaloData`), an `~/Android/Sdk` that existed before the toolkit, and a completed system upgrade.
+Kept on purpose: `git`, `curl`, Docker data (`/var/lib/docker`, `/var/lib/containerd`, `/etc/docker`), `unixodbc-dev`, `unzip`, the .NET 10 runtime Storage Explorer installs (unless .NET SDK is uninstalled too), `~/.claude`, `~/.kube`, `~/go` when it holds `go install` binaries or sources, `~/.android` apart from the `medium_phone` AVD, Zalo messages and settings (`~/.config/ZaloData`), Telegram sessions and settings (`~/.local/share/TelegramDesktop`), an `~/Android/Sdk` that existed before the toolkit, and a completed system upgrade.
 
 ## Troubleshooting
 
