@@ -23,7 +23,7 @@ Usage:
   ./install-app.sh --uninstall --all   Uninstall every app
   ./install-app.sh --ascii      Force ASCII-only glyphs (fonts missing symbols)
   ./install-app.sh --keep-shell Keep the current login shell (default: switch to zsh with Terminal Kit)
-  ./install-app.sh --force-os   Run on a release other than Ubuntu 26.04 (unsupported)
+  ./install-app.sh --force-os   Run on a release other than Ubuntu 26.04/24.04 (unsupported)
   ./install-app.sh -h | --help  Show this help
 
 Tip: if the menu shows boxes/tofu instead of icons, your terminal font
@@ -171,13 +171,17 @@ check_supported_os() {
     os_ver=$(. /etc/os-release && echo "${VERSION_ID:-}")
     codename=$(get_ubuntu_codename)
     # Derivatives (Mint, Pop!_OS, Zorin) report their base in UBUNTU_CODENAME.
-    [[ "$codename" == resolute || ( "$os_id" == ubuntu && "$os_ver" == 26.04 ) ]] && return 0
+    [[ "$codename" == resolute ]] && return 0
+    if [[ "$codename" == noble ]]; then
+        (( EUID )) || warn "Ubuntu 24.04 (noble) support is best-effort — the toolkit is tested on 26.04."
+        return 0
+    fi
     if (( FORCE_OS )); then
         (( EUID )) || warn "Unsupported release '${os_id:-unknown} ${os_ver:-?}' (${codename:-no codename}) — continuing because of --force-os; installs may fail."
         return 0
     fi
-    fail "This toolkit supports only Ubuntu 26.04 (resolute) and its derivatives — detected '${os_id:-unknown} ${os_ver:-?}' (${codename:-no codename})."
-    fail "Apps rely on 26.04 packages and paths; rerun with --force-os to try anyway."
+    fail "This toolkit supports only Ubuntu 26.04 (resolute), 24.04 (noble) and their derivatives — detected '${os_id:-unknown} ${os_ver:-?}' (${codename:-no codename})."
+    fail "Apps rely on packages and paths those releases ship; rerun with --force-os to try anyway."
     exit 1
 }
 

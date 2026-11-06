@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-TOOLKIT_VERSION="4.0.0"
+TOOLKIT_VERSION="5.0.0"
 
 # Catppuccin Mocha; each colour carries its nearest xterm-256 index for terminals without truecolor.
 TRUECOLOR=0
@@ -172,6 +172,12 @@ pkg_up_to_date() {
     installed=$(awk '/Installed:/ { print $2; exit }' <<< "$policy")
     candidate=$(awk '/Candidate:/ { print $2; exit }' <<< "$policy")
     [[ -n "$installed" && "$installed" != "(none)" && "$installed" == "$candidate" ]]
+}
+
+apt_has_candidate() {
+    local candidate
+    candidate=$(apt-cache policy "$1" 2>/dev/null | awk '/Candidate:/ { print $2; exit }')
+    [[ -n "$candidate" && "$candidate" != "(none)" ]]
 }
 
 # grep must read all of fc-list: an early `grep -q` exit SIGPIPEs fc-list and pipefail turns a match into a failure.
