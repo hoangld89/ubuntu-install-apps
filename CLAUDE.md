@@ -76,8 +76,11 @@ is missing.
 - `main` is protected (admins included): every change, docs too, goes on a
   `feat/…` / `fix/…` / `docs/…` branch and reaches `main` through a squash-merged
   PR. No force-push or deletion of `main`.
-- Versions follow SemVer in `TOOLKIT_VERSION` (`lib/core.sh`; not `VERSION`, which `/etc/os-release` defines): MAJOR for removed apps,
-  flags or behaviour users rely on; MINOR for new apps or options; PATCH for fixes.
+- Versions follow SemVer in `TOOLKIT_VERSION` (`lib/core.sh`; not `VERSION`, which `/etc/os-release` defines).
+  Nobody pins a version, so MAJOR is only for a command that used to work and now fails or does something else:
+  - MAJOR: a CLI flag removed or changed, a run that used to proceed now blocked, a default that changes the system differently.
+  - MINOR: apps added, removed or replaced; new options; another supported release.
+  - PATCH: fixes, or a different install source for an existing app.
 - Release: bump `TOOLKIT_VERSION` in the PR; on merge `.github/workflows/release.yml`
   tags `main` as `vX.Y.Z` and creates the release with generated notes.
 - After `gh pr create`, run `gh pr merge --auto --squash`: the required `lint` check (`ci.yml`)
