@@ -1,8 +1,8 @@
 # CLAUDE.md
 
 Bash post-install toolkit for Ubuntu 26.04 (resolute): a TUI menu picks which of
-55 apps to install or uninstall, then runs each one as a step. Other releases exit
-at startup unless run with `--force-os`.
+54 apps to install or uninstall, then runs each one as a step. 24.04 (noble) runs
+best-effort; other releases exit at startup unless run with `--force-os`.
 
 ## Layout
 
@@ -56,7 +56,8 @@ is missing.
 - **Electron/Chromium apps:** add the `.desktop` path to `WAYLAND_IME_LAUNCHERS`
   and the key to `ELECTRON_KEYS`; runtimes go in `RUNTIME_KEYS`.
 - **Helpers to reuse:** `add_apt_repo`, `add_apt_source`, `ensure_microsoft_gpg`,
-  `run_remote_script`, `download_deb`, `npm_latest`, `github_latest_tag`, `install_verified_binary`, `install_release_tarball`, `pkg_installed` / `pkg_up_to_date`,
+  `run_remote_script`, `download_deb`, `apt_has_candidate` (fall back when a
+  package is missing on 24.04), `npm_latest`, `github_latest_tag`, `install_verified_binary`, `install_release_tarball`, `pkg_installed` / `pkg_up_to_date`,
   `has_font` (never `fc-list | grep -q`: SIGPIPE + pipefail turns a match into
   a miss), `apt_purge`, `get_ubuntu_codename` / `get_ubuntu_version`.
 

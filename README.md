@@ -23,7 +23,7 @@
 
 ## Features
 
-- **55 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
+- **54 apps in 5 groups** — shell, languages and IDEs, DevOps, databases, desktop apps.
 - **Idempotent** — re-runs skip what is up to date, update nvm, Node.js LTS, Bun, pnpm, Yarn, uv, Go, ABP CLI, AzCopy, Storage Explorer, kubectl, k3d, lazygit, lazydocker, sqlcmd, yq, Oh My Zsh, Trae, Zalo, Telegram, LocalSend and the Android SDK to their latest release, and move old installs onto the current upstream method.
 - **Reversible** — every app has an uninstall that removes its packages, repos, keys and shell config.
 - **Isolated steps** — a failing app ends only its own step; the rest of the run continues.
@@ -31,7 +31,7 @@
 
 ## Requirements
 
-- Ubuntu 26.04 (resolute) amd64, or a derivative built on it; other releases exit unless run with `--force-os`
+- Ubuntu 26.04 (resolute) amd64, or a derivative built on it; 24.04 (noble) works best-effort; other releases exit unless run with `--force-os`
 - `sudo` and internet access
 - A terminal at least 80 columns wide for the two-pane menu
 
@@ -55,7 +55,7 @@ Launching with `sh` re-execs under bash.
 | `./install-app.sh --uninstall` | Same menu, removes what you pick |
 | `./install-app.sh --uninstall --all` | Uninstall every app |
 | `./install-app.sh --keep-shell` | Keep your login shell (default: Terminal Kit switches to zsh) |
-| `./install-app.sh --force-os` | Run on a release other than Ubuntu 26.04 (unsupported; installs may fail) |
+| `./install-app.sh --force-os` | Run on a release other than Ubuntu 26.04/24.04 (unsupported; installs may fail) |
 | `./install-app.sh --ascii` | Plain glyphs for fonts without box-drawing symbols (or `MINT_ASCII=1`) |
 | `./install-app.sh --help` | Usage and running version |
 
@@ -86,7 +86,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Fonts | MesloLGS NF (set in gnome-terminal), Noto + Liberation for Vietnamese diacritics in browsers |
 | MS Fonts | `ttf-mscorefonts-installer` plus Calibri/ClearType faces from PowerPoint Viewer |
 | Video Acceleration | Intel GPUs only: `intel-media-va-driver-non-free` (multiverse; hardware encode for OBS) + `vainfo`. AMD gets VA-API from Mesa |
-| eza, Fastfetch, btop | Ubuntu archive; eza adds `ls`/`ll`/`la`/`lt` aliases |
+| eza, btop | Ubuntu archive; eza adds `ls`/`ll`/`la`/`lt` aliases |
 | zoxide | Ubuntu archive; hooks `z` / `zi` into `.bashrc`, and `.zshrc` when zsh is installed |
 | lazygit | Binary from `jesseduffield/lazygit` releases, sha256-checked → `/usr/local/bin/lazygit`; updated on a new release (replaces the older archive package) |
 
@@ -153,7 +153,7 @@ Terminals narrower than 80 columns get a single list with collapsible groups (`E
 | Telegram | Off by default. Official tarball (x86_64) → `/opt/telegram`, `telegram` command; skipped when apt's `telegram-desktop` is installed; its self-updater is turned off via `externalupdater.d` and re-runs update to the latest release |
 | Fcitx5 | Unikey (archive) or Lotus / Ngó Sen (third-party repos; Ngó Sen also enables its GNOME 50.0–50.3 typing fix); sets IM env vars, autostart, profile |
 | Flameshot | apt; on first install binds Print to `flameshot gui` (GNOME's screenshot UI leaves Print) and pre-grants screen capture in the portal; uninstall restores both |
-| KeePassXC | Ubuntu archive (`keepassxc-full`) |
+| KeePassXC | Ubuntu archive (`keepassxc-full`; `keepassxc` on 24.04) |
 | LocalSend | `.deb` from `localsend/localsend` releases; updated on a new release |
 | Extension Manager | Ubuntu archive (`gnome-shell-extension-manager`) |
 | Postman | Tarball → `/opt/Postman` |
