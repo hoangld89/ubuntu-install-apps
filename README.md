@@ -31,7 +31,7 @@
 
 ## Requirements
 
-- Ubuntu 26.04 (resolute) amd64 — other releases get a warning and the run continues
+- Ubuntu 26.04 (resolute) amd64, or a derivative built on it; other releases exit unless run with `--force-os`
 - `sudo` and internet access
 - A terminal at least 80 columns wide for the two-pane menu
 
@@ -55,6 +55,7 @@ Launching with `sh` re-execs under bash.
 | `./install-app.sh --uninstall` | Same menu, removes what you pick |
 | `./install-app.sh --uninstall --all` | Uninstall every app |
 | `./install-app.sh --keep-shell` | Keep your login shell (default: Terminal Kit switches to zsh) |
+| `./install-app.sh --force-os` | Run on a release other than Ubuntu 26.04 (unsupported; installs may fail) |
 | `./install-app.sh --ascii` | Plain glyphs for fonts without box-drawing symbols (or `MINT_ASCII=1`) |
 | `./install-app.sh --help` | Usage and running version |
 

@@ -4,6 +4,7 @@
 MODE="install"
 ALL=0
 ZSH_LOGIN_SHELL=1           # Terminal Kit makes zsh the login shell; --keep-shell sets 0
+FORCE_OS=0
 ACTION_LABEL="Install"      # footer hint label
 ACTION_GERUND="Installing"  # progress box verb
 ACTION_PAST="installed"     # summary stat verb
@@ -22,6 +23,7 @@ Usage:
   ./install-app.sh --uninstall --all   Uninstall every app
   ./install-app.sh --ascii      Force ASCII-only glyphs (fonts missing symbols)
   ./install-app.sh --keep-shell Keep the current login shell (default: switch to zsh with Terminal Kit)
+  ./install-app.sh --force-os   Run on a release other than Ubuntu 26.04 (unsupported)
   ./install-app.sh -h | --help  Show this help
 
 Tip: if the menu shows boxes/tofu instead of icons, your terminal font
@@ -163,6 +165,22 @@ finalize_run() {
     fi
 }
 
+check_supported_os() {
+    local os_id os_ver codename
+    os_id=$(. /etc/os-release && echo "${ID:-}")
+    os_ver=$(. /etc/os-release && echo "${VERSION_ID:-}")
+    codename=$(get_ubuntu_codename)
+    # Derivatives (Mint, Pop!_OS, Zorin) report their base in UBUNTU_CODENAME.
+    [[ "$codename" == resolute || ( "$os_id" == ubuntu && "$os_ver" == 26.04 ) ]] && return 0
+    if (( FORCE_OS )); then
+        (( EUID )) || warn "Unsupported release '${os_id:-unknown} ${os_ver:-?}' (${codename:-no codename}) — continuing because of --force-os; installs may fail."
+        return 0
+    fi
+    fail "This toolkit supports only Ubuntu 26.04 (resolute) and its derivatives — detected '${os_id:-unknown} ${os_ver:-?}' (${codename:-no codename})."
+    fail "Apps rely on 26.04 packages and paths; rerun with --force-os to try anyway."
+    exit 1
+}
+
 main() {
     local arg
     for arg in "$@"; do
@@ -171,6 +189,7 @@ main() {
             --uninstall) MODE="uninstall" ;;
             --ascii)     UI_ASCII=1 ;;
             --keep-shell) ZSH_LOGIN_SHELL=0 ;;
+            --force-os)  FORCE_OS=1 ;;
             -h|--help)   usage; exit 0 ;;
             *)           warn "Unknown option: $arg"; usage; exit 1 ;;
         esac
@@ -179,20 +198,13 @@ main() {
     # Pick the glyph set (Unicode vs ASCII) before anything is drawn.
     setup_glyphs
     validate_registry
+    check_supported_os
 
     need_root "$@"
 
     if [[ "$REAL_USER" == root || -z "$REAL_HOME" ]]; then
         fail "Target user resolved to '${REAL_USER}' — run this as your normal user; it re-execs itself with sudo."
         exit 1
-    fi
-
-    local os_id os_ver codename
-    os_id=$(. /etc/os-release && echo "${ID:-}")
-    os_ver=$(. /etc/os-release && echo "${VERSION_ID:-}")
-    codename=$(get_ubuntu_codename)
-    if [[ "$codename" != resolute && ( "$os_id" != "ubuntu" || "$os_ver" != "26.04" ) ]]; then
-        warn "This toolkit targets Ubuntu 26.04 — detected '${os_id:-unknown} ${os_ver:-?}'. It may still work, but nothing is guaranteed."
     fi
 
     if [[ "$MODE" == "uninstall" ]]; then
